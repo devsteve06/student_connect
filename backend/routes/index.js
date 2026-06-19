@@ -11,9 +11,11 @@ import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
 const router = Router();
 
 router.use('/auth', authRoutes);
-router.use('/student', studentRoutes);
-router.use('/firm', firmRoutes);
-router.use('/university', universityRoutes);
+
+// Each portal is locked behind a valid JWT carrying the matching role.
+router.use('/student', protect, authorizeRoles('student'), studentRoutes);
+router.use('/firm', protect, authorizeRoles('firm'), firmRoutes);
+router.use('/university', protect, authorizeRoles('university'), universityRoutes);
 
 // Admin surface — absolute access, locked behind a valid JWT with the admin role.
 router.use('/admin', protect, authorizeRoles('admin'), adminRoutes);
