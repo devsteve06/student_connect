@@ -3,3 +3,6 @@
 .env
 .env.local
 .env.*.local
+
+# Local-only engineering documentation (not tracked).
+system documentation/
