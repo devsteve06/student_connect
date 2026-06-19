@@ -8,7 +8,7 @@ const generateToken = (id, role) =>
 
 // POST /auth/register — create a student, firm, or university account
 export const registerUser = async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role } = req.body || {};
 
   if (!name || !email || !password || !role) {
     return res.status(400).json({ message: 'name, email, password and role are required.' });
@@ -38,7 +38,11 @@ export const registerUser = async (req, res, next) => {
 
 // POST /auth/login — authenticate against any role table and issue a JWT
 export const loginUser = async (req, res, next) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
+
+  if (!email || !password) {
+    return res.status(400).json({ message: 'email and password are required.' });
+  }
 
   try {
     const account = await findAccountByEmail(email);

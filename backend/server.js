@@ -8,8 +8,11 @@ import { initDb } from './data/db.js';
 
 dotenv.config();
 
-
-process.env.JWT_SECRET = process.env.JWT_SECRET || process.env.JSON_SECRET_KEY || 'dev-only-insecure-secret';
+// Fail fast if the JWT signing secret is missing — never fall back to a literal.
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET is not set. Refusing to start without a signing secret.');
+  process.exit(1);
+}
 
 const app = express();
 
@@ -27,7 +30,6 @@ app.use((req, _res, next) => {
 app.get('/', (_req, res) => res.send('Industrial Attachment API Engine Operational.'));
 
 app.use('/api/v1', apiRouter);
-app.use('/', apiRouter);
 
 // 404 + central error handling (must be last).
 app.use(notFound);
