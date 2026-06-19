@@ -1,15 +1,16 @@
-
-import StudentDashboard from './features/student/views/StudentDashboard'
 import './index.css'
+
+import AppRoute from '../src/route/AppRoute.jsx'
 
 function App() {
 
 
   return (
     <>
-     <StudentDashboard />;
+   <AppRoute/>
     </>
   )
 }
 
 export default App
+ 

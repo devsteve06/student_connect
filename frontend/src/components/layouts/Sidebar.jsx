@@ -1,55 +1,66 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { navigationLinks } from './navigationConfig';
+import { LogOut } from 'lucide-react';
 
-export default function Sidebar({ role = 'student', currentPath = '' }) {
+export default function Sidebar({ role = 'student' }) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const links = navigationLinks[role] || [];
 
-  // Map role profiles to active indicator accent classes from tailwind.config
-  const activeColorThemes = {
-    student: 'bg-student-light text-student-primary border-student-primary',
-    firm: 'bg-firm-light text-firm-primary border-firm-primary',
-    university: 'bg-university-light text-university-primary border-university-primary',
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate(`/login/${role}`);
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-portal-border min-h-screen hidden md:flex flex-col sticky top-0">
-      {/* Branding Header Area */}
-      <div className="h-16 flex items-center px-6 border-b border-portal-border bg-portal-bg/50">
-        <span className="text-xl font-bold text-portal-text tracking-tight">
-          Plug<span className="text-blue-600">.</span>Portal
-        </span>
-        <span className="ml-2 px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase bg-gray-100 rounded text-portal-muted">
-          {role}
-        </span>
+    <aside className="fixed inset-y-0 left-0 w-64 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col justify-between z-30">
+      <div>
+        {/* Platform Branding Context */}
+        <div className="h-16 px-6 flex items-center border-b border-slate-800 bg-slate-950/40">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 rounded-md bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
+              S
+            </div>
+            <div>
+              <span className="text-xs font-bold tracking-tight text-white block">Attachment Hub</span>
+              <span className="text-[10px] text-slate-500 font-medium block uppercase tracking-wider -mt-0.5">{role} mode</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Link Tracking Iteration List */}
+        <nav className="p-4 space-y-1">
+          {links.map((item) => {
+            const isActive = location.pathname === item.href;
+            const Icon = item.icon;
+
+            return (
+              <button
+                key={item.href}
+                onClick={() => navigate(item.href)}
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-lg tracking-wide transition-all ${
+                  isActive
+                    ? 'bg-slate-800 text-white font-bold shadow-sm border-l-2 border-indigo-500 rounded-l-none pl-3'
+                    : 'hover:bg-slate-800/50 hover:text-slate-200 text-slate-400'
+                }`}
+              >
+                {Icon && <Icon className="w-4 h-4 shrink-0 opacity-80" />}
+                <span>{item.name}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
-      {/* Dynamic Nav link Items list */}
-      <nav className="flex-1 px-4 py-6 flex flex-col gap-1">
-        {links.map((link) => {
-          const isActive = currentPath === link.href;
-          return (
-            <a
-              key={link.name}
-              href={link.href}
-              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all border-l-4 border-transparent
-                ${isActive 
-                  ? activeColorThemes[role]
-                  : 'text-portal-muted hover:bg-gray-50 hover:text-portal-text'
-                }`}
-            >
-              {/* Fallback geometric block placeholder for simple icon packs */}
-              <div className={`h-4 w-4 rounded-sm flex-shrink-0 ${isActive ? 'bg-current' : 'bg-gray-300'}`} />
-              {link.name}
-            </a>
-          );
-        })}
-      </nav>
-
-      {/* User Session Action Footer footer area */}
-      <div className="p-4 border-t border-portal-border bg-gray-50/50">
-        <button className="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-          <div className="h-4 w-4 rounded-sm bg-red-400 flex-shrink-0" />
-          Sign Out
+      {/* Operational Footer Logout Target */}
+      <div className="p-4 border-t border-slate-800 bg-slate-950/20">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold text-slate-400 hover:bg-red-950/30 hover:text-red-400 rounded-lg transition-colors"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          <span>Terminate Session</span>
         </button>
       </div>
     </aside>

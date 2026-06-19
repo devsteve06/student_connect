@@ -1,0 +1,5 @@
+# Environment files — contain secrets (DB credentials, JWT secret). Never commit.
+# Use the committed .env.example files as templates instead.
+.env
+.env.local
+.env.*.local

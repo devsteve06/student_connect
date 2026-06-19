@@ -1,34 +1,25 @@
-// src/components/layout/navigationConfig.js
 import { 
-  Home, 
-  Search, 
-  Briefcase, 
-  BookOpen, 
-  PlusCircle, 
-  Users, 
-  Award, 
-  GraduationCap, 
-  ShieldCheck, 
-  BarChart3 
+  LayoutDashboard,
+  BookOpen,
+  Briefcase,
+  Building2,
+  Users,
+  GraduationCap,
+  ShieldCheck
 } from 'lucide-react';
 
 export const navigationLinks = {
   student: [
-    { name: 'Overview', href: '/student/dashboard', icon: Home },
-    { name: 'Find Placements', href: '/student/placements', icon: Search },
-    { name: 'My Applications', href: '/student/applications', icon: Briefcase },
-    { name: 'Weekly Logbook', href: '/student/logbook', icon: BookOpen },
+    { name: 'Overview Console', href: '/student', icon: LayoutDashboard },
+    { name: 'Daily Logbook', href: '/student/logbook', icon: BookOpen },
+    { name: 'Industry Placements', href: '/student/placements', icon: Briefcase },
   ],
   firm: [
-    { name: 'Overview', href: '/firm/dashboard', icon: Home },
-    { name: 'Manage Vacancies', href: '/firm/vacancies', icon: PlusCircle },
-    { name: 'Track Applicants', href: '/firm/applicants', icon: Users },
-    { name: 'Assessments', href: '/firm/assessments', icon: Award },
+    { name: 'Partner Dashboard', href: '/firm', icon: Building2 },
+    { name: 'Applicant Roster', href: '/firm/applicants', icon: Users },
   ],
   university: [
-    { name: 'Admin Overview', href: '/university/dashboard', icon: Home },
-    { name: 'Student Roster', href: '/university/students', icon: GraduationCap },
-    { name: 'Vet Firms', href: '/university/firms', icon: ShieldCheck },
-    { name: 'Placements Analytics', href: '/university/analytics', icon: BarChart3 },
+    { name: 'Operations Registry', href: '/university', icon: GraduationCap },
+    { name: 'Compliance Audits', href: '/university/audits', icon: ShieldCheck },
   ]
 };
