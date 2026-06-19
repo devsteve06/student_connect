@@ -2,11 +2,11 @@
 import { query } from '../data/db.js';
 import { formatDate, todayISO } from '../utils/format.js';
 
-// GET /student/metrics — high-level dashboard counters
+// GET /student/metrics — high-level dashboard counters for the logged-in student
 export const getMetrics = async (req, res, next) => {
   try {
-    const apps = (await query('SELECT status FROM applications')).rows;
-    const profile = (await query('SELECT profile_completion FROM students ORDER BY id LIMIT 1')).rows[0];
+    const apps = (await query('SELECT status FROM applications WHERE student_id = $1', [req.user.id])).rows;
+    const profile = (await query('SELECT profile_completion FROM students WHERE id = $1', [req.user.id])).rows[0];
 
     res.json({
       profileCompletion: profile?.profile_completion ?? '50%',
@@ -19,14 +19,16 @@ export const getMetrics = async (req, res, next) => {
   }
 };
 
-// GET /student/applications — the student's submitted applications
+// GET /student/applications — the logged-in student's submitted applications
 export const getApplications = async (req, res, next) => {
   try {
     const rows = (await query(
       `SELECT a.id, f.company_name AS company, a.role, a.applied_date, a.status
          FROM applications a
          JOIN firms f ON f.id = a.firm_id
-        ORDER BY a.applied_date DESC, a.id`
+        WHERE a.student_id = $1
+        ORDER BY a.applied_date DESC, a.id`,
+      [req.user.id]
     )).rows;
 
     res.json(rows.map((r) => ({
@@ -55,8 +57,6 @@ export const applyForPlacement = async (req, res, next) => {
       return res.status(404).json({ message: `Firm "${companyName}" not found.` });
     }
 
-    // Frontend does not yet send an authenticated student id — default to the demo student.
-    const student = (await query('SELECT id FROM students ORDER BY id LIMIT 1')).rows[0];
     const placement = (await query(
       'SELECT id FROM placements WHERE firm_id = $1 AND role = $2',
       [firm.id, role]
@@ -66,7 +66,7 @@ export const applyForPlacement = async (req, res, next) => {
       `INSERT INTO applications (student_id, placement_id, firm_id, role, applied_date, status)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, role, applied_date, status`,
-      [student.id, placement?.id ?? null, firm.id, role, appliedDate || todayISO(), status || 'Pending Review']
+      [req.user.id, placement?.id ?? null, firm.id, role, appliedDate || todayISO(), status || 'Pending Review']
     )).rows[0];
 
     res.status(201).json({
