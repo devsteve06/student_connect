@@ -1,8 +1,8 @@
 -- =============================================================================
 -- Student Connect — Relational Schema (PostgreSQL)
 -- =============================================================================
--- Mirrors the backend's in-memory data model (backend/data/store.js):
---   universities, firms, students  +  placements, applications, logbooks
+-- Backing store for the backend data layer (backend/data/db.js + accounts.js):
+--   admins, universities, firms, students  +  placements, applications, logbooks
 --
 -- Dialect: PostgreSQL. For MySQL, replace `SERIAL` with `INT AUTO_INCREMENT`,
 -- `TIMESTAMPTZ` with `DATETIME`, and drop the `IF NOT EXISTS` on types.

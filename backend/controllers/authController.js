@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { findAccountByEmail, createAccount } from '../data/accounts.js';
 
 const generateToken = (id, role) =>
-  jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: '30d' });
+  jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
 
 // POST /auth/register — create a student, firm, or university account
 export const registerUser = async (req, res, next) => {

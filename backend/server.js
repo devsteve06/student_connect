@@ -16,8 +16,25 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 
+// Restrict CORS to an explicit allowlist when CORS_ORIGIN is set (comma-separated
+// origins). If unset, fall back to permissive CORS for local development.
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-app.use(cors());
+app.use(
+  cors(
+    allowedOrigins.length > 0
+      ? {
+          origin: (origin, cb) =>
+            !origin || allowedOrigins.includes(origin)
+              ? cb(null, true)
+              : cb(new Error(`Origin ${origin} not allowed by CORS policy.`))
+        }
+      : undefined
+  )
+);
 app.use(express.json());
 
 // Request logger (lightweight, no extra dependency).
