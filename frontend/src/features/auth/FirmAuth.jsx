@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
+import { authService } from '../../service/authService';
 
 export default function FirmAuth() {
   const [isRegistering, setIsRegistering] = useState(false);
   const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     companyName: '',
@@ -19,9 +22,32 @@ export default function FirmAuth() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/firm');
+    setError('');
+    setLoading(true);
+    try {
+      if (isRegistering) {
+        await authService.register({
+          name: formData.companyName,
+          companyName: formData.companyName,
+          email: formData.email,
+          password: formData.password,
+          role: 'firm'
+        });
+      } else {
+        await authService.login(formData.email, formData.password, 'firm');
+      }
+      navigate('/firm');
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Authentication failed. Please verify your details and try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,6 +99,12 @@ export default function FirmAuth() {
               </button>
             </p>
           </div>
+
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {isRegistering && (
@@ -156,8 +188,10 @@ export default function FirmAuth() {
             </div>
 
             <div className="pt-4">
-              <Button type="submit" className="w-full h-12">
-                {isRegistering ? 'Submit Partnership Request' : 'Authorize Workspace'}
+              <Button type="submit" disabled={loading} className="w-full h-12">
+                {loading
+                  ? 'Please wait…'
+                  : isRegistering ? 'Submit Partnership Request' : 'Authorize Workspace'}
               </Button>
             </div>
           </form>

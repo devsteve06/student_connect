@@ -1,6 +1,9 @@
 // controllers/universityController.js
 import { query } from '../data/db.js';
 
+// Allowed faculty sign-off states (mirrors the logbooks.faculty_sign_off CHECK constraint).
+const FACULTY_SIGN_OFFS = ['Not Started', 'Pending Review', 'Approved'];
+
 const logbookShape = (r) => ({
   id: r.id,
   studentName: r.student_name,
@@ -18,15 +21,28 @@ const PENDING_SELECT = `
     JOIN students s ON s.id = l.student_id
     LEFT JOIN firms f ON f.id = l.firm_id`;
 
-// GET /university/metrics — institutional placement analytics
+// GET /university/metrics — institutional placement analytics, scoped to the
+// logged-in university's enrolled students
 export const getCoordinatorMetrics = async (req, res, next) => {
   try {
-    const totalEnrolled = (await query('SELECT COUNT(*)::int AS n FROM students')).rows[0].n;
+    const universityId = req.user.id;
+    const totalEnrolled = (await query(
+      'SELECT COUNT(*)::int AS n FROM students WHERE university_id = $1',
+      [universityId]
+    )).rows[0].n;
     const placed = (await query(
-      "SELECT COUNT(DISTINCT student_id)::int AS n FROM applications WHERE status IN ('Approved','Hired')"
+      `SELECT COUNT(DISTINCT a.student_id)::int AS n
+         FROM applications a
+         JOIN students s ON s.id = a.student_id
+        WHERE s.university_id = $1 AND a.status IN ('Approved','Hired')`,
+      [universityId]
     )).rows[0].n;
     const actionRequired = (await query(
-      "SELECT COUNT(*)::int AS n FROM logbooks WHERE faculty_sign_off <> 'Approved'"
+      `SELECT COUNT(*)::int AS n
+         FROM logbooks l
+         JOIN students s ON s.id = l.student_id
+        WHERE s.university_id = $1 AND l.faculty_sign_off <> 'Approved'`,
+      [universityId]
     )).rows[0].n;
 
     res.json({
@@ -40,11 +56,12 @@ export const getCoordinatorMetrics = async (req, res, next) => {
   }
 };
 
-// GET /university/logbooks/pending — logbooks awaiting faculty sign-off
+// GET /university/logbooks/pending — this university's logbooks awaiting faculty sign-off
 export const getPendingLogbooks = async (req, res, next) => {
   try {
     const rows = (await query(
-      `${PENDING_SELECT} WHERE l.faculty_sign_off <> 'Approved' ORDER BY l.id`
+      `${PENDING_SELECT} WHERE s.university_id = $1 AND l.faculty_sign_off <> 'Approved' ORDER BY l.id`,
+      [req.user.id]
     )).rows;
     res.json(rows.map(logbookShape));
   } catch (error) {
@@ -55,27 +72,33 @@ export const getPendingLogbooks = async (req, res, next) => {
 // PATCH /university/logbooks/:id — authorize a logbook week with faculty sign-off
 export const signOffLogbook = async (req, res, next) => {
   const id = parseInt(req.params.id, 10);
-  const { facultySignOff } = req.body;
+  const { facultySignOff } = req.body || {};
 
   if (Number.isNaN(id)) {
-    return res.status(404).json({ message: 'Logbook entry not found in the registry.' });
+    return res.status(400).json({ message: 'A numeric logbook id is required.' });
+  }
+  if (facultySignOff !== undefined && !FACULTY_SIGN_OFFS.includes(facultySignOff)) {
+    return res.status(400).json({
+      message: `Invalid facultySignOff "${facultySignOff}". Use one of: ${FACULTY_SIGN_OFFS.join(', ')}.`
+    });
   }
 
   try {
+    // Only sign off logbooks belonging to this university's own students.
+    const owned = (await query(
+      `SELECT l.id FROM logbooks l JOIN students s ON s.id = l.student_id
+        WHERE l.id = $1 AND s.university_id = $2`,
+      [id, req.user.id]
+    )).rows[0];
+    if (!owned) {
+      return res.status(404).json({ message: `Logbook entry [${id}] not found in the registry.` });
+    }
+
     if (facultySignOff) {
-      const updated = (await query(
-        'UPDATE logbooks SET faculty_sign_off = $1 WHERE id = $2 RETURNING id',
-        [facultySignOff, id]
-      )).rows[0];
-      if (!updated) {
-        return res.status(404).json({ message: `Logbook entry [${id}] not found in the registry.` });
-      }
+      await query('UPDATE logbooks SET faculty_sign_off = $1 WHERE id = $2', [facultySignOff, id]);
     }
 
     const row = (await query(`${PENDING_SELECT} WHERE l.id = $1`, [id])).rows[0];
-    if (!row) {
-      return res.status(404).json({ message: `Logbook entry [${id}] not found in the registry.` });
-    }
     res.json(logbookShape(row));
   } catch (error) {
     next(error);

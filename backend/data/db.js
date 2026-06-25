@@ -21,9 +21,15 @@ const sqlDir = path.join(__dirname, '..', 'sql');
 let pool;
 
 export async function initDb() {
-  if (process.env.DATABASE_URL) {
+  // Treat blank/whitespace and unsubstituted templates (e.g. "${{ Postgres.DATABASE_URL }}")
+  // as "not set" so a misconfigured value falls back to pg-mem instead of crashing startup.
+  const databaseUrl = (process.env.DATABASE_URL || '').trim();
+  const hasRealDatabaseUrl = databaseUrl !== '' && !databaseUrl.includes('${');
+
+  if (hasRealDatabaseUrl) {
     const { Pool } = await import('pg');
-    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    pool = new Pool({ connectionString: databaseUrl });
+    pool.on('error', (err) => console.error(`[db] idle client error: ${err.message}`));
     await pool.query('SELECT 1');
     console.log('Connected to PostgreSQL via DATABASE_URL.');
   } else {

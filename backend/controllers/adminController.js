@@ -23,13 +23,16 @@ export const listUsers = async (req, res, next) => {
 
 // POST /admin/users — create an account of any role
 export const createUser = async (req, res, next) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, username } = req.body || {};
 
   if (!password || !role) {
     return res.status(400).json({ message: 'password and role are required.' });
   }
   if (!ROLES.includes(role)) {
     return res.status(400).json({ message: `Unsupported role: ${role}. Use one of ${ROLES.join(', ')}.` });
+  }
+  if (role === 'admin' && !username) {
+    return res.status(400).json({ message: 'username is required for an admin account.' });
   }
   if (role !== 'admin' && (!name || !email)) {
     return res.status(400).json({ message: 'name and email are required for this role.' });
@@ -38,7 +41,12 @@ export const createUser = async (req, res, next) => {
   try {
     if (email) {
       const existing = await findAccountByEmail(email);
-      if (existing) return res.status(400).json({ message: 'A profile with this email already exists.' });
+      if (existing) return res.status(409).json({ message: 'A profile with this email already exists.' });
+    }
+    // Admins log in by username; reject duplicates with a clean conflict instead of a DB 500.
+    if (role === 'admin') {
+      const existingAdmin = await findAccountByEmail(username);
+      if (existingAdmin) return res.status(409).json({ message: 'An account with this username already exists.' });
     }
     const account = await createAccount(req.body);
     res.status(201).json(account);
