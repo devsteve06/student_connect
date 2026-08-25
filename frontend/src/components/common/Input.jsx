@@ -1,5 +1,3 @@
-import React from 'react'
-
 function Input({
     label,
     error,
@@ -9,7 +7,7 @@ function Input({
     ... props
 }) {
 
-    const inputId = id || `label?.toLowerCase().replace(/\s+/g, '-')`
+    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined)
 
   return (
     <div className={`w-full flex flex-col gap-1.5 ${className}`}>
