@@ -1,4 +1,3 @@
-import React from 'react';
 import { Bell, User, Menu } from 'lucide-react';
 
 export default function Navbar({ role = 'student' }) {

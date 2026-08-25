@@ -5,16 +5,16 @@ export default function StudentDashboard() {
   const [selectedTerm, setSelectedTerm] = useState('May-Aug 2026');
 
   // 1. Core Mock Datasets for Student Persona Metrics
-  const placementApplications = [
+  const placementApplications = useMemo(() => [
     { id: 'app-01', firm: 'Apex Cloud Labs', role: 'Cloud Architecture Intern', status: 'Interviewing', date: 'Applied 4 days ago', match: 98 },
     { id: 'app-02', firm: 'Quantum Systems', role: 'Backend Systems Engineer', status: 'Pending Review', date: 'Applied 1 week ago', match: 94 },
     { id: 'app-03', firm: 'Neural Corp AI', role: 'AI / ML Research Intern', status: 'Offer Extended', date: 'Updated 2 hours ago', match: 91 }
-  ];
+  ], []);
 
-  const recentLogs = [
+  const recentLogs = useMemo(() => [
     { week: 2, range: 'May 18 - May 22', status: 'Pending Review', activities: 'Patched critical database edge pools and optimized standard query payloads.' },
     { week: 1, range: 'May 11 - May 15', status: 'Approved', activities: 'Completed corporate onboarding and configured local Kubernetes development pods.' }
-  ];
+  ], []);
 
   // 2. Computed Live High-Density Metrics
   const summaryMetrics = useMemo(() => {

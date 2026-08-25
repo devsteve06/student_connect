@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock } from 'lucide-react';
 import Button from '../../components/common/Button';
-import { adminService } from '../../service/adminService';
+import { useAuth } from '../../context/useAuth';
 
 export default function AdminAuth() {
   const navigate = useNavigate();
+  const { adminLogin } = useAuth();
   const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function AdminAuth() {
     setError('');
     setLoading(true);
     try {
-      await adminService.login(credentials.username.trim(), credentials.password);
+      await adminLogin(credentials.username.trim(), credentials.password);
       navigate('/admin');
     } catch (err) {
       const message =

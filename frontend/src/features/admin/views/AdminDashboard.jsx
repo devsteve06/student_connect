@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import { adminService } from '../../../service/adminService';
+import { useAuth } from '../../../context/useAuth';
 
 const ROLE_META = {
   admin: { label: 'Admin', badge: 'bg-rose-50 text-rose-700 border-rose-200', icon: ShieldCheck },
@@ -22,6 +23,7 @@ const CROSS_PORTALS = [
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { isAuthenticated, logout } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,7 +49,7 @@ export default function AdminDashboard() {
       setUsers(data || []);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
-        adminService.logout();
+        logout();
         navigate('/login/admin');
         return;
       }
@@ -55,15 +57,17 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [navigate]);
+  }, [navigate, logout]);
 
   useEffect(() => {
-    if (!adminService.isAuthenticated()) {
+    if (!isAuthenticated) {
       navigate('/login/admin');
       return;
     }
-    loadUsers();
-  }, [loadUsers, navigate]);
+    // Defer past commit so the loader's setState can't cascade renders.
+    const timer = setTimeout(loadUsers, 0);
+    return () => clearTimeout(timer);
+  }, [loadUsers, navigate, isAuthenticated]);
 
   const counts = useMemo(() => {
     const base = { admin: 0, student: 0, firm: 0, university: 0 };

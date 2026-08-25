@@ -1,19 +1,9 @@
 // src/service/authService.js
 // Real authentication for the student, firm, and university portals.
-// Mirrors adminService: hits the shared /auth endpoints, verifies the role,
-// and stores the JWT under the same 'token' key apiClient reads from.
+// Hits the shared /auth endpoints, verifies the role, and persists the
+// session through sessionStore so all portals share one storage layout.
 import apiClient from './apiClient';
-
-const TOKEN_KEY = 'token';
-const PROFILE_KEY = 'profile';
-
-const persist = (data) => {
-  localStorage.setItem(TOKEN_KEY, data.token);
-  localStorage.setItem(
-    PROFILE_KEY,
-    JSON.stringify({ id: data._id, name: data.name, email: data.email, role: data.role })
-  );
-};
+import sessionStore from './sessionStore';
 
 export const authService = {
   // Authenticate with email + password. When expectedRole is given, reject
@@ -26,7 +16,7 @@ export const authService = {
     if (expectedRole && data.role !== expectedRole) {
       throw new Error(`This account is not registered as a ${expectedRole}.`);
     }
-    persist(data);
+    sessionStore.save(data);
     return data;
   },
 
@@ -37,24 +27,15 @@ export const authService = {
       ...payload,
       email: payload.email?.trim().toLowerCase()
     });
-    persist(data);
+    sessionStore.save(data);
     return data;
   },
 
-  logout: () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(PROFILE_KEY);
-  },
+  logout: () => sessionStore.clear(),
 
-  isAuthenticated: () => Boolean(localStorage.getItem(TOKEN_KEY)),
+  isAuthenticated: () => sessionStore.isAuthenticated(),
 
-  getProfile: () => {
-    try {
-      return JSON.parse(localStorage.getItem(PROFILE_KEY)) || null;
-    } catch {
-      return null;
-    }
-  }
+  getProfile: () => sessionStore.getProfile()
 };
 
 export default authService;

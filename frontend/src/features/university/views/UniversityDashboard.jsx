@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import Button from '../../../components/common/Button';
 
 export default function UniversityDashboard() {
@@ -6,7 +6,7 @@ export default function UniversityDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // 1. Core Academic Tracking Dataset
-  const [students, setStudents] = useState([
+  const [students] = useState([
     { id: 'stu-801', name: 'Sarah Jenkins', major: 'Computer Science', firm: 'Apex Cloud Labs', status: 'Approved', auditScore: 98, progress: 85 },
     { id: 'stu-802', name: 'Alex Rivera', major: 'Electrical Engineering', firm: 'Quantum Systems', status: 'Pending Verification', auditScore: 92, progress: 40 },
     { id: 'stu-803', name: 'Amara Okafor', major: 'Data Science', firm: 'Neural Corp AI', status: 'Approved', auditScore: 96, progress: 100 },

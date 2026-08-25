@@ -1,36 +1,24 @@
 // src/services/adminService.js
 import apiClient from './apiClient';
-
-const TOKEN_KEY = 'token';
-const ADMIN_KEY = 'admin';
+import sessionStore from './sessionStore';
 
 export const adminService = {
   // Authenticate with the admin username (e.g. "sysadmin") + password.
-  // Stores the JWT so subsequent admin calls are authorized.
+  // Stores the JWT via sessionStore so subsequent admin calls are authorized.
   login: async (username, password) => {
     const { data } = await apiClient.post('/api/v1/auth/login', { email: username, password });
     if (data.role !== 'admin') {
       throw new Error('This account does not have administrator privileges.');
     }
-    localStorage.setItem(TOKEN_KEY, data.token);
-    localStorage.setItem(ADMIN_KEY, JSON.stringify({ id: data._id, name: data.name, email: data.email }));
+    sessionStore.save(data);
     return data;
   },
 
-  logout: () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(ADMIN_KEY);
-  },
+  logout: () => sessionStore.clear(),
 
-  isAuthenticated: () => Boolean(localStorage.getItem(TOKEN_KEY)),
+  isAuthenticated: () => sessionStore.isAuthenticated(),
 
-  getProfile: () => {
-    try {
-      return JSON.parse(localStorage.getItem(ADMIN_KEY)) || null;
-    } catch {
-      return null;
-    }
-  },
+  getProfile: () => sessionStore.getProfile(),
 
   // List every account across all role tables.
   getUsers: async () => {
