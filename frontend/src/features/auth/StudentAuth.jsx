@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
-import { authService } from '../../service/authService';
+import { useAuth } from '../../context/useAuth';
 
 export default function StudentAuth() {
   const [isRegistering, setIsRegistering] = useState(false);
   const navigate = useNavigate();
+  const { login, register } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,7 @@ export default function StudentAuth() {
     setLoading(true);
     try {
       if (isRegistering) {
-        await authService.register({
+        await register({
           name: formData.fullName,
           email: formData.email,
           password: formData.password,
@@ -37,7 +38,7 @@ export default function StudentAuth() {
           course: formData.course
         });
       } else {
-        await authService.login(formData.email, formData.password, 'student');
+        await login(formData.email, formData.password, 'student');
       }
       navigate('/student');
     } catch (err) {

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
-import { authService } from '../../service/authService';
+import { useAuth } from '../../context/useAuth';
 
 export default function FirmAuth() {
   const [isRegistering, setIsRegistering] = useState(false);
   const navigate = useNavigate();
+  const { login, register } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,7 @@ export default function FirmAuth() {
     setLoading(true);
     try {
       if (isRegistering) {
-        await authService.register({
+        await register({
           name: formData.companyName,
           companyName: formData.companyName,
           email: formData.email,
@@ -36,7 +37,7 @@ export default function FirmAuth() {
           role: 'firm'
         });
       } else {
-        await authService.login(formData.email, formData.password, 'firm');
+        await login(formData.email, formData.password, 'firm');
       }
       navigate('/firm');
     } catch (err) {
