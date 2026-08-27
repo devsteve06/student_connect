@@ -1,12 +1,21 @@
 # Student Connect - Project Progress
 
 ## Current Status
-- **Date**: 2026-08-22
-- **Phase**: Backend Remediation Complete, Frontend Issues Pending
-- **Overall Progress**: ~40%
+- **Date**: 2026-08-27
+- **Phase**: Frontend visual redesign (clean SaaS) complete
+- **Overall Progress**: ~55%
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-08-27
+- **Frontend redesign (clean modern SaaS)**: new design system (brand tokens, typography, elevation) in `index.css`; bold violet/indigo brand + `favicon.svg`; per-role theme in `src/config/roleTheme.js`.
+- Rebuilt shared components (`Button`, `Input`, `Select`, `Textarea`, `Badge`, `Card`, `Modal`, `Skeleton`, `EmptyState`, `StatusPill`, `MetricCard`).
+- Canonicalized layout: `DashboardLayout` + `Sidebar` (with responsive mobile drawer) + `Navbar` (topbar); unified nav in `navigationConfig.jsx`; deleted duplicated/orphaned `student/views/FirmDashboard.jsx`.
+- Rebuilt all auth pages on a shared `AuthShell` with password toggle + demo-account hints (de-jargoned copy).
+- Rebuilt every dashboard/feature page (student, firm, university, admin) with consistent cards, metrics, pills, skeletons, empty states; de-jargoned user-facing copy.
+- Added branded 404 page. Set `index.html` title/meta/fonts.
+- Verified: `npm run lint` + `npm run build` green. See **Data Source Status** below for mock-vs-API notes.
 
 ### 2026-08-22
 - Initialized `PROGRESS.md` as a living progress tracker; seeded log from git history.
@@ -122,12 +131,29 @@ backend/
 | firm       | `careers@nexuslabs.io`                  | `password123`|
 | university | `registrar@jkuat.ac.ke`                 | `password123`|
 
+## Data Source Status
+> Where each frontend view gets its data today, and the service method to use when wiring the real API.
+> Pages mark their swap points with `// TODO(real-api)`.
+
+| View | Current source | Swap target when wired |
+|------|----------------|------------------------|
+| `StudentDashboard` | inline mock | `studentService.getMetrics()`, `getApplications()` |
+| `StudentMarketplace` | **real API** | already wired (`getPlacements()`, `applyForPlacement()`) |
+| `StudentLogBook` | inline mock | `studentService` (add `getLogbooks` / `submitLogbook`) |
+| `FirmDashboard` | inline mock | `firmService.getFirmMetrics()`, `getApplicants()`, `updateApplicantStatus()` |
+| `FirmApplicants` | inline mock | `firmService.getApplicants()` |
+| `UniversityDashboard` | inline mock | `universityService.getCoordinatorMetrics()`, `getPendingLogbooks()`, `signOffLogbook()` |
+| `UniversityAudits` | inline mock | `universityService` audit endpoint (TBD) |
+| `AdminDashboard` | **real API** | already wired (`adminService.*`) |
+| Auth (all portals) | **real API** | already wired (`authService.login/register/adminLogin`) |
+
 ## Next Steps
-1. **Frontend**: Address remaining auth/routing issues
-2. **Testing**: Expand test coverage
-3. **Deployment**: Set up CI/CD, environment variables
-4. **Documentation**: Complete system documentation
-5. **Security**: Set strong JWT_SECRET in production
+1. **Frontend**: (done) visual redesign, responsive shell, de-jargoned copy — see Data Source Status for API wiring
+2. **API wiring**: swap remaining mock views to the service methods above
+3. **Testing**: expand test coverage
+4. **Deployment**: set up CI/CD, environment variables
+5. **Documentation**: complete system documentation
+6. **Security**: set strong JWT_SECRET in production
 
 ## Notes
 - Backend runs on port 5000 (configurable via PORT env)

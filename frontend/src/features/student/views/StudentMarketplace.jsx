@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
+import { MapPin, Clock, ArrowUpRight } from 'lucide-react';
 import Button from '../../../components/common/Button';
-import AssetPlaceholder from '../../../components/common/assetPlaceholder';
+import Card from '../../../components/common/Card';
+import Skeleton from '../../../components/common/Skeleton';
+import EmptyState from '../../../components/common/EmptyState';
+import { roleChip } from '../../../config/roleTheme';
 import { studentService } from '../../../service/studentService';
 
+// Data source: already wired to the real API — studentService.getPlacements()
 export default function StudentMarketplace() {
   const [placements, setPlacements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [submittingId, setSubmittingId] = useState(null);
 
   useEffect(() => {
@@ -14,7 +20,7 @@ export default function StudentMarketplace() {
         const data = await studentService.getPlacements();
         setPlacements(data || []);
       } catch (err) {
-        console.error("Marketplace fetch failure:", err);
+        setError(err?.response?.data?.message || 'Could not load placements. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -24,88 +30,130 @@ export default function StudentMarketplace() {
 
   const handleApply = async (placement) => {
     setSubmittingId(placement.id);
+    // TODO(real-api): use the authenticated student's id from sessionStore
+    // (sessionStore.getProfile()) instead of the hard-coded "std-01".
     const payload = {
-      studentId: "std-01",
+      studentId: 'std-01',
       companyName: placement.company,
       role: placement.role,
       appliedDate: new Date().toISOString().split('T')[0],
-      status: "Pending Review"
+      status: 'Pending review'
     };
-
     try {
       await studentService.applyForPlacement(payload);
-      alert(`Application payload dispatched successfully for ${placement.role}.`);
     } catch (err) {
-      console.error("Failed to execute application transaction:", err);
+      console.error('Failed to submit application:', err);
     } finally {
       setSubmittingId(null);
     }
   };
 
+  const eyebrow = roleChip('student');
+
   if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center text-xs font-bold text-slate-400 font-mono animate-pulse uppercase tracking-widest">
-        Syncing market deployment tracks...
+      <div className="space-y-6">
+        <div>
+          <p className={eyebrow.classes}>{eyebrow.label}</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Attachment marketplace</h1>
+        </div>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} lines={4} />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-6">
       <div className="border-b border-slate-100 pb-6">
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 font-mono">
-          Global Nodes Available
-        </span>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-3">Attachment Marketplace</h1>
+        <p className={eyebrow.classes}>{eyebrow.label}</p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          Attachment marketplace
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">Browse placements from trusted partner firms and apply in a click.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {placements.map((job) => (
-          <div key={job.id} className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md flex flex-col justify-between transition-all group">
-            <div className="space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <AssetPlaceholder type="avatar" name={job.company} className="h-10 w-10 text-xs font-bold" />
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{job.role}</h3>
-                    <p className="text-xs font-semibold text-slate-400">{job.company}</p>
-                  </div>
-                </div>
-                <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-50 text-slate-500 border border-slate-100">
-                  {job.duration || '3 Months'}
-                </span>
-              </div>
-
-              <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-3">
-                {job.description || "Incorporate into core infrastructure teams running secure operations pipelines and active product sprints."}
-              </p>
-
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {(job.tags || ["Enterprise", "Security", "REST APIs"]).map((tag, idx) => (
-                  <span key={idx} className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-100">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="pt-5 mt-6 border-t border-slate-50 flex items-center justify-between">
-              <div>
-                <span className="block text-[9px] font-bold uppercase text-slate-400 tracking-wider font-mono">Deployment</span>
-                <span className="text-xs font-bold text-slate-700">{job.location || "Nairobi, KE"}</span>
-              </div>
-              
-              <Button
-                onClick={() => handleApply(job)}
-                disabled={submittingId === job.id}
-                className="h-9 px-4 rounded-xl text-[11px]"
-              >
-                {submittingId === job.id ? 'Casting...' : 'Transmit Pitch'}
+      {error ? (
+        <Card>
+          <EmptyState
+            title="Something went wrong"
+            description={error}
+            action={
+              <Button variant="secondary" onClick={() => window.location.reload()}>
+                Try again
               </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+            }
+          />
+        </Card>
+      ) : placements.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="No placements right now"
+            description="New placements from partner firms appear here. Check back soon."
+          />
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {placements.map((job) => (
+            <article
+              key={job.id}
+              className="group flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-6 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lifted"
+            >
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-bold text-slate-900 group-hover:text-brand-700">
+                      {job.role}
+                    </h3>
+                    <p className="truncate text-sm text-slate-500">{job.company}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                    {job.duration || '3 Months'}
+                  </span>
+                </div>
+
+                <p className="line-clamp-3 text-sm leading-relaxed text-slate-600">
+                  {job.description || 'Join our engineering teams to design, build, and ship production software.'}
+                </p>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {(job.tags || ['Engineering', 'On-site', 'Mentorship']).map((tag, idx) => (
+                    <span key={idx} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
+                <div className="flex items-center gap-3 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {job.location || 'Nairobi, KE'}
+                  </span>
+                  {job.posted && (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {job.posted}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  icon={ArrowUpRight}
+                  onClick={() => handleApply(job)}
+                  disabled={submittingId === job.id}
+                >
+                  {submittingId === job.id ? 'Applying…' : 'Apply'}
+                </Button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

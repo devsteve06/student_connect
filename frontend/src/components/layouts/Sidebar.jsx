@@ -1,67 +1,119 @@
+import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { LogOut, X } from 'lucide-react';
 import { navigationLinks } from './navigationConfig';
-import { LogOut } from 'lucide-react';
+import roleTheme from '../../config/roleTheme';
+import { useAuth } from '../../context/useAuth';
 
-export default function Sidebar({ role = 'student' }) {
+export default function Sidebar({ role = 'student', mobileOpen = false, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
+  const theme = roleTheme[role] || roleTheme.student;
   const links = navigationLinks[role] || [];
 
+  // Lock body scroll while the mobile drawer is open.
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+    return undefined;
+  }, [mobileOpen]);
+
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate(`/login/${role}`);
+    logout();
+    navigate(role === 'admin' ? '/login/admin' : '/login/student');
   };
 
-  return (
-    <aside className="fixed inset-y-0 left-0 w-64 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col justify-between z-30">
-      <div>
-        {/* Platform Branding Context */}
-        <div className="h-16 px-6 flex items-center border-b border-slate-800 bg-slate-950/40">
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-indigo-600 flex items-center justify-center text-white text-xs font-black">
-              S
-            </div>
-            <div>
-              <span className="text-xs font-bold tracking-tight text-white block">Attachment Hub</span>
-              <span className="text-[10px] text-slate-500 font-medium block uppercase tracking-wider -mt-0.5">{role} mode</span>
-            </div>
+  const NavContent = (
+    <div className="flex h-full flex-col">
+      {/* Brand */}
+      <div className="flex items-center justify-between px-5 py-5">
+        <div className="flex items-center gap-3">
+          <img src="/favicon.svg" alt="Student Connect" className="h-9 w-9 rounded-xl shadow-sm" />
+          <div>
+            <p className="text-sm font-extrabold tracking-tight text-white">Student Connect</p>
+            <p className={`text-[11px] font-semibold ${theme.icon}`}>{theme.portal}</p>
           </div>
         </div>
-
-        {/* Dynamic Link Tracking Iteration List */}
-        <nav className="p-4 space-y-1">
-          {links.map((item) => {
-            const isActive = location.pathname === item.href;
-            const Icon = item.icon;
-
-            return (
-              <button
-                key={item.href}
-                onClick={() => navigate(item.href)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold rounded-lg tracking-wide transition-all ${
-                  isActive
-                    ? 'bg-slate-800 text-white font-bold shadow-sm border-l-2 border-indigo-500 rounded-l-none pl-3'
-                    : 'hover:bg-slate-800/50 hover:text-slate-200 text-slate-400'
-                }`}
-              >
-                {Icon && <Icon className="w-4 h-4 shrink-0 opacity-80" />}
-                <span>{item.name}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Operational Footer Logout Target */}
-      <div className="p-4 border-t border-slate-800 bg-slate-950/20">
         <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 text-xs font-semibold text-slate-400 hover:bg-red-950/30 hover:text-red-400 rounded-lg transition-colors"
+          onClick={onClose}
+          aria-label="Close menu"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
-          <span>Terminate Session</span>
+          <X className="h-5 w-5" />
         </button>
       </div>
-    </aside>
+
+      {/* Nav */}
+      <nav className="mt-2 flex-1 space-y-1 overflow-y-auto px-3">
+        {links.map((item, idx) => {
+          const isActive = location.pathname === item.href;
+          const Icon = item.icon;
+          const firstOfSection = item.section && idx > 0;
+
+          return (
+            <div key={item.href}>
+              {firstOfSection && (
+                <p className="mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                  {item.section}
+                </p>
+              )}
+              <button
+                onClick={() => {
+                  navigate(item.href);
+                  onClose?.();
+                }}
+                aria-current={isActive ? 'page' : undefined}
+                className={`relative flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-colors ${
+                  isActive
+                    ? `${theme.navActive} border bg-white shadow-soft`
+                    : `border border-transparent text-slate-400 ${theme.navHover} hover:text-slate-200`
+                }`}
+              >
+                {Icon && <Icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? theme.icon : ''}`} />}
+                <span className="truncate">{item.name}</span>
+                {isActive && (
+                  <span className={`absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full ${theme.navDot}`} />
+                )}
+              </button>
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Sign out */}
+      <div className="border-t border-white/10 p-3">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-slate-400 transition-colors hover:bg-rose-500/10 hover:text-rose-300"
+        >
+          <LogOut className="h-4.5 w-4.5" />
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop */}
+      <aside className="hidden w-64 shrink-0 bg-slate-950 lg:block">
+        <div className="fixed inset-y-0 left-0 z-30 w-64 bg-slate-950">{NavContent}</div>
+      </aside>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 animate-fade-in bg-slate-950/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+          <aside className="absolute inset-y-0 left-0 w-72 animate-slide-in-left bg-slate-950 shadow-pop">
+            {NavContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

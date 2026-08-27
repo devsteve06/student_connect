@@ -24,6 +24,7 @@ import StudentLogbook from '../features/student/views/StudentLogBook'; // <-- IM
 import FirmDashboard from '../features/firm/views/FirmDashboard';
 import UniversityDashboard from '../features/university/views/UniversityDashboard';
 import AdminDashboard from '../features/admin/views/AdminDashboard';
+import NotFound from '../features/NotFound';
 
 export default function AppRoutes() {
   return (
@@ -56,14 +57,8 @@ export default function AppRoutes() {
           {/* MOUNTED ADMIN CONTROL PLANE (admin role required) */}
           <Route path="/admin" element={<ProtectedRoute role="admin"><DashboardLayout role="admin"><AdminDashboard /></DashboardLayout></ProtectedRoute>} />
 
-          {/* 404 CATCH-ALL PROTECTION BLOCK */}
-          <Route path="*" element={
-            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center font-sans">
-              <span className="font-mono text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Error 404</span>
-              <h1 className="text-xl font-black text-slate-900 tracking-tight">Requested Secure Node Not Found</h1>
-              <a href="/" className="mt-5 text-xs font-bold uppercase text-indigo-600 tracking-wider underline underline-offset-4">Return to Platform Edge</a>
-            </div>
-          } />
+          {/* 404 CATCH-ALL */}
+          <Route path="*" element={<NotFound />} />
 
         </Routes>
       </AuthProvider>

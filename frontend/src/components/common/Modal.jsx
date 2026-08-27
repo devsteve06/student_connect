@@ -1,60 +1,61 @@
-import { useEffect } from 'react';
-import Button from './Button';
+import { useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 
-export default function Modal({
-  isOpen,
-  onClose,
-  title,
-  children,
-  footerActions
-}) {
-  // Prevent background scrolling while the modal view is active
+export default function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md' }) {
+  const panelRef = useRef(null);
+
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen]);
+    if (!isOpen) return undefined;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
+  const widths = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-xl', xl: 'max-w-3xl' };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Background Dim Backdrop */}
-      <div 
-        className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity" 
+      <div
+        className="absolute inset-0 animate-fade-in bg-slate-950/50 backdrop-blur-sm"
         onClick={onClose}
+        aria-hidden="true"
       />
-
-      {/* Modal Container Window */}
-      <div className="relative w-full max-w-md bg-white rounded-xl shadow-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-        
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b flex justify-between items-center">
-          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-          <button 
-            onClick={onClose} 
-            className="text-gray-400 hover:text-gray-600 rounded-lg p-1 transition-colors"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Modal Body Content */}
-        <div className="px-6 py-4 text-sm text-gray-600 overflow-y-auto max-h-[60vh]">
-          {children}
-        </div>
-
-        {/* Modal Footer */}
-        <div className="px-6 py-3 border-t bg-gray-50 flex justify-end gap-2">
-          {footerActions ? footerActions : (
-            <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-          )}
-        </div>
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`relative w-full ${widths[size]} animate-scale-in overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-pop`}
+      >
+        {(title || subtitle) && (
+          <header className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/60 px-6 py-4">
+            <div>
+              <h2 className="text-sm font-extrabold tracking-tight text-slate-900">{title}</h2>
+              {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close dialog"
+              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200/60 hover:text-slate-600"
+            >
+              <X className="h-4.5 w-4.5" />
+            </button>
+          </header>
+        )}
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
+        {footer && (
+          <footer className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+            {footer}
+          </footer>
+        )}
       </div>
     </div>
   );
