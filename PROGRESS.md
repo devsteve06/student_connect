@@ -10,6 +10,7 @@
 
 ### 2026-08-27
 - **Frontend redesign (clean modern SaaS)**: new design system (brand tokens, typography, elevation) in `index.css`; bold violet/indigo brand + `favicon.svg`; per-role theme in `src/config/roleTheme.js`.
+- **Backend API wiring**: fixed `firmService` prefix mismatch (`/firm/...` → `/api/v1/firm/...`, was returning 404); corrected stale dual-mount claim in `backend/README.md`; wired `FirmDashboard` + `FirmApplicants` to the real API (metrics, roster, and Pass/Shortlist/Place status actions, CSV export of the roster).
 - Rebuilt shared components (`Button`, `Input`, `Select`, `Textarea`, `Badge`, `Card`, `Modal`, `Skeleton`, `EmptyState`, `StatusPill`, `MetricCard`).
 - Canonicalized layout: `DashboardLayout` + `Sidebar` (with responsive mobile drawer) + `Navbar` (topbar); unified nav in `navigationConfig.jsx`; deleted duplicated/orphaned `student/views/FirmDashboard.jsx`.
 - Rebuilt all auth pages on a shared `AuthShell` with password toggle + demo-account hints (de-jargoned copy).
@@ -140,8 +141,8 @@ backend/
 | `StudentDashboard` | inline mock | `studentService.getMetrics()`, `getApplications()` |
 | `StudentMarketplace` | **real API** | already wired (`getPlacements()`, `applyForPlacement()`) |
 | `StudentLogBook` | inline mock | `studentService` (add `getLogbooks` / `submitLogbook`) |
-| `FirmDashboard` | inline mock | `firmService.getFirmMetrics()`, `getApplicants()`, `updateApplicantStatus()` |
-| `FirmApplicants` | inline mock | `firmService.getApplicants()` |
+| `FirmDashboard` | **real API** | already wired (`getFirmMetrics()` + `getApplicants()`; `updateApplicantStatus()` for Pass/Shortlist/Place actions) |
+| `FirmApplicants` | **real API** | already wired (`getApplicants()`) |
 | `UniversityDashboard` | inline mock | `universityService.getCoordinatorMetrics()`, `getPendingLogbooks()`, `signOffLogbook()` |
 | `UniversityAudits` | inline mock | `universityService` audit endpoint (TBD) |
 | `AdminDashboard` | **real API** | already wired (`adminService.*`) |

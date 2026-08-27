@@ -1,104 +1,186 @@
-import { useState, useMemo } from 'react';
-import { Users, ClipboardList, Award, Target, Download, Plus, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Users, ClipboardList, Award, ClipboardCheck, Download, Search, ShieldAlert, RefreshCw } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import MetricCard from '../../../components/data-display/MetricCard';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
+import Skeleton, { MetricSkeleton } from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
+import { firmService } from '../../../service/firmService';
 
-// TODO(real-api): replace mock datasets with firmService.getFirmMetrics()
-// and firmService.getApplicants(). Status changes should call
-// firmService.updateApplicantStatus(). See docs/PROGRESS.md.
+const PENDING_STATUS = 'Pending Review';
+const PLACED_STATUSES = ['Approved', 'Hired'];
+
+const initials = (name) => {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return (parts[0] || '?').slice(0, 2).toUpperCase();
+};
+
+const shapeApplicant = (row) => ({
+  id: row.id,
+  candidate: row.studentName,
+  university: row.university,
+  role: row.role,
+  appliedDate: row.appliedDate,
+  status: row.status,
+  avatar: initials(row.studentName)
+});
+
+const PIPELINE_COLORS = {
+  'Pending Review': 'bg-amber-500',
+  'Interviewing': 'bg-cyan-500',
+  'Approved': 'bg-emerald-500',
+  'Hired': 'bg-emerald-600',
+  'Rejected': 'bg-rose-400'
+};
+
 export default function FirmDashboard() {
-  const [activeTab, setActiveTab] = useState('all'); // all | pending | placed
+  const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [applicants, setApplicants] = useState([]);
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const [applicants, setApplicants] = useState([
-    {
-      id: 'app-101',
-      candidate: 'Sarah Jenkins',
-      role: 'Cloud Architecture Intern',
-      institution: 'Stanford University',
-      gpa: '3.92',
-      matchScore: 98,
-      status: 'Pending review',
-      appliedDate: '2 hours ago',
-      avatar: 'SJ'
-    },
-    {
-      id: 'app-102',
-      candidate: 'Alex Rivera',
-      role: 'Backend Systems Engineer',
-      institution: 'MIT',
-      gpa: '3.85',
-      matchScore: 94,
-      status: 'Placed',
-      appliedDate: 'Yesterday',
-      avatar: 'AR'
-    },
-    {
-      id: 'app-103',
-      candidate: 'Amara Okafor',
-      role: 'AI / ML Research Intern',
-      institution: 'Carnegie Mellon',
-      gpa: '4.00',
-      matchScore: 91,
-      status: 'Pending review',
-      appliedDate: '3 days ago',
-      avatar: 'AO'
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const [overview, rows] = await Promise.all([
+          firmService.getFirmMetrics(),
+          firmService.getApplicants()
+        ]);
+        setMetrics(overview);
+        setApplicants(rows.map(shapeApplicant));
+      } catch (err) {
+        setError(err?.response?.data?.message || 'This dashboard could not be loaded.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, [reloadKey]);
+
+  const retry = () => {
+    setLoading(true);
+    setError('');
+    setReloadKey((key) => key + 1);
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    const previous = applicants;
+    setApplicants((cur) => cur.map((a) => (a.id === id ? { ...a, status: newStatus } : a)));
+    setSaveError('');
+    try {
+      const updated = await firmService.updateApplicantStatus(id, newStatus);
+      setApplicants((cur) => cur.map((a) => (a.id === updated.id ? { ...a, status: updated.status } : a)));
+    } catch (err) {
+      setApplicants(previous);
+      setSaveError(err?.response?.data?.message || 'The status could not be updated.');
     }
-  ]);
+  };
 
-  const incomingFeed = [
-    { name: 'Liam Chen', track: 'DevOps & infrastructure', school: 'UC Berkeley', match: 96, time: '14m ago' },
-    { name: 'Sofia Rodriguez', track: 'Frontend engineering', school: 'Georgia Tech', match: 89, time: '1h ago' },
-    { name: 'Jordan Taylor', track: 'Data platform security', school: 'UT Austin', match: 92, time: '3h ago' }
-  ];
-
-  const vacancies = [
-    { role: 'Cloud Architecture', filled: 4, total: 5, color: 'bg-brand-500' },
-    { role: 'Backend Systems', filled: 2, total: 6, color: 'bg-slate-400' },
-    { role: 'AI / ML Research', filled: 3, total: 3, color: 'bg-emerald-500' }
-  ];
-
-  const metrics = useMemo(
-    () => ({
-      total: applicants.length,
-      pending: applicants.filter((a) => a.status === 'Pending review').length,
-      placed: applicants.filter((a) => a.status === 'Placed').length,
-      avgMatch: Math.round(applicants.reduce((acc, a) => acc + a.matchScore, 0) / applicants.length)
-    }),
-    [applicants]
-  );
+  const totals = useMemo(() => {
+    const total = applicants.length;
+    const pending = applicants.filter((a) => a.status === PENDING_STATUS).length;
+    const placed = applicants.filter((a) => PLACED_STATUSES.includes(a.status)).length;
+    return { total, pending, placed };
+  }, [applicants]);
 
   const filteredApplicants = useMemo(
     () =>
       applicants.filter((app) => {
         const matchesTab =
           activeTab === 'all' ||
-          (activeTab === 'pending' && app.status === 'Pending review') ||
-          (activeTab === 'placed' && app.status === 'Placed');
+          (activeTab === 'pending' && app.status === PENDING_STATUS) ||
+          (activeTab === 'placed' && PLACED_STATUSES.includes(app.status));
+        const q = searchQuery.trim().toLowerCase();
         const matchesSearch =
-          app.candidate.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          app.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          app.institution.toLowerCase().includes(searchQuery.toLowerCase());
+          !q ||
+          app.candidate.toLowerCase().includes(q) ||
+          app.role.toLowerCase().includes(q) ||
+          app.university.toLowerCase().includes(q);
         return matchesTab && matchesSearch;
       }),
     [applicants, activeTab, searchQuery]
   );
 
-  const handleStatusChange = (id, newStatus) => {
-    setApplicants((prev) => prev.map((app) => (app.id === id ? { ...app, status: newStatus } : app)));
+  const recentApplicants = applicants.slice(0, 3);
+
+  const pipeline = useMemo(() => {
+    const counts = {};
+    applicants.forEach((a) => {
+      counts[a.status] = (counts[a.status] || 0) + 1;
+    });
+    return ['Pending Review', 'Interviewing', 'Approved', 'Hired', 'Rejected']
+      .filter((s) => counts[s])
+      .map((s) => ({ status: s, count: counts[s] }));
+  }, [applicants]);
+
+  const exportCsv = () => {
+    const cells = [
+      ['Applicant', 'University', 'Role', 'Applied', 'Status'],
+      ...applicants.map((a) => [a.candidate, a.university, a.role, a.appliedDate, a.status])
+    ];
+    const csv = cells
+      .map((row) => row.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'firm-applicants.csv';
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const tabs = [
-    { key: 'all', label: `All (${metrics.total})` },
-    { key: 'pending', label: `To review (${metrics.pending})` },
-    { key: 'placed', label: `Placed (${metrics.placed})` }
+    { key: 'all', label: `All (${totals.total})` },
+    { key: 'pending', label: `To review (${totals.pending})` },
+    { key: 'placed', label: `Placed (${totals.placed})` }
   ];
 
   const eyebrow = roleChip('firm');
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
+          <div className="h-8 w-52 animate-pulse rounded-lg bg-slate-200" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <MetricSkeleton key={i} />
+          ))}
+        </div>
+        <Skeleton lines={5} />
+        <Skeleton lines={3} />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <EmptyState
+          icon={ShieldAlert}
+          title="Could not load the dashboard"
+          description={error}
+          action={<Button icon={RefreshCw} onClick={retry}>Try again</Button>}
+        />
+      </Card>
+    );
+  }
+
+  const metricCards = [
+    { title: 'New applications', value: metrics.newApplications, unit: 'to review', icon: Users, tone: 'brand' },
+    { title: 'Interviews pending', value: metrics.interviewsPending, unit: 'scheduled', icon: ClipboardList, tone: 'warning' },
+    { title: 'Active interns', value: metrics.activeInterns, unit: 'placed', icon: Award, tone: 'success' },
+    { title: 'Logbooks to verify', value: metrics.unverifiedLogbooks, unit: 'pending', icon: ClipboardCheck, tone: 'neutral' }
+  ];
 
   return (
     <div className="space-y-8">
@@ -107,74 +189,87 @@ export default function FirmDashboard() {
         <div>
           <span className={eyebrow.classes}>{eyebrow.label}</span>
           <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Overview</h1>
-          <p className="mt-1 text-sm text-slate-500">A live view of your applicants and open placements.</p>
+          <p className="mt-1 text-sm text-slate-500">A live view of your applicants and placement pipeline.</p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-center">
-          <Button variant="secondary" icon={Download}>Export roster</Button>
-          <Button icon={Plus}>Post opening</Button>
+          <Button variant="secondary" icon={Download} onClick={exportCsv}>Export roster</Button>
         </div>
       </div>
+
+      {/* Error banner for failed status updates */}
+      {saveError && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          <span>{saveError}</span>
+          <button onClick={() => setSaveError('')} className="font-bold hover:text-rose-900">Dismiss</button>
+        </div>
+      )}
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        <MetricCard title="Total applicants" value={metrics.total} unit="candidates" icon={Users} tone="brand" />
-        <MetricCard title="To review" value={metrics.pending} unit="applications" icon={ClipboardList} tone="warning" />
-        <MetricCard title="Placed" value={metrics.placed} unit="onboarded" icon={Award} tone="success" />
-        <MetricCard title="Average match" value={`${metrics.avgMatch}%`} unit="fit" icon={Target} tone="neutral" />
+        {metricCards.map((card) => (
+          <MetricCard key={card.title} {...card} />
+        ))}
       </div>
 
-      {/* Incoming + vacancies */}
+      {/* Recent + pipeline */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card
-          title="Incoming applications"
-          eyebrow="Most recent"
-          className="lg:col-span-2"
-          bodyClassName="p-2"
-        >
-          <ul className="divide-y divide-slate-100">
-            {incomingFeed.map((incoming, idx) => (
-              <li key={idx} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-slate-50/70">
-                <div className="min-w-0 space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-bold text-slate-900">{incoming.name}</p>
-                    <span className="text-xs text-slate-400">· {incoming.time}</span>
+        <Card title="Recent applicants" eyebrow="Latest first" className="lg:col-span-2" bodyClassName="p-2">
+          {recentApplicants.length === 0 ? (
+            <div className="p-5">
+              <EmptyState
+                icon={Users}
+                title="No applicants yet"
+                description="Applications will appear here as students apply to your openings."
+              />
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {recentApplicants.map((app) => (
+                <li key={app.id} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-slate-50/70">
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-bold text-slate-900">{app.candidate}</p>
+                      <span className="text-xs text-slate-400">· {app.appliedDate}</span>
+                    </div>
+                    <p className="truncate text-sm text-slate-500">
+                      {app.university} — <span className="text-slate-700">{app.role}</span>
+                    </p>
                   </div>
-                  <p className="truncate text-sm text-slate-500">
-                    {incoming.school} — <span className="text-slate-700">{incoming.track}</span>
-                  </p>
-                </div>
-                <span className="shrink-0 rounded-lg bg-amber-50 px-2.5 py-1 font-mono text-xs font-bold text-amber-700">
-                  {incoming.match}% match
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <StatusPill status={app.status} className="shrink-0" />
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
-        <Card title="Open placements" eyebrow="Vacancy capacity" bodyClassName="p-5">
-          <div className="space-y-5">
-            {vacancies.map((vacancy) => {
-              const percent = (vacancy.filled / vacancy.total) * 100;
-              const isFull = vacancy.filled === vacancy.total;
-              return (
-                <div key={vacancy.role} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-slate-800">{vacancy.role}</span>
-                    <span className="font-mono text-xs font-bold text-slate-500">
-                      {vacancy.filled}/{vacancy.total} filled
-                    </span>
+        <Card title="Pipeline breakdown" eyebrow="By stage" bodyClassName="p-5">
+          {pipeline.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="Nothing in the pipeline"
+              description="Once students apply, their stage appears here."
+            />
+          ) : (
+            <div className="space-y-4">
+              {pipeline.map(({ status, count }) => {
+                const percent = Math.round((count / applicants.length) * 100);
+                return (
+                  <div key={status} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold text-slate-700">{status}</span>
+                      <span className="font-mono text-xs font-bold text-slate-500">{count} · {percent}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${PIPELINE_COLORS[status] || 'bg-slate-400'}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${vacancy.color}`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                  {isFull && <p className="text-xs font-semibold text-emerald-600">Fully placed</p>}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -199,7 +294,7 @@ export default function FirmDashboard() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by candidate, role, or school…"
+            placeholder="Search by candidate, role, or university…"
             className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
           />
         </div>
@@ -227,9 +322,7 @@ export default function FirmDashboard() {
                 </span>
                 <div className="min-w-0">
                   <h3 className="truncate text-sm font-extrabold text-slate-900">{app.candidate}</h3>
-                  <p className="truncate text-xs text-slate-500">
-                    {app.institution} · GPA {app.gpa}
-                  </p>
+                  <p className="truncate text-xs text-slate-500">{app.university}</p>
                 </div>
               </div>
 
@@ -238,29 +331,33 @@ export default function FirmDashboard() {
                 <p className="truncate text-sm font-semibold text-slate-700">{app.role}</p>
               </div>
 
-              <div className="lg:w-44">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Match</p>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-brand-500" style={{ width: `${app.matchScore}%` }} />
-                  </div>
-                  <span className="font-mono text-xs font-bold text-slate-800">{app.matchScore}%</span>
-                </div>
+              <div className="min-w-0 lg:w-44">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Applied</p>
+                <p className="truncate text-sm font-semibold text-slate-700">{app.appliedDate}</p>
               </div>
 
               <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-4 lg:justify-end lg:border-t-0 lg:pt-0">
                 <StatusPill status={app.status} />
-                {app.status === 'Pending review' ? (
+                {app.status === PENDING_STATUS ? (
                   <div className="flex items-center gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => handleStatusChange(app.id, 'Not selected')}>
+                    <Button size="sm" variant="secondary" onClick={() => handleStatusChange(app.id, 'Rejected')}>
                       Pass
                     </Button>
-                    <Button size="sm" onClick={() => handleStatusChange(app.id, 'Placed')}>
+                    <Button size="sm" onClick={() => handleStatusChange(app.id, 'Interviewing')}>
+                      Shortlist
+                    </Button>
+                  </div>
+                ) : app.status === 'Interviewing' ? (
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="secondary" onClick={() => handleStatusChange(app.id, 'Rejected')}>
+                      Pass
+                    </Button>
+                    <Button size="sm" onClick={() => handleStatusChange(app.id, 'Hired')}>
                       Place
                     </Button>
                   </div>
                 ) : (
-                  <span className="text-xs text-slate-400">Updated {app.appliedDate}</span>
+                  <span className="text-xs text-slate-400">No action needed</span>
                 )}
               </div>
             </article>

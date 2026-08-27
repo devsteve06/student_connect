@@ -1,24 +1,45 @@
-import { useState } from 'react';
-import { Users, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Users, RefreshCw, Search, ShieldAlert } from 'lucide-react';
+import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
+import Skeleton from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
+import { firmService } from '../../../service/firmService';
 
-// TODO(real-api): replace mock dataset with firmService.getApplicants()
-// See docs/PROGRESS.md "Data Source Status".
 export default function FirmApplicants() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [candidates] = useState([
-    { id: 'app-501', name: 'Sarah Jenkins', role: 'Cloud Architecture Intern', school: 'Stanford University', match: '98%', status: 'Awaiting screening' },
-    { id: 'app-502', name: 'Amara Okafor', role: 'AI / ML Research Intern', school: 'Carnegie Mellon', match: '91%', status: 'Interview scheduled' }
-  ]);
+  const [candidates, setCandidates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const filtered = candidates.filter((c) => {
+  useEffect(() => {
+    const fetchApplicants = async () => {
+      try {
+        const rows = await firmService.getApplicants();
+        setCandidates(rows);
+      } catch (err) {
+        setError(err?.response?.data?.message || 'The applicant list could not be loaded.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchApplicants();
+  }, [reloadKey]);
+
+  const retry = () => {
+    setLoading(true);
+    setError('');
+    setReloadKey((key) => key + 1);
+  };
+
+  const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return `${c.name} ${c.role} ${c.school}`.toLowerCase().includes(q);
-  });
+    if (!q) return candidates;
+    return candidates.filter((c) => `${c.studentName} ${c.role} ${c.university}`.toLowerCase().includes(q));
+  }, [candidates, searchQuery]);
 
   const eyebrow = roleChip('firm');
 
@@ -36,37 +57,58 @@ export default function FirmApplicants() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by name, role, or school…"
+          placeholder="Search by name, role, or university…"
           className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
         />
       </div>
 
-      <Card title="All applicants" eyebrow={`${filtered.length} total`} bodyClassName="p-2">
-        {filtered.length === 0 ? (
+      {error ? (
+        <Card>
           <EmptyState
-            icon={Users}
-            title="No applicants found"
-            description="No applicants match your search."
+            icon={ShieldAlert}
+            title="Could not load applicants"
+            description={error}
+            action={<Button icon={RefreshCw} onClick={retry}>Try again</Button>}
           />
-        ) : (
-          <ul className="divide-y divide-slate-100">
-            {filtered.map((cand) => (
-              <li key={cand.id} className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-slate-900">{cand.name}</h3>
-                  <p className="truncate text-sm text-slate-500">
-                    {cand.school} · <span className="font-semibold text-amber-700">{cand.match} match</span>
-                  </p>
-                </div>
-                <div className="flex items-center justify-between gap-6 sm:justify-end">
-                  <p className="text-sm font-semibold text-slate-700">{cand.role}</p>
-                  <StatusPill status={cand.status} className="shrink-0" />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        <Card title="All applicants" eyebrow={`${filtered.length} total`} bodyClassName="p-2">
+          {loading ? (
+            <div className="space-y-4 p-4">
+              <Skeleton lines={3} />
+              <Skeleton lines={3} />
+            </div>
+          ) : filtered.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No applicants found"
+              description={
+                searchQuery ? 'No applicants match your search.' : 'Applications will appear here as students apply to your openings.'
+              }
+            />
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {filtered.map((cand) => (
+                <li
+                  key={cand.id}
+                  className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-900">{cand.studentName}</h3>
+                    <p className="truncate text-sm text-slate-500">
+                      {cand.university} · <span className="font-semibold text-slate-700">Applied {cand.appliedDate}</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-between gap-6 sm:justify-end">
+                    <p className="text-sm font-semibold text-slate-700">{cand.role}</p>
+                    <StatusPill status={cand.status} className="shrink-0" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
     </div>
   );
 }
