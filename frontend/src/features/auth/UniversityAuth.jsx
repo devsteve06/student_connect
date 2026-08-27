@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
+import { useAuth } from '../../context/useAuth';
 
 export default function UniversityAuth() {
   const [isRegistering, setIsRegistering] = useState(false);
   const navigate = useNavigate();
+  const { login, register } = useAuth();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     facultyName: '',
@@ -19,9 +23,31 @@ export default function UniversityAuth() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/university');
+    setError('');
+    setLoading(true);
+    try {
+      if (isRegistering) {
+        await register({
+          name: formData.facultyName,
+          email: formData.email,
+          password: formData.password,
+          role: 'university'
+        });
+      } else {
+        await login(formData.email, formData.password, 'university');
+      }
+      navigate('/university');
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Authentication failed. Please verify your details and try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -71,6 +97,12 @@ export default function UniversityAuth() {
               </button>
             </p>
           </div>
+
+          {error && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {isRegistering && (
@@ -154,8 +186,10 @@ export default function UniversityAuth() {
             </div>
 
             <div className="pt-4">
-              <Button type="submit" className="w-full h-12">
-                {isRegistering ? 'Submit Verification Request' : 'Authorize Console'}
+              <Button type="submit" disabled={loading} className="w-full h-12">
+                {loading
+                  ? 'Please wait…'
+                  : isRegistering ? 'Submit Verification Request' : 'Authorize Console'}
               </Button>
             </div>
           </form>

@@ -1,9 +1,11 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import AssetPlaceholder from '../common/assetPlaceholder';
+import { useAuth } from '../../context/useAuth';
 
 export default function DashboardLayout({ children, role = 'student' }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const navConfigurations = {
   student: {
@@ -93,14 +95,14 @@ export default function DashboardLayout({ children, role = 'student' }) {
         {/* User Identity / Escape Footnote */}
         <div className="p-4 border-t border-slate-900 bg-slate-950/60">
           <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-900/50 border border-slate-900">
-            <AssetPlaceholder type="avatar" name="User Identity" className="h-8 w-8 text-[10px] text-slate-300" />
+            <AssetPlaceholder type="avatar" name={user?.name || 'User Identity'} className="h-8 w-8 text-[10px] text-slate-300" />
             <div className="flex-1 min-w-0">
-              <span className="block text-xs font-bold text-slate-200 truncate">Vetted Session</span>
+              <span className="block text-xs font-bold text-slate-200 truncate">{user?.name || 'Vetted Session'}</span>
+              <span className="block text-[10px] text-slate-500 truncate">{user?.email || ''}</span>
               <button
                 onClick={() => {
-                  localStorage.removeItem('token');
-                  localStorage.removeItem('admin');
-                  navigate(role === 'admin' ? '/login/admin' : '/');
+                  logout();
+                  navigate(role === 'admin' ? '/login/admin' : '/login/student');
                 }}
                 className="block text-[10px] text-slate-500 font-bold hover:text-rose-400 transition-colors uppercase tracking-wider mt-0.5"
               >
