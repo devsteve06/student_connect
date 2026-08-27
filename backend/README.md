@@ -35,6 +35,11 @@ psql -d student_connect -f sql/seed.sql
 # DATABASE_URL=postgresql://user:password@localhost:5432/student_connect
 ```
 
+SSL is enabled automatically for Supabase hosts (`db.<ref>.supabase.co` direct, or
+`aws-0-<region>.pooler.supabase.com` session pooler). For Supabase, use the **session pooler**
+string on IPv4-only networks (the direct host is IPv6-only), keep the `postgres.<project-ref>`
+username the pooler requires, and omit any `?sslmode=` param from the URL.
+
 ## Demo accounts
 
 Seeded by `sql/seed.sql`. Every account's password is **`password123`**:

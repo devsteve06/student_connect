@@ -9,6 +9,10 @@
 > Updated every time changes are made. Newest entries first.
 
 ### 2026-08-27
+- **Supabase DB connection**: backend wired to a Supabase-hosted PostgreSQL database directly via `DATABASE_URL` (no Supabase SDK — existing `pg` data layer + JWT auth unchanged). Schema + seed loaded through the dashboard SQL Editor.
+- Modified `backend/data/db.js` to auto-enable SSL for any `supabase` host (`*.supabase.co` direct / `*.pooler.supabase.com` pooler); documented variants in `backend/.env.example`.
+- `backend/.env` now points at the **session pooler** (`aws-1-eu-west-1.pooler.supabase.com:5432`, user `postgres.ycvectpdjlwdgasjxbaw`) — the direct host is IPv6-only and unreachable from this network.
+- Verified: server boots with `Connected to PostgreSQL via DATABASE_URL.`; student login + `/student/metrics` and firm `/firm/applicants` return seeded Supabase data.
 - **Frontend redesign (clean modern SaaS)**: new design system (brand tokens, typography, elevation) in `index.css`; bold violet/indigo brand + `favicon.svg`; per-role theme in `src/config/roleTheme.js`.
 - **Backend API wiring**: fixed `firmService` prefix mismatch (`/firm/...` → `/api/v1/firm/...`, was returning 404); corrected stale dual-mount claim in `backend/README.md`; wired `FirmDashboard` + `FirmApplicants` to the real API (metrics, roster, and Pass/Shortlist/Place status actions, CSV export of the roster).
 - Rebuilt shared components (`Button`, `Input`, `Select`, `Textarea`, `Badge`, `Card`, `Modal`, `Skeleton`, `EmptyState`, `StatusPill`, `MetricCard`).
@@ -160,4 +164,5 @@ backend/
 - Backend runs on port 5000 (configurable via PORT env)
 - Frontend uses Vite dev server with proxy to backend
 - Database falls back to pg-mem if DATABASE_URL not set
+- Connected to Supabase via the session pooler (`aws-1-eu-west-1.pooler.supabase.com:5432`); SSL auto-enabled in `backend/data/db.js`
 - All backend security issues have been remediated
