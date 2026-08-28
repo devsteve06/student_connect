@@ -28,7 +28,14 @@ export async function initDb() {
 
   if (hasRealDatabaseUrl) {
     const { Pool } = await import('pg');
-    pool = new Pool({ connectionString: databaseUrl });
+    // Supabase enforces TLS. Its certificates chain to a private CA and node-postgres
+    // would treat `?sslmode=require` in the URL as verify-full, so set SSL explicitly.
+    // `rejectUnauthorized: false` is acceptable for development; in production pin the
+    // Supabase CA (ssl: { ca }) and use sslmode=verify-full instead.
+    const host = databaseUrl.split('@').pop()?.split('/')[0]?.toLowerCase() || '';
+    // Matches both `db.<ref>.supabase.co` (direct) and `aws-0-<region>.pooler.supabase.com` (pooler).
+    const ssl = host.includes('supabase') ? { rejectUnauthorized: false } : undefined;
+    pool = new Pool({ connectionString: databaseUrl, ssl });
     pool.on('error', (err) => console.error(`[db] idle client error: ${err.message}`));
     await pool.query('SELECT 1');
     console.log('Connected to PostgreSQL via DATABASE_URL.');

@@ -6,14 +6,14 @@ export default function StudentAuditRow({ student }) {
       <td className="px-6 py-4 font-bold text-[#0D1B2A] group-hover:text-[#1E4D8C] transition-colors duration-150 font-['ui-sans-serif',_system-ui,_sans-serif]">
         {student.name}
       </td>
-      <td className="px-6 py-4 text-slate-400 tabular-nums font-['ui-sans-serif',_system-ui,_sans-serif]">
+      <td className="px-6 py-4 text-ink-5 tabular-nums font-['ui-sans-serif',_system-ui,_sans-serif]">
         {student.regNumber}
       </td>
       <td className="px-6 py-4">
         {student.assignedFirm ? (
           <div>
             <div className="font-semibold text-[#0D1B2A] text-xs font-['ui-sans-serif',_system-ui,_sans-serif]">{student.assignedFirm}</div>
-            <div className="text-[11px] text-slate-400 mt-0.5 font-['ui-sans-serif',_system-ui,_sans-serif]">{student.role}</div>
+            <div className="text-[11px] text-ink-5 mt-0.5 font-['ui-sans-serif',_system-ui,_sans-serif]">{student.role}</div>
           </div>
         ) : (
           <span className="inline-flex items-center gap-1.5 text-amber-700 font-semibold text-[9px] uppercase tracking-[0.14em] bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 font-['ui-sans-serif',_system-ui,_sans-serif]">
@@ -24,9 +24,9 @@ export default function StudentAuditRow({ student }) {
       </td>
       <td className="px-6 py-4 font-['ui-sans-serif',_system-ui,_sans-serif]">
         {student.academicAdvisor ? (
-          <span className="text-slate-500 text-xs">{student.academicAdvisor}</span>
+          <span className="text-ink-4 text-xs">{student.academicAdvisor}</span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400 bg-[#F7F6F3] border border-[#E2DDD8] px-2.5 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-ink-5 bg-[#F7F6F3] border border-[#E2DDD8] px-2.5 py-1 rounded-full">
             <span className="w-1 h-1 rounded-full bg-[#E2DDD8]" />
             Unassigned
           </span>
@@ -36,7 +36,7 @@ export default function StudentAuditRow({ student }) {
         <Button
           variant="outline"
           size="sm"
-          className="text-[11px] font-semibold border border-[#E2DDD8] text-slate-500 hover:border-[#1E4D8C] hover:text-[#1E4D8C] bg-white rounded-2xl px-3.5 py-1.5 transition-all duration-150 font-['ui-sans-serif',_system-ui,_sans-serif]"
+          className="text-[11px] font-semibold border border-[#E2DDD8] text-ink-4 hover:border-[#1E4D8C] hover:text-[#1E4D8C] bg-surface rounded-2xl px-3.5 py-1.5 transition-all duration-150 font-['ui-sans-serif',_system-ui,_sans-serif]"
         >
           View Dossier
         </Button>

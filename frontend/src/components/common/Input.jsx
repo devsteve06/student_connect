@@ -1,42 +1,41 @@
-function Input({
-    label,
-    error,
-    type = 'text',
-    className = '',
-    id,
-    ... props
-}) {
+import { useId, forwardRef } from 'react';
 
-    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined)
+const baseField =
+  'w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-5 shadow-soft transition-colors focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10';
+
+const errorField =
+  'border-rose-300 bg-rose-50/40 dark:border-rose-500/60 dark:bg-rose-500/10 focus:border-rose-400 focus:ring-rose-500/10';
+
+const Input = forwardRef(function Input(
+  { label, error, hint, id, type = 'text', icon: Icon, className = '', ...props },
+  ref
+) {
+  const autoId = useId();
+  const inputId = id || autoId;
 
   return (
-    <div className={`w-full flex flex-col gap-1.5 ${className}`}>
-     
-      {
-        label &&  <label htmlFor={inputId} className='text-sm font-medium text-gray-700'>  {label} </label>
-
-      }
-
-      
-        <input
-        id={inputId}
-        type={type}
-        className={`w-full px-3 py-2 border rounded-lg shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-offset-0 transition-shadow
-          ${error 
-            ? 'border-red-500 focus:border-red-500 focus:ring-red-200' 
-            : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100'
-          }`}
-        {...props}
-      />
-      
-      {error && (
-        <span className="text-xs text-red-500 font-medium mt-0.5">
-          {error}
-        </span>
+    <div className={`w-full ${className}`}>
+      {label && (
+        <label htmlFor={inputId} className="mb-1.5 block text-sm font-semibold text-ink-2">
+          {label}
+        </label>
       )}
-      
+      <div className="relative">
+        {Icon && (
+          <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
+        )}
+        <input
+          ref={ref}
+          id={inputId}
+          type={type}
+          className={`${baseField} ${Icon ? 'pl-10' : ''} ${error ? errorField : ''}`}
+          {...props}
+        />
+      </div>
+      {error && <p className="mt-1.5 text-xs font-medium text-rose-600">{error}</p>}
+      {!error && hint && <p className="mt-1.5 text-xs text-ink-5">{hint}</p>}
     </div>
-  )
-}
+  );
+});
 
-export default Input
+export default Input;
