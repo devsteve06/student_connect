@@ -1,10 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Mail } from 'lucide-react';
 import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+import Select from '../../components/common/Select';
+import AuthShell, { FormHeader, DemoHint } from './AuthShell';
 import { useAuth } from '../../context/useAuth';
 
 export default function UniversityAuth() {
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { login, register } = useAuth();
   const [error, setError] = useState('');
@@ -20,7 +25,7 @@ export default function UniversityAuth() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -43,7 +48,7 @@ export default function UniversityAuth() {
       setError(
         err.response?.data?.message ||
         err.message ||
-        'Authentication failed. Please verify your details and try again.'
+        'Sign in failed. Please check your details and try again.'
       );
     } finally {
       setLoading(false);
@@ -51,160 +56,137 @@ export default function UniversityAuth() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans antialiased selection:bg-indigo-100 selection:text-indigo-900">
-      
-      <div className="hidden lg:flex lg:w-5/12 bg-slate-950 text-white p-16 flex-col justify-between relative overflow-hidden border-r border-slate-900">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:24px_24px]" />
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-        
-        <div className="relative z-10 space-y-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 shadow-inner">
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Internal Operations</span>
-          </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-slate-100 leading-tight">
-            Academic Operations & Compliance Gateway
-          </h1>
+    <AuthShell
+      role="university"
+      headline="Oversee every placement, from start to sign-off."
+      tagline="Track student attachments, verify logbooks, and monitor placement progress across your institution."
+      quote="The audit queue gives us a clear view of every pending logbook before the semester closes."
+      quoteSource="Strathmore Administrative Registry"
+      footer={
+        <p className="text-center text-xs text-ink-4">
+          A student or firm?{' '}
+          <a href="/login/student" className="font-semibold text-cyan-700 hover:text-cyan-800">
+            Student sign in
+          </a>{' '}
+          ·{' '}
+          <a href="/login/firm" className="font-semibold text-cyan-700 hover:text-cyan-800">
+            Firm sign in
+          </a>
+        </p>
+      }
+    >
+      <FormHeader
+        title={isRegistering ? 'Create a staff account' : 'Welcome back'}
+        subtitle={
+          isRegistering
+            ? 'Request clearances for your faculty or department.'
+            : 'Sign in to manage attachments and audits.'
+        }
+      />
+
+      {error && (
+        <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          {error}
         </div>
+      )}
 
-        <div className="relative z-10 max-w-md border-l-2 border-indigo-500 pl-6 my-auto">
-          <blockquote className="text-xl font-medium text-slate-300 leading-relaxed tracking-wide font-serif italic">
-            "Oversee university attachment matrices, approve industrial partner credentials, and audit student supervisor pairings."
-          </blockquote>
-          <p className="text-[11px] text-indigo-400 mt-4 font-bold uppercase tracking-widest">Strathmore Administrative Registry</p>
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {isRegistering && (
+          <Input
+            label="Full name / title"
+            name="facultyName"
+            placeholder="e.g. Prof. Evans Kiprop"
+            value={formData.facultyName}
+            onChange={handleInputChange}
+            required
+          />
+        )}
 
-        <div className="relative z-10 text-[11px] text-slate-500 font-medium tracking-wide">
-          © 2026 University Placement System. Official Use Only.
-        </div>
-      </div>
+        {isRegistering && (
+          <Input
+            label="Staff ID"
+            name="staffId"
+            placeholder="e.g. ST-XXXX"
+            value={formData.staffId}
+            onChange={handleInputChange}
+            required
+          />
+        )}
 
-      <div className="w-full lg:w-7/12 flex items-center justify-center p-8 sm:p-16 bg-white shadow-2xl relative">
-        <div className="w-full max-w-md space-y-10">
-          
-          <div className="text-center lg:text-left space-y-3">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {isRegistering ? 'Create Faculty Console' : 'Administrative Sign In'}
-            </h2>
-            <p className="text-sm text-slate-500 font-medium">
-              {isRegistering ? 'Already have access?' : 'Need staff console access?'}{' '}
-              <button 
-                type="button"
-                onClick={() => setIsRegistering(!isRegistering)}
-                className="font-bold text-indigo-600 hover:text-indigo-700 transition-colors underline decoration-indigo-200 underline-offset-4 hover:decoration-indigo-600 focus:outline-none"
-              >
-                {isRegistering ? 'Sign In here' : 'Request clearance'}
-              </button>
-            </p>
-          </div>
+        {isRegistering && (
+          <Select
+            label="Department"
+            name="department"
+            value={formData.department}
+            onChange={handleInputChange}
+          >
+            <option value="Computer Science">Faculty of IT (FIT)</option>
+            <option value="Business">Strathmore Business School (SBS)</option>
+            <option value="Engineering">School of Engineering</option>
+          </Select>
+        )}
 
-          {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
-              {error}
-            </div>
-          )}
+        <Input
+          label="Institutional email"
+          name="email"
+          type="email"
+          icon={Mail}
+          autoComplete="email"
+          placeholder="username@strathmore.edu"
+          value={formData.email}
+          onChange={handleInputChange}
+          required
+        />
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {isRegistering && (
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Full Name / Academic Title</label>
-                <input
-                  type="text"
-                  name="facultyName"
-                  required
-                  value={formData.facultyName}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Prof. Evans Kiprop"
-                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all duration-200"
-                />
-              </div>
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="password" className="text-sm font-semibold text-ink-2">
+              Password
+            </label>
+            {!isRegistering && (
+              <a href="#" className="text-xs font-semibold text-ink-5 hover:text-cyan-600">
+                Forgot password?
+              </a>
             )}
-
-            {isRegistering && (
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Staff Identification Number</label>
-                <input
-                  type="text"
-                  name="staffId"
-                  required
-                  value={formData.staffId}
-                  onChange={handleInputChange}
-                  placeholder="e.g., ST-XXXX"
-                  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all duration-200"
-                />
-              </div>
-            )}
-
-            {isRegistering && (
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Primary Faculty / Department</label>
-                <div className="relative">
-                  <select
-                    name="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
-                    className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 text-slate-900 appearance-none focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all duration-200"
-                  >
-                    <option value="Computer Science">Faculty of IT (FIT)</option>
-                    <option value="Business">Strathmore Business School (SBS)</option>
-                    <option value="Engineering">School of Engineering</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
-                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Institutional Email Address</label>
-              <input
-                type="email"
-                name="email"
-                required
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="username@strathmore.edu"
-                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all duration-200"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">Security Key</label>
-                {!isRegistering && <a href="#" className="text-xs font-semibold text-slate-400 hover:text-indigo-600 transition-colors">Recovery options?</a>}
-              </div>
-              <input
-                type="password"
-                name="password"
-                required
-                value={formData.password}
-                onChange={handleInputChange}
-                placeholder="••••••••"
-                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50/50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all duration-200"
-              />
-            </div>
-
-            <div className="pt-4">
-              <Button type="submit" disabled={loading} className="w-full h-12">
-                {loading
-                  ? 'Please wait…'
-                  : isRegistering ? 'Submit Verification Request' : 'Authorize Console'}
-              </Button>
-            </div>
-          </form>
-
-          <div className="border-t border-slate-100 pt-8 text-center">
-            <p className="text-xs text-slate-400 font-medium">
-              Are you an attachment student or commercial partner? <br />
-              <span className="inline-block mt-3 text-slate-500 font-medium">
-                Switch to <a href="/login/student" className="text-slate-900 font-bold hover:text-indigo-600 transition-colors underline decoration-slate-300 underline-offset-4">Student Hub</a> or <a href="/login/firm" className="text-slate-900 font-bold hover:text-indigo-600 transition-colors underline decoration-slate-300 underline-offset-4">Corporate Gate</a>
-              </span>
-            </p>
           </div>
-
+          <div className="relative">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete={isRegistering ? 'new-password' : 'current-password'}
+              required
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={handleInputChange}
+              className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 px-10 text-sm text-ink placeholder:text-ink-5 shadow-soft transition-colors focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-500/10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-5 hover:text-ink-3"
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+
+        <div className="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            onClick={() => setIsRegistering((v) => !v)}
+            className="text-sm font-semibold text-cyan-700 hover:text-cyan-800"
+          >
+            {isRegistering ? 'Already have an account? Sign in' : 'Need staff access? Request it'}
+          </button>
+          <Button type="submit" disabled={loading}>
+            {loading ? (isRegistering ? 'Creating account…' : 'Signing in…') : isRegistering ? 'Create account' : 'Sign in'}
+          </Button>
+        </div>
+      </form>
+
+      <DemoHint email="registrar@jkuat.ac.ke" password="password123" />
+    </AuthShell>
   );
 }

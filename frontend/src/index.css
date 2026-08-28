@@ -1,1 +1,161 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Typography */
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Brand (violet → indigo) */
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95;
+  --color-brand-950: #2e1065;
+
+  /* Elevation */
+  --shadow-soft: 0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06);
+  --shadow-lifted: 0 10px 24px -8px rgb(15 23 42 / 0.14);
+  --shadow-pop: 0 20px 40px -12px rgb(15 23 42 / 0.22);
+}
+
+/* Semantic surface/ink/line tokens — flip automatically in dark mode. */
+@theme inline {
+  --color-surface: var(--sc-surface);
+  --color-surface-2: var(--sc-surface-2);
+  --color-surface-3: var(--sc-surface-3);
+  --color-surface-4: var(--sc-surface-4);
+  --color-ink: var(--sc-ink);
+  --color-ink-2: var(--sc-ink-2);
+  --color-ink-3: var(--sc-ink-3);
+  --color-ink-4: var(--sc-ink-4);
+  --color-ink-5: var(--sc-ink-5);
+  --color-line: var(--sc-line);
+  --color-line-2: var(--sc-line-2);
+}
+
+:root {
+  --sc-surface: #ffffff;
+  --sc-surface-2: #f8fafc;
+  --sc-surface-3: #f1f5f9;
+  --sc-surface-4: #e2e8f0;
+  --sc-ink: #0f172a;
+  --sc-ink-2: #334155;
+  --sc-ink-3: #475569;
+  --sc-ink-4: #64748b;
+  --sc-ink-5: #94a3b8;
+  --sc-line: #e2e8f0;
+  --sc-line-2: #f1f5f9;
+  color-scheme: light;
+}
+
+.dark {
+  --sc-surface: #0f172a;
+  --sc-surface-2: #0b1120;
+  --sc-surface-3: #1e293b;
+  --sc-surface-4: #334155;
+  --sc-ink: #f8fafc;
+  --sc-ink-2: #e2e8f0;
+  --sc-ink-3: #cbd5e1;
+  --sc-ink-4: #94a3b8;
+  --sc-ink-5: #64748b;
+  --sc-line: #334155;
+  --sc-line-2: #1e293b;
+  color-scheme: dark;
+}
+
+/* Dark-mode accent remap: keeps soft chips, rings and tinted text legible
+   on dark surfaces without touching every call site. */
+.dark .bg-brand-50 { background-color: color-mix(in srgb, var(--color-brand-500) 15%, transparent); }
+.dark .bg-amber-50 { background-color: color-mix(in srgb, var(--color-amber-500) 15%, transparent); }
+.dark .bg-cyan-50 { background-color: color-mix(in srgb, var(--color-cyan-500) 15%, transparent); }
+.dark .bg-rose-50 { background-color: color-mix(in srgb, var(--color-rose-500) 15%, transparent); }
+.dark .bg-emerald-50 { background-color: color-mix(in srgb, var(--color-emerald-500) 15%, transparent); }
+
+.dark .border-brand-200 { border-color: color-mix(in srgb, var(--color-brand-500) 35%, transparent); }
+.dark .border-amber-200 { border-color: color-mix(in srgb, var(--color-amber-500) 35%, transparent); }
+.dark .border-cyan-200 { border-color: color-mix(in srgb, var(--color-cyan-500) 35%, transparent); }
+.dark .border-rose-200 { border-color: color-mix(in srgb, var(--color-rose-500) 35%, transparent); }
+.dark .border-emerald-200 { border-color: color-mix(in srgb, var(--color-emerald-500) 35%, transparent); }
+
+.dark .ring-brand-100 { --tw-ring-color: color-mix(in srgb, var(--color-brand-500) 25%, transparent); }
+.dark .ring-amber-100 { --tw-ring-color: color-mix(in srgb, var(--color-amber-500) 25%, transparent); }
+.dark .ring-cyan-100 { --tw-ring-color: color-mix(in srgb, var(--color-cyan-500) 25%, transparent); }
+.dark .ring-rose-100 { --tw-ring-color: color-mix(in srgb, var(--color-rose-500) 25%, transparent); }
+.dark .ring-emerald-100 { --tw-ring-color: color-mix(in srgb, var(--color-emerald-500) 25%, transparent); }
+
+.dark .text-brand-600,
+.dark .text-brand-700,
+.dark .text-brand-800 { color: var(--color-brand-300); }
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-amber-800 { color: var(--color-amber-300); }
+.dark .text-cyan-600,
+.dark .text-cyan-700,
+.dark .text-cyan-800 { color: var(--color-cyan-300); }
+.dark .text-rose-600,
+.dark .text-rose-700,
+.dark .text-rose-800 { color: var(--color-rose-300); }
+.dark .text-emerald-600,
+.dark .text-emerald-700,
+.dark .text-emerald-800 { color: var(--color-emerald-300); }
+.dark .text-brand-900 { color: var(--color-brand-200); }
+.dark .text-amber-900 { color: var(--color-amber-200); }
+.dark .text-cyan-900 { color: var(--color-cyan-200); }
+.dark .text-rose-900 { color: var(--color-rose-200); }
+.dark .text-emerald-900 { color: var(--color-emerald-200); }
+
+.dark .hover\:text-brand-800:hover { color: var(--color-brand-300); }
+.dark .hover\:text-amber-800:hover { color: var(--color-amber-300); }
+.dark .hover\:text-cyan-800:hover { color: var(--color-cyan-300); }
+.dark .hover\:text-rose-800:hover { color: var(--color-rose-300); }
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-surface-2 text-ink font-sans;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-950;
+  }
+
+  .dark ::selection {
+    @apply bg-brand-600 text-white;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500/60 ring-offset-2 ring-offset-surface-2;
+  }
+
+  /* Gentle reveal used by overlays/panels */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.96) translateY(4px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  @keyframes slide-in-left {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+
+  .animate-fade-in { animation: fade-in 0.18s ease-out both; }
+  .animate-scale-in { animation: scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-slide-in-left { animation: slide-in-left 0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
+}

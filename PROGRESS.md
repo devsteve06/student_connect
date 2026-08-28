@@ -1,12 +1,34 @@
 # Student Connect - Project Progress
 
 ## Current Status
-- **Date**: 2026-08-22
-- **Phase**: Backend Remediation Complete, Frontend Issues Pending
-- **Overall Progress**: ~40%
+- **Date**: 2026-08-27
+- **Phase**: Frontend visual redesign (clean SaaS) complete
+- **Overall Progress**: ~55%
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-08-28
+- **Dark mode (comprehensive)**: added a System/Light/Dark 3-state theme toggle with `prefers-color-scheme` detection, manual override, and `localStorage` persistence.
+  - Mechanism: `@custom-variant dark` class strategy in `index.css`; semantic surface/ink/line tokens (`--sc-*`) flip under `.dark` and drive the ~417 previously literal slate/white utilities; FOUC-prevention inline script + `theme-color` meta sync in `index.html`.
+  - New `ThemeProvider`/`useTheme`/`themeContext` wrap the app in `main.jsx`; shared `ThemeToggle` (Sun/System/Moon segmented control) added to the dashboard `Navbar`, `Landing` header, and `AuthShell` form panel.
+  - Per-role accents (`roleTheme`) gained dark counterparts; dark-mode remap rules keep soft chips/rings/tinted text legible; always-dark brand panels (hero, auth brand rail, `Sidebar`, admin overlay) preserved as-is.
+  - Verified: `npm run lint` + `npm run build` green; compiled CSS contains token utilities + dark overrides.
+
+### 2026-08-27
+- **Landing page**: added a public single-page landing at `/` (replaces the old `/ → /login/student` redirect) as the front door to all portals. Built from the existing design system: dark hero with 4 role-themed portal cards (violet/amber/cyan/rose via `roleTheme`), features strip, 3-step "how it works", demo-account access panel, and footer. Auth-aware header shows "Back to {portal}" + sign out when a session exists.
+- **Supabase DB connection**: backend wired to a Supabase-hosted PostgreSQL database directly via `DATABASE_URL` (no Supabase SDK — existing `pg` data layer + JWT auth unchanged). Schema + seed loaded through the dashboard SQL Editor.
+- Modified `backend/data/db.js` to auto-enable SSL for any `supabase` host (`*.supabase.co` direct / `*.pooler.supabase.com` pooler); documented variants in `backend/.env.example`.
+- `backend/.env` now points at the **session pooler** (`aws-1-eu-west-1.pooler.supabase.com:5432`, user `postgres.ycvectpdjlwdgasjxbaw`) — the direct host is IPv6-only and unreachable from this network.
+- Verified: server boots with `Connected to PostgreSQL via DATABASE_URL.`; student login + `/student/metrics` and firm `/firm/applicants` return seeded Supabase data.
+- **Frontend redesign (clean modern SaaS)**: new design system (brand tokens, typography, elevation) in `index.css`; bold violet/indigo brand + `favicon.svg`; per-role theme in `src/config/roleTheme.js`.
+- **Backend API wiring**: fixed `firmService` prefix mismatch (`/firm/...` → `/api/v1/firm/...`, was returning 404); corrected stale dual-mount claim in `backend/README.md`; wired `FirmDashboard` + `FirmApplicants` to the real API (metrics, roster, and Pass/Shortlist/Place status actions, CSV export of the roster).
+- Rebuilt shared components (`Button`, `Input`, `Select`, `Textarea`, `Badge`, `Card`, `Modal`, `Skeleton`, `EmptyState`, `StatusPill`, `MetricCard`).
+- Canonicalized layout: `DashboardLayout` + `Sidebar` (with responsive mobile drawer) + `Navbar` (topbar); unified nav in `navigationConfig.jsx`; deleted duplicated/orphaned `student/views/FirmDashboard.jsx`.
+- Rebuilt all auth pages on a shared `AuthShell` with password toggle + demo-account hints (de-jargoned copy).
+- Rebuilt every dashboard/feature page (student, firm, university, admin) with consistent cards, metrics, pills, skeletons, empty states; de-jargoned user-facing copy.
+- Added branded 404 page. Set `index.html` title/meta/fonts.
+- Verified: `npm run lint` + `npm run build` green. See **Data Source Status** below for mock-vs-API notes.
 
 ### 2026-08-22
 - Initialized `PROGRESS.md` as a living progress tracker; seeded log from git history.
@@ -122,15 +144,33 @@ backend/
 | firm       | `careers@nexuslabs.io`                  | `password123`|
 | university | `registrar@jkuat.ac.ke`                 | `password123`|
 
+## Data Source Status
+> Where each frontend view gets its data today, and the service method to use when wiring the real API.
+> Pages mark their swap points with `// TODO(real-api)`.
+
+| View | Current source | Swap target when wired |
+|------|----------------|------------------------|
+| `StudentDashboard` | inline mock | `studentService.getMetrics()`, `getApplications()` |
+| `StudentMarketplace` | **real API** | already wired (`getPlacements()`, `applyForPlacement()`) |
+| `StudentLogBook` | inline mock | `studentService` (add `getLogbooks` / `submitLogbook`) |
+| `FirmDashboard` | **real API** | already wired (`getFirmMetrics()` + `getApplicants()`; `updateApplicantStatus()` for Pass/Shortlist/Place actions) |
+| `FirmApplicants` | **real API** | already wired (`getApplicants()`) |
+| `UniversityDashboard` | inline mock | `universityService.getCoordinatorMetrics()`, `getPendingLogbooks()`, `signOffLogbook()` |
+| `UniversityAudits` | inline mock | `universityService` audit endpoint (TBD) |
+| `AdminDashboard` | **real API** | already wired (`adminService.*`) |
+| Auth (all portals) | **real API** | already wired (`authService.login/register/adminLogin`) |
+
 ## Next Steps
-1. **Frontend**: Address remaining auth/routing issues
-2. **Testing**: Expand test coverage
-3. **Deployment**: Set up CI/CD, environment variables
-4. **Documentation**: Complete system documentation
-5. **Security**: Set strong JWT_SECRET in production
+1. **Frontend**: (done) visual redesign, responsive shell, de-jargoned copy — see Data Source Status for API wiring
+2. **API wiring**: swap remaining mock views to the service methods above
+3. **Testing**: expand test coverage
+4. **Deployment**: set up CI/CD, environment variables
+5. **Documentation**: complete system documentation
+6. **Security**: set strong JWT_SECRET in production
 
 ## Notes
 - Backend runs on port 5000 (configurable via PORT env)
 - Frontend uses Vite dev server with proxy to backend
 - Database falls back to pg-mem if DATABASE_URL not set
+- Connected to Supabase via the session pooler (`aws-1-eu-west-1.pooler.supabase.com:5432`); SSL auto-enabled in `backend/data/db.js`
 - All backend security issues have been remediated

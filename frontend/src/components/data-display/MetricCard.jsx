@@ -1,24 +1,33 @@
-export default function MetricCard({ title, value, change, status = 'default' }) {
-  const statusStyles = {
-    success: { border: "border-l-4 border-l-emerald-500", text: "text-emerald-600 bg-emerald-50/50" },
-    warning: { border: "border-l-4 border-l-amber-500", text: "text-amber-600 bg-amber-50/50" },
-    info: { border: "border-l-4 border-l-indigo-500", text: "text-indigo-600 bg-indigo-50/50" },
-    default: { border: "border-l-4 border-l-slate-400", text: "text-slate-500 bg-slate-50" }
-  };
+const accentByTone = {
+  brand: 'bg-brand-50 text-brand-600 ring-brand-100',
+  success: 'bg-emerald-50 text-emerald-600 ring-emerald-100',
+  warning: 'bg-amber-50 text-amber-600 ring-amber-100',
+  danger: 'bg-rose-50 text-rose-600 ring-rose-100',
+  neutral: 'bg-surface-3 text-ink-4 ring-line',
+};
 
-  const currentStyle = statusStyles[status] || statusStyles.default;
+export default function MetricCard({ title, value, unit, icon: Icon, tone = 'brand', change, className = '' }) {
+  const accent = accentByTone[tone] || accentByTone.brand;
 
   return (
-    <div className={`bg-white rounded-2xl p-6 border border-slate-100 shadow-sm flex flex-col justify-between transition-all hover:border-slate-200/80 ${currentStyle.border}`}>
-      <div className="space-y-1">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">{title}</span>
-        <span className="text-3xl font-extrabold text-slate-900 tracking-tight block font-mono">{value || '0'}</span>
+    <div
+      className={`group flex flex-col justify-between space-y-4 rounded-2xl border border-line/80 bg-surface p-5 shadow-soft transition-shadow hover:shadow-lifted ${className}`}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wider text-ink-5">{title}</span>
+        {Icon && (
+          <span className={`flex h-9 w-9 items-center justify-center rounded-xl ring-1 ${accent}`}>
+            <Icon className="h-4.5 w-4.5" />
+          </span>
+        )}
       </div>
-      <div className="mt-4">
-        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${currentStyle.text}`}>
-          {change}
-        </span>
+      <div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-3xl font-extrabold tracking-tight text-ink">{value}</span>
+          {unit && <span className="text-xs font-semibold text-ink-5">{unit}</span>}
+        </div>
       </div>
+      {change && <p className="text-xs font-medium text-ink-5">{change}</p>}
     </div>
   );
 }

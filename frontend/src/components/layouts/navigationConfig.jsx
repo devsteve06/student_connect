@@ -1,25 +1,35 @@
-import { 
+import {
   LayoutDashboard,
   BookOpen,
   Briefcase,
   Building2,
   Users,
   GraduationCap,
-  ShieldCheck
+  ShieldCheck,
 } from 'lucide-react';
 
+// Single source of truth for sidebar navigation.
+// paths must match the routes declared in src/route/AppRoute.jsx
 export const navigationLinks = {
   student: [
-    { name: 'Overview Console', href: '/student', icon: LayoutDashboard },
-    { name: 'Daily Logbook', href: '/student/logbook', icon: BookOpen },
-    { name: 'Industry Placements', href: '/student/placements', icon: Briefcase },
+    { name: 'Overview', href: '/student', icon: LayoutDashboard },
+    { name: 'Marketplace', href: '/student/marketplace', icon: Briefcase },
+    { name: 'Logbook', href: '/student/logbook', icon: BookOpen },
   ],
   firm: [
-    { name: 'Partner Dashboard', href: '/firm', icon: Building2 },
-    { name: 'Applicant Roster', href: '/firm/applicants', icon: Users },
+    { name: 'Overview', href: '/firm', icon: LayoutDashboard },
+    { name: 'Applicants', href: '/firm/applicants', icon: Users },
   ],
   university: [
-    { name: 'Operations Registry', href: '/university', icon: GraduationCap },
-    { name: 'Compliance Audits', href: '/university/audits', icon: ShieldCheck },
-  ]
+    { name: 'Overview', href: '/university', icon: LayoutDashboard },
+    { name: 'Audits', href: '/university/audits', icon: ShieldCheck },
+  ],
+  admin: [
+    { name: 'Admin overview', href: '/admin', icon: ShieldCheck },
+    { name: 'Student portal', href: '/student', icon: GraduationCap, section: 'Portals' },
+    { name: 'Firm portal', href: '/firm', icon: Building2 },
+    { name: 'Faculty portal', href: '/university', icon: Briefcase },
+  ],
 };
+
+export default navigationLinks;

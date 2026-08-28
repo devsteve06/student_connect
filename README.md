@@ -72,6 +72,20 @@ psql -d student_connect -f backend/sql/seed.sql
 
 Then set `DATABASE_URL` in `backend/.env`.
 
+### Using Supabase as the database
+
+The backend connects to Supabase like any PostgreSQL host — no Supabase SDK required; the existing `pg` data layer and JWT auth are used as-is. SSL is enabled automatically by `backend/data/db.js` for any `*.supabase.co` / `*.pooler.supabase.com` host.
+
+1. **Create the project** at [supabase.com](https://supabase.com) and run `backend/sql/schema.sql`, then `backend/sql/seed.sql`, in the dashboard **SQL Editor**.
+2. **Copy a connection string** from *Project Settings → Database → Connect*:
+   - **Session pooler** (recommended; works on IPv4 networks):
+     `postgresql://postgres.<project-ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:5432/postgres`
+   - **Direct** host `db.<project-ref>.supabase.co` is **IPv6-only** — it will not resolve on most IPv4-only home/office networks.
+3. **Set `DATABASE_URL`** in `backend/.env` with that string.
+   - The username must include the project reference: `postgres.<project-ref>` (not just `postgres`) — required by the pooler.
+   - Do **not** add `?sslmode=...` to the URL; it overrides the SSL config in `data/db.js`.
+4. Start the backend: the startup log must show `Connected to PostgreSQL via DATABASE_URL.` (not the pg-mem message).
+
 ### 2. Frontend
 
 ```bash

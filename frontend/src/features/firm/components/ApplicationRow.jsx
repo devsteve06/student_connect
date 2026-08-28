@@ -2,7 +2,7 @@ import Button from '../../../components/common/Button';
 
 export default function ApplicantRow({ applicant }) {
   return (
-    <tr className="hover:bg-slate-50/70 transition-colors border-b border-portal-border last:border-0">
+    <tr className="hover:bg-surface-2/70 transition-colors border-b border-portal-border last:border-0">
       <td className="px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-firm-light text-firm-primary font-bold text-xs flex items-center justify-center">
