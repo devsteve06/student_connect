@@ -1,4 +1,5 @@
 import roleTheme from '../../config/roleTheme';
+import ThemeToggle from '../../components/common/ThemeToggle';
 
 export default function AuthShell({
   role = 'student',
@@ -12,7 +13,7 @@ export default function AuthShell({
   const theme = roleTheme[role] || roleTheme.student;
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-surface">
       {/* Brand panel */}
       <aside className="relative hidden w-5/12 overflow-hidden bg-slate-950 lg:flex lg:flex-col lg:justify-between">
         {/* Decorative layers */}
@@ -47,7 +48,7 @@ export default function AuthShell({
           <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white">
             {headline}
           </h1>
-          {tagline && <p className="max-w-md text-sm text-slate-400">{tagline}</p>}
+          {tagline && <p className="max-w-md text-sm text-ink-5">{tagline}</p>}
         </div>
 
         <div className="relative z-10 space-y-5 p-12">
@@ -57,20 +58,23 @@ export default function AuthShell({
               {quoteSource}
             </cite>
           </blockquote>
-          <p className="text-xs text-slate-500">© 2026 Student Connect · Industrial Attachment Platform</p>
+          <p className="text-xs text-ink-4">© 2026 Student Connect · Industrial Attachment Platform</p>
         </div>
       </aside>
 
       {/* Form panel */}
-      <main className="flex w-full flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-10 sm:px-8">
+      <main className="relative flex w-full flex-1 flex-col items-center justify-center bg-surface-2 px-4 py-10 sm:px-8">
+        <div className="absolute right-4 top-4">
+          <ThemeToggle compact />
+        </div>
         <div className="mb-8 flex flex-col items-center lg:hidden">
           <img src="/favicon.svg" alt="Student Connect logo" className="mb-3 h-12 w-12 rounded-2xl shadow-lifted" />
-          <p className="text-base font-extrabold tracking-tight text-slate-900">Student Connect</p>
+          <p className="text-base font-extrabold tracking-tight text-ink">Student Connect</p>
         </div>
 
         <div className="w-full max-w-md">
           {children}
-          {footer && <div className="mt-8 border-t border-slate-200 pt-6">{footer}</div>}
+          {footer && <div className="mt-8 border-t border-line pt-6">{footer}</div>}
         </div>
       </main>
     </div>
@@ -80,16 +84,16 @@ export default function AuthShell({
 export function FormHeader({ title, subtitle }) {
   return (
     <div className="mb-8 space-y-2">
-      <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">{title}</h2>
-      <p className="text-sm text-slate-500">{subtitle}</p>
+      <h2 className="text-2xl font-extrabold tracking-tight text-ink">{title}</h2>
+      <p className="text-sm text-ink-4">{subtitle}</p>
     </div>
   );
 }
 
 export function DemoHint({ email, username, password }) {
   return (
-    <div className="mt-6 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 shadow-soft">
-      <p className="mb-1 font-bold uppercase tracking-wider text-slate-400">Demo access</p>
+    <div className="mt-6 rounded-xl border border-line bg-surface px-4 py-3 text-xs text-ink-4 shadow-soft">
+      <p className="mb-1 font-bold uppercase tracking-wider text-ink-5">Demo access</p>
       <p className="font-mono">
         {username ? `Username: ${username}` : `Email: ${email}`}
         <span className="mx-1.5 text-slate-300">·</span>

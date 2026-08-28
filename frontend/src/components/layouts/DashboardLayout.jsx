@@ -6,7 +6,7 @@ export default function DashboardLayout({ children, role = 'student' }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-surface-2">
       <Sidebar role={role} mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -16,7 +16,7 @@ export default function DashboardLayout({ children, role = 'student' }) {
           {children}
         </main>
 
-        <footer className="mx-auto w-full max-w-7xl px-6 pb-6 text-xs text-slate-400">
+        <footer className="mx-auto w-full max-w-7xl px-6 pb-6 text-xs text-ink-5">
           © 2026 Student Connect · Industrial Attachment Platform
         </footer>
       </div>

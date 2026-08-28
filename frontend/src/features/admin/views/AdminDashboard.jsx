@@ -96,7 +96,7 @@ export default function AdminDashboard() {
   }, [users, search, activeRole]);
 
   const metricCards = [
-    { key: 'all', label: 'Total accounts', value: users.length, icon: Users, accent: 'text-slate-900', tone: 'neutral' },
+    { key: 'all', label: 'Total accounts', value: users.length, icon: Users, accent: 'text-ink', tone: 'neutral' },
     { key: 'admin', label: 'Administrators', value: counts.admin, icon: ShieldCheck, accent: 'text-rose-600', tone: 'danger' },
     { key: 'student', label: 'Students', value: counts.student, icon: GraduationCap, accent: 'text-emerald-600', tone: 'success' },
     { key: 'firm', label: 'Firms', value: counts.firm, icon: Building2, accent: 'text-amber-600', tone: 'warning' },
@@ -104,7 +104,7 @@ export default function AdminDashboard() {
   ];
 
   const toneClass = {
-    neutral: 'text-slate-600 bg-slate-100',
+    neutral: 'text-ink-3 bg-surface-3',
     danger: 'text-rose-600 bg-rose-50',
     success: 'text-emerald-600 bg-emerald-50',
     warning: 'text-amber-600 bg-amber-50',
@@ -128,11 +128,11 @@ export default function AdminDashboard() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 md:flex-row md:items-center md:justify-between">
         <div>
           <span className={eyebrow.classes}>{eyebrow.label}</span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Admin overview</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage accounts across every portal.</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Admin overview</h1>
+          <p className="mt-1 text-sm text-ink-4">Manage accounts across every portal.</p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-center">
           <Button variant="secondary" icon={RefreshCw} onClick={loadUsers}>
@@ -153,24 +153,24 @@ export default function AdminDashboard() {
             <button
               key={m.key}
               onClick={() => setActiveRole(m.key)}
-              className={`text-left rounded-2xl border bg-white p-5 shadow-soft transition-all hover:shadow-lifted ${
-                active ? 'border-brand-300 ring-2 ring-brand-500/20' : 'border-slate-200/80'
+              className={`text-left rounded-2xl border bg-surface p-5 shadow-soft transition-all hover:shadow-lifted ${
+                active ? 'border-brand-300 ring-2 ring-brand-500/20' : 'border-line/80'
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{m.label}</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-ink-5">{m.label}</span>
                 <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${toneClass[m.tone]}`}>
                   <Icon className="h-4 w-4" />
                 </span>
               </div>
-              <span className="mt-3 block text-3xl font-extrabold tracking-tight text-slate-900">{m.value}</span>
+              <span className="mt-3 block text-3xl font-extrabold tracking-tight text-ink">{m.value}</span>
             </button>
           );
         })}
       </div>
 
       {/* Cross-portal quick access */}
-      <section className="rounded-2xl border border-slate-200/80 bg-slate-950 p-6 shadow-soft">
+      <section className="rounded-2xl border border-line/80 bg-slate-950 p-6 shadow-soft">
         <div className="mb-4 flex items-center gap-2">
           <LayoutGrid className="h-4 w-4 text-rose-300" />
           <h2 className="text-sm font-extrabold tracking-tight text-white">Jump into any portal</h2>
@@ -190,14 +190,14 @@ export default function AdminDashboard() {
       </section>
 
       {/* Controls */}
-      <div className="flex flex-col gap-4 rounded-xl border border-slate-200/80 bg-white p-3 shadow-soft sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm font-semibold">
+      <div className="flex flex-col gap-4 rounded-xl border border-line/80 bg-surface p-3 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-surface-3 p-1 text-sm font-semibold">
           {['all', 'admin', 'student', 'firm', 'university'].map((r) => (
             <button
               key={r}
               onClick={() => setActiveRole(r)}
               className={`rounded-lg px-3 py-1.5 capitalize transition-colors ${
-                activeRole === r ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+                activeRole === r ? 'bg-surface text-ink shadow-soft' : 'text-ink-4 hover:text-ink'
               }`}
             >
               {r === 'all' ? 'All accounts' : `${r}s`}
@@ -205,22 +205,22 @@ export default function AdminDashboard() {
           ))}
         </div>
         <div className="relative w-full sm:w-72">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email, or reg number…"
-            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+            className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
           />
         </div>
       </div>
 
       {/* Table */}
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-soft">
+      <section className="overflow-hidden rounded-2xl border border-line/80 bg-surface shadow-soft">
         {loading ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="flex items-center gap-3 text-sm font-semibold text-slate-400">
+            <div className="flex items-center gap-3 text-sm font-semibold text-ink-5">
               <RefreshCw className="h-4 w-4 animate-spin" />
               Loading accounts…
             </div>
@@ -245,31 +245,31 @@ export default function AdminDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-bold uppercase tracking-wider text-slate-400">
+                <tr className="border-b border-line-2 bg-surface-2/60 text-xs font-bold uppercase tracking-wider text-ink-5">
                   <th className="px-5 py-3">Account</th>
                   <th className="px-5 py-3">Username / email</th>
                   <th className="px-5 py-3">Role</th>
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line-2">
                 {filtered.map((u) => {
                   const meta = ROLE_META[u.role] || ROLE_META.student;
                   const Icon = meta.icon;
                   return (
-                    <tr key={`${u.role}-${u.id}`} className="transition-colors hover:bg-slate-50/60">
+                    <tr key={`${u.role}-${u.id}`} className="transition-colors hover:bg-surface-2/60">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-3 text-ink-4">
                             <Icon className="h-4 w-4" />
                           </span>
                           <div>
-                            <p className="font-bold text-slate-900">{u.name || '—'}</p>
-                            {u.regNumber && <p className="text-xs text-slate-400">{u.regNumber}</p>}
+                            <p className="font-bold text-ink">{u.name || '—'}</p>
+                            {u.regNumber && <p className="text-xs text-ink-5">{u.regNumber}</p>}
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-4 font-mono text-slate-600">{u.username || u.email || '—'}</td>
+                      <td className="px-5 py-4 font-mono text-ink-3">{u.username || u.email || '—'}</td>
                       <td className="px-5 py-4">
                         <Badge variant={meta.badge}>{meta.label}</Badge>
                       </td>
@@ -426,8 +426,8 @@ function DeleteModal({ target, onClose, onDone, onError }) {
         </>
       }
     >
-      <p className="text-sm leading-relaxed text-slate-600">
-        You're about to permanently remove <span className="font-bold text-slate-900">{target.name}</span>. This also
+      <p className="text-sm leading-relaxed text-ink-3">
+        You're about to permanently remove <span className="font-bold text-ink">{target.name}</span>. This also
         removes any linked applications and logbooks. This can't be undone.
       </p>
     </Modal>

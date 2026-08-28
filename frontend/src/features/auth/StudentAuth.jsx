@@ -65,7 +65,7 @@ export default function StudentAuth() {
       quote="Student Connect connected me with a placement that matched exactly what I wanted to learn this year."
       quoteSource="Class of 2026 · Placement story"
       footer={
-        <p className="text-center text-xs text-slate-500">
+        <p className="text-center text-xs text-ink-4">
           Work at a firm or a university?{' '}
           <a href="/login/firm" className="font-semibold text-brand-700 hover:text-brand-800">
             Firm sign in
@@ -147,11 +147,11 @@ export default function StudentAuth() {
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-semibold text-slate-700">
+            <label htmlFor="password" className="text-sm font-semibold text-ink-2">
               Password
             </label>
             {!isRegistering && (
-              <a href="#" className="text-xs font-semibold text-slate-400 hover:text-brand-600">
+              <a href="#" className="text-xs font-semibold text-ink-5 hover:text-brand-600">
                 Forgot password?
               </a>
             )}
@@ -166,14 +166,14 @@ export default function StudentAuth() {
               placeholder="••••••••"
               value={formData.password}
               onChange={handleInputChange}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 shadow-soft transition-colors focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+              className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 pl-10 pr-10 text-sm text-ink placeholder:text-ink-5 shadow-soft transition-colors focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
             />
-            <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:text-slate-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-5 hover:text-ink-3"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>

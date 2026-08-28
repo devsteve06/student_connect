@@ -7,6 +7,21 @@
     <meta name="description" content="Student Connect — the industrial attachment platform connecting students, firms, and universities." />
     <meta name="theme-color" content="#7c3aed" />
     <title>Student Connect | Industrial Attachment Platform</title>
+    <script>
+      (function () {
+        try {
+          var saved = window.localStorage.getItem('student-connect-theme');
+          var dark =
+            saved === 'dark' ||
+            (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var root = document.documentElement;
+          root.classList.toggle('dark', dark);
+          root.style.colorScheme = dark ? 'dark' : 'light';
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#0b1120' : '#7c3aed');
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

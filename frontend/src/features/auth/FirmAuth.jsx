@@ -64,7 +64,7 @@ export default function FirmAuth() {
       quote="We shortlisted three interns within a week of posting and placed two by month end."
       quoteSource="Nexus Labs · Partner story"
       footer={
-        <p className="text-center text-xs text-slate-500">
+        <p className="text-center text-xs text-ink-4">
           A student or institution?{' '}
           <a href="/login/student" className="font-semibold text-amber-700 hover:text-amber-800">
             Student sign in
@@ -142,11 +142,11 @@ export default function FirmAuth() {
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label htmlFor="password" className="text-sm font-semibold text-slate-700">
+            <label htmlFor="password" className="text-sm font-semibold text-ink-2">
               Password
             </label>
             {!isRegistering && (
-              <a href="#" className="text-xs font-semibold text-slate-400 hover:text-amber-600">
+              <a href="#" className="text-xs font-semibold text-ink-5 hover:text-amber-600">
                 Forgot password?
               </a>
             )}
@@ -161,13 +161,13 @@ export default function FirmAuth() {
               placeholder="••••••••"
               value={formData.password}
               onChange={handleInputChange}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 px-10 text-sm text-slate-900 placeholder:text-slate-400 shadow-soft transition-colors focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
+              className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 px-10 text-sm text-ink placeholder:text-ink-5 shadow-soft transition-colors focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
             />
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:text-slate-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-5 hover:text-ink-3"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>

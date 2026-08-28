@@ -45,20 +45,20 @@ export default function FirmApplicants() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-100 pb-6">
+      <div className="border-b border-line-2 pb-6">
         <p className={eyebrow.classes}>{eyebrow.label}</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Applicants</h1>
-        <p className="mt-1 text-sm text-slate-500">Review the students who've applied to your openings.</p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Applicants</h1>
+        <p className="mt-1 text-sm text-ink-4">Review the students who've applied to your openings.</p>
       </div>
 
       <div className="relative w-full sm:w-80">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by name, role, or university…"
-          className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
+          className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
         />
       </div>
 
@@ -87,20 +87,20 @@ export default function FirmApplicants() {
               }
             />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-line-2">
               {filtered.map((cand) => (
                 <li
                   key={cand.id}
-                  className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-slate-50/70 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-surface-2/70 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900">{cand.studentName}</h3>
-                    <p className="truncate text-sm text-slate-500">
-                      {cand.university} · <span className="font-semibold text-slate-700">Applied {cand.appliedDate}</span>
+                    <h3 className="text-sm font-bold text-ink">{cand.studentName}</h3>
+                    <p className="truncate text-sm text-ink-4">
+                      {cand.university} · <span className="font-semibold text-ink-2">Applied {cand.appliedDate}</span>
                     </p>
                   </div>
                   <div className="flex items-center justify-between gap-6 sm:justify-end">
-                    <p className="text-sm font-semibold text-slate-700">{cand.role}</p>
+                    <p className="text-sm font-semibold text-ink-2">{cand.role}</p>
                     <StatusPill status={cand.status} className="shrink-0" />
                   </div>
                 </li>

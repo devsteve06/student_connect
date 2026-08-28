@@ -45,7 +45,7 @@ export default function AdminAuth() {
       quote="A single control room for the whole placement ecosystem."
       quoteSource="Privileged access · Audited"
       footer={
-        <p className="text-center text-xs text-slate-500">
+        <p className="text-center text-xs text-ink-4">
           Not an administrator?{' '}
           <a href="/login/student" className="font-semibold text-rose-700 hover:text-rose-800">
             Return to portal sign in
@@ -57,8 +57,8 @@ export default function AdminAuth() {
         <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lifted">
           <ShieldCheck className="h-6 w-6" />
         </div>
-        <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Administrator sign in</h2>
-        <p className="text-sm text-slate-500">Restricted area — authorized platform operators only.</p>
+        <h2 className="text-2xl font-extrabold tracking-tight text-ink">Administrator sign in</h2>
+        <p className="text-sm text-ink-4">Restricted area — authorized platform operators only.</p>
       </div>
 
       {error && (
@@ -80,7 +80,7 @@ export default function AdminAuth() {
         />
 
         <div>
-          <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-slate-700">
+          <label htmlFor="password" className="mb-1.5 block text-sm font-semibold text-ink-2">
             Password
           </label>
           <div className="relative">
@@ -93,13 +93,13 @@ export default function AdminAuth() {
               placeholder="••••••••"
               value={credentials.password}
               onChange={handleInputChange}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 shadow-soft transition-colors focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
+              className="w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-5 shadow-soft transition-colors focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
             />
             <button
               type="button"
               onClick={() => setShowPassword((s) => !s)}
               aria-label={showPassword ? 'Hide password' : 'Show password'}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:text-slate-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-5 hover:text-ink-3"
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>

@@ -4,8 +4,8 @@ const variants = {
   primary:
     'bg-brand-600 hover:bg-brand-700 text-white shadow-sm shadow-brand-600/30 border border-brand-700/40',
   secondary:
-    'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-soft',
-  ghost: 'bg-transparent hover:bg-slate-100 text-slate-600',
+    'bg-surface hover:bg-surface-2 text-ink-2 border border-line shadow-soft',
+  ghost: 'bg-transparent hover:bg-surface-3 text-ink-3',
   danger:
     'bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/30 border border-rose-700/40',
 };

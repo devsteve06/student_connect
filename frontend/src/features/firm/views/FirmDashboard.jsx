@@ -148,8 +148,8 @@ export default function FirmDashboard() {
     return (
       <div className="space-y-8">
         <div className="space-y-2">
-          <div className="h-4 w-28 animate-pulse rounded-full bg-slate-200" />
-          <div className="h-8 w-52 animate-pulse rounded-lg bg-slate-200" />
+          <div className="h-4 w-28 animate-pulse rounded-full bg-surface-4" />
+          <div className="h-8 w-52 animate-pulse rounded-lg bg-surface-4" />
         </div>
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -185,11 +185,11 @@ export default function FirmDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 md:flex-row md:items-center md:justify-between">
         <div>
           <span className={eyebrow.classes}>{eyebrow.label}</span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Overview</h1>
-          <p className="mt-1 text-sm text-slate-500">A live view of your applicants and placement pipeline.</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Overview</h1>
+          <p className="mt-1 text-sm text-ink-4">A live view of your applicants and placement pipeline.</p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-center">
           <Button variant="secondary" icon={Download} onClick={exportCsv}>Export roster</Button>
@@ -223,16 +223,16 @@ export default function FirmDashboard() {
               />
             </div>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-line-2">
               {recentApplicants.map((app) => (
-                <li key={app.id} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-slate-50/70">
+                <li key={app.id} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-surface-2/70">
                   <div className="min-w-0 space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-bold text-slate-900">{app.candidate}</p>
-                      <span className="text-xs text-slate-400">· {app.appliedDate}</span>
+                      <p className="truncate text-sm font-bold text-ink">{app.candidate}</p>
+                      <span className="text-xs text-ink-5">· {app.appliedDate}</span>
                     </div>
-                    <p className="truncate text-sm text-slate-500">
-                      {app.university} — <span className="text-slate-700">{app.role}</span>
+                    <p className="truncate text-sm text-ink-4">
+                      {app.university} — <span className="text-ink-2">{app.role}</span>
                     </p>
                   </div>
                   <StatusPill status={app.status} className="shrink-0" />
@@ -256,10 +256,10 @@ export default function FirmDashboard() {
                 return (
                   <div key={status} className="space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold text-slate-700">{status}</span>
-                      <span className="font-mono text-xs font-bold text-slate-500">{count} · {percent}%</span>
+                      <span className="font-semibold text-ink-2">{status}</span>
+                      <span className="font-mono text-xs font-bold text-ink-4">{count} · {percent}%</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-2 overflow-hidden rounded-full bg-surface-3">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${PIPELINE_COLORS[status] || 'bg-slate-400'}`}
                         style={{ width: `${percent}%` }}
@@ -274,14 +274,14 @@ export default function FirmDashboard() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-4 rounded-xl border border-slate-200/80 bg-white p-3 shadow-soft sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-slate-100 p-1 text-sm font-semibold">
+      <div className="flex flex-col gap-4 rounded-xl border border-line/80 bg-surface p-3 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-1 rounded-lg bg-surface-3 p-1 text-sm font-semibold">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-lg px-3 py-1.5 transition-colors ${
-                activeTab === tab.key ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'
+                activeTab === tab.key ? 'bg-surface text-ink shadow-soft' : 'text-ink-4 hover:text-ink'
               }`}
             >
               {tab.label}
@@ -289,13 +289,13 @@ export default function FirmDashboard() {
           ))}
         </div>
         <div className="relative w-full sm:w-72">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by candidate, role, or university…"
-            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
+            className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
           />
         </div>
       </div>
@@ -314,29 +314,29 @@ export default function FirmDashboard() {
           {filteredApplicants.map((app) => (
             <article
               key={app.id}
-              className="flex flex-col gap-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-soft transition-shadow hover:shadow-lifted lg:flex-row lg:items-center lg:justify-between"
+              className="flex flex-col gap-5 rounded-2xl border border-line/80 bg-surface p-5 shadow-soft transition-shadow hover:shadow-lifted lg:flex-row lg:items-center lg:justify-between"
             >
               <div className="flex min-w-0 items-center gap-4 lg:w-72">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 font-mono text-xs font-bold text-brand-700">
                   {app.avatar}
                 </span>
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-extrabold text-slate-900">{app.candidate}</h3>
-                  <p className="truncate text-xs text-slate-500">{app.university}</p>
+                  <h3 className="truncate text-sm font-extrabold text-ink">{app.candidate}</h3>
+                  <p className="truncate text-xs text-ink-4">{app.university}</p>
                 </div>
               </div>
 
               <div className="min-w-0 lg:w-56">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Applied for</p>
-                <p className="truncate text-sm font-semibold text-slate-700">{app.role}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-ink-5">Applied for</p>
+                <p className="truncate text-sm font-semibold text-ink-2">{app.role}</p>
               </div>
 
               <div className="min-w-0 lg:w-44">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Applied</p>
-                <p className="truncate text-sm font-semibold text-slate-700">{app.appliedDate}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-ink-5">Applied</p>
+                <p className="truncate text-sm font-semibold text-ink-2">{app.appliedDate}</p>
               </div>
 
-              <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-4 lg:justify-end lg:border-t-0 lg:pt-0">
+              <div className="flex items-center justify-between gap-4 border-t border-line-2 pt-4 lg:justify-end lg:border-t-0 lg:pt-0">
                 <StatusPill status={app.status} />
                 {app.status === PENDING_STATUS ? (
                   <div className="flex items-center gap-2">
@@ -357,7 +357,7 @@ export default function FirmDashboard() {
                     </Button>
                   </div>
                 ) : (
-                  <span className="text-xs text-slate-400">No action needed</span>
+                  <span className="text-xs text-ink-5">No action needed</span>
                 )}
               </div>
             </article>

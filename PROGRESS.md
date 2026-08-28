@@ -8,7 +8,15 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-08-28
+- **Dark mode (comprehensive)**: added a System/Light/Dark 3-state theme toggle with `prefers-color-scheme` detection, manual override, and `localStorage` persistence.
+  - Mechanism: `@custom-variant dark` class strategy in `index.css`; semantic surface/ink/line tokens (`--sc-*`) flip under `.dark` and drive the ~417 previously literal slate/white utilities; FOUC-prevention inline script + `theme-color` meta sync in `index.html`.
+  - New `ThemeProvider`/`useTheme`/`themeContext` wrap the app in `main.jsx`; shared `ThemeToggle` (Sun/System/Moon segmented control) added to the dashboard `Navbar`, `Landing` header, and `AuthShell` form panel.
+  - Per-role accents (`roleTheme`) gained dark counterparts; dark-mode remap rules keep soft chips/rings/tinted text legible; always-dark brand panels (hero, auth brand rail, `Sidebar`, admin overlay) preserved as-is.
+  - Verified: `npm run lint` + `npm run build` green; compiled CSS contains token utilities + dark overrides.
+
 ### 2026-08-27
+- **Landing page**: added a public single-page landing at `/` (replaces the old `/ → /login/student` redirect) as the front door to all portals. Built from the existing design system: dark hero with 4 role-themed portal cards (violet/amber/cyan/rose via `roleTheme`), features strip, 3-step "how it works", demo-account access panel, and footer. Auth-aware header shows "Back to {portal}" + sign out when a session exists.
 - **Supabase DB connection**: backend wired to a Supabase-hosted PostgreSQL database directly via `DATABASE_URL` (no Supabase SDK — existing `pg` data layer + JWT auth unchanged). Schema + seed loaded through the dashboard SQL Editor.
 - Modified `backend/data/db.js` to auto-enable SSL for any `supabase` host (`*.supabase.co` direct / `*.pooler.supabase.com` pooler); documented variants in `backend/.env.example`.
 - `backend/.env` now points at the **session pooler** (`aws-1-eu-west-1.pooler.supabase.com:5432`, user `postgres.ycvectpdjlwdgasjxbaw`) — the direct host is IPv6-only and unreachable from this network.

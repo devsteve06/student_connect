@@ -25,20 +25,20 @@ export default function UniversityAudits() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-slate-100 pb-6">
+      <div className="border-b border-line-2 pb-6">
         <p className={eyebrow.classes}>{eyebrow.label}</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Compliance audits</h1>
-        <p className="mt-1 text-sm text-slate-500">Review and verify student attachment records.</p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Compliance audits</h1>
+        <p className="mt-1 text-sm text-ink-4">Review and verify student attachment records.</p>
       </div>
 
       <div className="relative w-full sm:w-80">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by student or firm…"
-          className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-500/10"
+          className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-500/10"
         />
       </div>
 
@@ -53,22 +53,22 @@ export default function UniversityAudits() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/60 text-xs font-bold uppercase tracking-wider text-slate-400">
+                <tr className="border-b border-line-2 bg-surface-2/60 text-xs font-bold uppercase tracking-wider text-ink-5">
                   <th className="px-5 py-3">Student</th>
                   <th className="px-5 py-3">Firm</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Last updated</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-line-2">
                 {filtered.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-slate-50/60">
-                    <td className="px-5 py-4 font-bold text-slate-900">{item.student}</td>
-                    <td className="px-5 py-4 text-slate-600">{item.firm}</td>
+                  <tr key={item.id} className="transition-colors hover:bg-surface-2/60">
+                    <td className="px-5 py-4 font-bold text-ink">{item.student}</td>
+                    <td className="px-5 py-4 text-ink-3">{item.firm}</td>
                     <td className="px-5 py-4">
                       <StatusPill status={item.status} />
                     </td>
-                    <td className="px-5 py-4 text-slate-400">{item.date}</td>
+                    <td className="px-5 py-4 text-ink-5">{item.date}</td>
                   </tr>
                 ))}
               </tbody>

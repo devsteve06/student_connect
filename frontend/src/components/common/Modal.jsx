@@ -33,18 +33,18 @@ export default function Modal({ isOpen, onClose, title, subtitle, children, foot
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`relative w-full ${widths[size]} animate-scale-in overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-pop`}
+        className={`relative w-full ${widths[size]} animate-scale-in overflow-hidden rounded-2xl border border-line bg-surface shadow-pop`}
       >
         {(title || subtitle) && (
-          <header className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/60 px-6 py-4">
+          <header className="flex items-start justify-between gap-4 border-b border-line-2 bg-surface-2/60 px-6 py-4">
             <div>
-              <h2 className="text-sm font-extrabold tracking-tight text-slate-900">{title}</h2>
-              {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+              <h2 className="text-sm font-extrabold tracking-tight text-ink">{title}</h2>
+              {subtitle && <p className="mt-0.5 text-xs text-ink-5">{subtitle}</p>}
             </div>
             <button
               onClick={onClose}
               aria-label="Close dialog"
-              className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-200/60 hover:text-slate-600"
+              className="rounded-lg p-1.5 text-ink-5 transition-colors hover:bg-surface-4/60 hover:text-ink-3"
             >
               <X className="h-4.5 w-4.5" />
             </button>
@@ -52,7 +52,7 @@ export default function Modal({ isOpen, onClose, title, subtitle, children, foot
         )}
         <div className="max-h-[70vh] overflow-y-auto px-6 py-5">{children}</div>
         {footer && (
-          <footer className="flex items-center justify-end gap-3 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+          <footer className="flex items-center justify-end gap-3 border-t border-line-2 bg-surface-2/60 px-6 py-4">
             {footer}
           </footer>
         )}

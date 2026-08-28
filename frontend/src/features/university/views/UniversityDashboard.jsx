@@ -49,17 +49,17 @@ export default function UniversityDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 md:flex-row md:items-center md:justify-between">
         <div>
           <span className={eyebrow.classes}>{eyebrow.label}</span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Overview</h1>
-          <p className="mt-1 text-sm text-slate-500">Monitor attachments, placements, and audit sign-offs.</p>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Overview</h1>
+          <p className="mt-1 text-sm text-ink-4">Monitor attachments, placements, and audit sign-offs.</p>
         </div>
         <div className="flex items-center gap-3 self-start md:self-center">
           <select
             value={selectedCohort}
             onChange={(e) => setSelectedCohort(e.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-soft focus:border-cyan-500 focus:outline-none"
+            className="h-10 rounded-xl border border-line bg-surface px-3 text-sm font-semibold text-ink-2 shadow-soft focus:border-cyan-500 focus:outline-none"
           >
             <option value="2026">Cohort 2026</option>
             <option value="2025">Cohort 2025</option>
@@ -84,21 +84,21 @@ export default function UniversityDashboard() {
           className="lg:col-span-2"
           bodyClassName="p-2"
         >
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-line-2">
             {students
               .filter((s) => s.status !== 'Unassigned')
               .map((student) => (
-                <li key={student.id} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-slate-50/70">
+                <li key={student.id} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-surface-2/70">
                   <div className="min-w-0 space-y-0.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-bold text-slate-900">{student.name}</p>
+                      <p className="truncate text-sm font-bold text-ink">{student.name}</p>
                       <StatusPill status={student.status} />
                     </div>
-                    <p className="truncate text-sm text-slate-500">
-                      {student.major} — <span className="text-slate-700">{student.firm}</span>
+                    <p className="truncate text-sm text-ink-4">
+                      {student.major} — <span className="text-ink-2">{student.firm}</span>
                     </p>
                   </div>
-                  <span className="shrink-0 font-mono text-xs font-bold text-slate-600">
+                  <span className="shrink-0 font-mono text-xs font-bold text-ink-3">
                     {student.auditScore}/100
                   </span>
                 </li>
@@ -113,12 +113,12 @@ export default function UniversityDashboard() {
               return (
                 <div key={major.name} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-slate-800">{major.name}</span>
-                    <span className="font-mono text-xs font-bold text-slate-500">
+                    <span className="font-semibold text-ink">{major.name}</span>
+                    <span className="font-mono text-xs font-bold text-ink-4">
                       {major.assigned}/{major.total}
                     </span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-3">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${major.color}`}
                       style={{ width: `${percent}%` }}
@@ -133,17 +133,17 @@ export default function UniversityDashboard() {
 
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-500">
-          <span className="font-semibold text-slate-700">{filteredStudents.length}</span> students match your search
+        <p className="text-sm text-ink-4">
+          <span className="font-semibold text-ink-2">{filteredStudents.length}</span> students match your search
         </p>
         <div className="relative w-full sm:w-80">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by student, track, or company…"
-            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-500/10"
+            className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-500/10"
           />
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function UniversityDashboard() {
           {filteredStudents.map((student) => (
             <article
               key={student.id}
-              className="flex flex-col gap-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-soft transition-shadow hover:shadow-lifted lg:flex-row lg:items-center lg:justify-between"
+              className="flex flex-col gap-5 rounded-2xl border border-line/80 bg-surface p-5 shadow-soft transition-shadow hover:shadow-lifted lg:flex-row lg:items-center lg:justify-between"
             >
               <div className="flex min-w-0 items-center gap-4 lg:w-64">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-50 text-xs font-bold text-cyan-700">
@@ -172,27 +172,27 @@ export default function UniversityDashboard() {
                     .join('')}
                 </span>
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-extrabold text-slate-900">{student.name}</h3>
-                  <p className="truncate text-xs text-slate-500">{student.major}</p>
+                  <h3 className="truncate text-sm font-extrabold text-ink">{student.name}</h3>
+                  <p className="truncate text-xs text-ink-4">{student.major}</p>
                 </div>
               </div>
 
               <div className="min-w-0 lg:w-52">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Placed at</p>
-                <p className="truncate text-sm font-semibold text-slate-700">{student.firm}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-ink-5">Placed at</p>
+                <p className="truncate text-sm font-semibold text-ink-2">{student.firm}</p>
               </div>
 
               <div className="lg:w-48">
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Progress</p>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-5">Progress</p>
                 <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-3">
                     <div className="h-full rounded-full bg-cyan-500" style={{ width: `${student.progress}%` }} />
                   </div>
-                  <span className="font-mono text-xs font-bold text-slate-800">{student.progress}%</span>
+                  <span className="font-mono text-xs font-bold text-ink">{student.progress}%</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-4 border-t border-slate-100 pt-4 lg:border-t-0 lg:pt-0">
+              <div className="flex items-center justify-between gap-4 border-t border-line-2 pt-4 lg:border-t-0 lg:pt-0">
                 <StatusPill status={student.status} />
                 <Button size="sm" variant="secondary" icon={ExternalLink}>
                   Review log

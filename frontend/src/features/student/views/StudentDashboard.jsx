@@ -51,13 +51,13 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 md:flex-row md:items-center md:justify-between">
         <div>
           <span className={eyebrow.classes}>{eyebrow.label}</span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
             Overview
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-ink-4">
             Track your applications and logbook at a glance.
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function StudentDashboard() {
           <select
             value={selectedTerm}
             onChange={(e) => setSelectedTerm(e.target.value)}
-            className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-soft focus:border-brand-500 focus:outline-none"
+            className="h-10 rounded-xl border border-line bg-surface px-3 text-sm font-semibold text-ink-2 shadow-soft focus:border-brand-500 focus:outline-none"
           >
             <option value="May-Aug 2026">May – Aug 2026</option>
             <option value="Jan-Apr 2026">Jan – Apr 2026</option>
@@ -104,16 +104,16 @@ export default function StudentDashboard() {
               description="Browse the marketplace to find a placement that fits you."
             />
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-line-2">
               {placementApplications.map((app) => (
-                <li key={app.id} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-slate-50/70">
+                <li key={app.id} className="flex items-center justify-between gap-4 px-3 py-4 transition-colors hover:bg-surface-2/70">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-bold text-slate-900">{app.role}</p>
+                      <p className="truncate text-sm font-bold text-ink">{app.role}</p>
                       <StatusPill status={app.status} />
                     </div>
-                    <p className="truncate text-sm text-slate-500">
-                      <span className="font-semibold text-slate-700">{app.firm}</span>
+                    <p className="truncate text-sm text-ink-4">
+                      <span className="font-semibold text-ink-2">{app.firm}</span>
                       <span className="mx-1.5 text-slate-300">·</span>
                       {app.date}
                     </p>
@@ -135,12 +135,12 @@ export default function StudentDashboard() {
               return (
                 <div key={skill.framework} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-semibold text-slate-800">{skill.framework}</span>
-                    <span className="font-mono text-xs font-bold text-slate-500">
+                    <span className="font-semibold text-ink">{skill.framework}</span>
+                    <span className="font-mono text-xs font-bold text-ink-4">
                       {skill.items}/{skill.goal}
                     </span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-3">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${met ? 'bg-emerald-500' : 'bg-brand-500'}`}
                       style={{ width: `${percentage}%` }}
@@ -164,16 +164,16 @@ export default function StudentDashboard() {
         }
         bodyClassName="p-2"
       >
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-line-2">
           {recentLogs.map((log) => (
             <li key={log.week} className="flex items-center justify-between gap-4 px-3 py-4">
               <div className="flex min-w-0 items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-mono text-xs font-bold text-slate-600">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-3 font-mono text-xs font-bold text-ink-3">
                   W{log.week}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800">{log.range}</p>
-                  <p className="truncate text-sm text-slate-500">{log.activities}</p>
+                  <p className="text-sm font-semibold text-ink">{log.range}</p>
+                  <p className="truncate text-sm text-ink-4">{log.activities}</p>
                 </div>
               </div>
               <StatusPill status={log.status} className="shrink-0" />

@@ -1,5 +1,5 @@
 
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import UniversityAudits from '../features/university/UniversityAudits';
 import FirmApplicants from '../features/firm/views/FirmApplicants';
 
@@ -24,6 +24,7 @@ import StudentLogbook from '../features/student/views/StudentLogBook'; // <-- IM
 import FirmDashboard from '../features/firm/views/FirmDashboard';
 import UniversityDashboard from '../features/university/views/UniversityDashboard';
 import AdminDashboard from '../features/admin/views/AdminDashboard';
+import Landing from '../features/Landing';
 import NotFound from '../features/NotFound';
 
 export default function AppRoutes() {
@@ -32,8 +33,8 @@ export default function AppRoutes() {
       <AuthProvider>
         <Routes>
 
-          {/* FALLBACK REDIRECTS */}
-          <Route path="/" element={<Navigate to="/login/student" replace />} />
+          {/* PUBLIC LANDING PAGE — front door to all portals */}
+          <Route path="/" element={<Landing />} />
 
           {/* AUTH ARCHITECTURE ENTRIES (guests only; signed-in users bounce home) */}
           <Route path="/login/student" element={<GuestRoute><StudentAuth /></GuestRoute>} />

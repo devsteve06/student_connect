@@ -87,13 +87,13 @@ export default function StudentLogbook() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className={eyebrow.classes}>{eyebrow.label}</p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
             Industrial training logbook
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Log weekly activities and competencies for supervisor sign-off.</p>
+          <p className="mt-1 text-sm text-ink-4">Log weekly activities and competencies for supervisor sign-off.</p>
         </div>
         <Button icon={Plus} onClick={() => setIsModalOpen(true)} className="self-start sm:self-center">
           Add weekly entry
@@ -121,16 +121,16 @@ export default function StudentLogbook() {
           {logbooks.map((log) => (
             <article
               key={log.id}
-              className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-5 shadow-soft"
+              className="flex flex-col rounded-2xl border border-line/80 bg-surface p-5 shadow-soft"
             >
-              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-start justify-between gap-3 border-b border-line-2 pb-4">
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 font-mono text-sm font-bold text-brand-700">
                     W{log.weekNumber}
                   </span>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Week {log.weekNumber}</h3>
-                    <p className="text-xs text-slate-400">{log.dateRange}</p>
+                    <h3 className="text-sm font-bold text-ink">Week {log.weekNumber}</h3>
+                    <p className="text-xs text-ink-5">{log.dateRange}</p>
                   </div>
                 </div>
                 <StatusPill status={log.status} />
@@ -138,19 +138,19 @@ export default function StudentLogbook() {
 
               <div className="flex-1 space-y-4 py-4 text-sm">
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">What I did</p>
-                  <p className="leading-relaxed text-slate-600">{log.activities}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-5">What I did</p>
+                  <p className="leading-relaxed text-ink-3">{log.activities}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Skills gained</p>
-                  <p className="font-medium text-slate-800">{log.competencies}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-5">Skills gained</p>
+                  <p className="font-medium text-ink">{log.competencies}</p>
                 </div>
               </div>
 
               {log.supervisorComment && (
-                <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm">
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Supervisor note</p>
-                  <p className="italic text-slate-600">"{log.supervisorComment}"</p>
+                <div className="rounded-xl bg-surface-2 px-4 py-3 text-sm">
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-ink-5">Supervisor note</p>
+                  <p className="italic text-ink-3">"{log.supervisorComment}"</p>
                 </div>
               )}
             </article>
