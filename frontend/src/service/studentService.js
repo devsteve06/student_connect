@@ -20,6 +20,18 @@ export const studentService = {
     return response.data;
   },
 
+  // Fetch the student's own personal details
+  getProfile: async () => {
+    const response = await apiClient.get('/api/v1/student/profile');
+    return response.data;
+  },
+
+  // Update personal details (fullName, phone, email)
+  updateProfile: async (profilePayload) => {
+    const response = await apiClient.patch('/api/v1/student/profile', profilePayload);
+    return response.data;
+  },
+
   // Submit a new attachment application payload
   applyForPlacement: async (applicationPayload) => {
     const response = await apiClient.post('/api/v1/student/applications', applicationPayload);

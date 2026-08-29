@@ -21,6 +21,7 @@ import GuestRoute from './GuestRoute';
 import StudentDashboard from '../features/student/views/StudentDashboard';
 import StudentMarketplace from '../features/student/views/StudentMarketplace';
 import StudentLogbook from '../features/student/views/StudentLogBook'; // <-- IMPORT CORE VIEW
+import StudentProfile from '../features/student/views/StudentProfile';
 import FirmDashboard from '../features/firm/views/FirmDashboard';
 import UniversityDashboard from '../features/university/views/UniversityDashboard';
 import AdminDashboard from '../features/admin/views/AdminDashboard';
@@ -46,6 +47,7 @@ export default function AppRoutes() {
           <Route path="/student" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentDashboard /></DashboardLayout></ProtectedRoute>} />
           <Route path="/student/marketplace" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentMarketplace /></DashboardLayout></ProtectedRoute>} />
           <Route path="/student/logbook" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentLogbook /></DashboardLayout></ProtectedRoute>} /> {/* <-- LINK COMPONENT */}
+          <Route path="/student/profile" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentProfile /></DashboardLayout></ProtectedRoute>} />
 
           {/* MOUNTED CORPORATE WORKSPACE (firm role required) */}
           <Route path="/firm" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmDashboard /></DashboardLayout></ProtectedRoute>} />

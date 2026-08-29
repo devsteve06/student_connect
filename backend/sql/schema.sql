@@ -67,6 +67,7 @@ CREATE TABLE students (
     password_hash       VARCHAR(255) NOT NULL,
     reg_number          VARCHAR(50)  NOT NULL UNIQUE,
     course              VARCHAR(120) NOT NULL,
+    phone               VARCHAR(20),
     university_id       INTEGER      NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
     profile_completion  VARCHAR(10)  NOT NULL DEFAULT '50%',
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()

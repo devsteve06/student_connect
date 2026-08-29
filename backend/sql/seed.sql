@@ -41,16 +41,16 @@ INSERT INTO firms (company_name, contact_email, password_hash, location, industr
 -- -----------------------------------------------------------------------------
 -- 3. Students (5) — each linked to a university
 -- -----------------------------------------------------------------------------
-INSERT INTO students (full_name, email, password_hash, reg_number, course, university_id, profile_completion) VALUES
-  ('Alex Kamau',    'alex.kamau@students.strathmore.edu', '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'BBIT/4901/2023', 'BBIT',
+INSERT INTO students (full_name, email, password_hash, reg_number, course, phone, university_id, profile_completion) VALUES
+  ('Alex Kamau',    'alex.kamau@students.strathmore.edu', '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'BBIT/4901/2023', 'BBIT', '0712345678',
       (SELECT id FROM universities WHERE name = 'Strathmore University'),       '85%'),
-  ('Jane Doe',      'jane.doe@students.jkuat.ac.ke',      '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'SIT/1024/2023',  'Software Engineering',
+  ('Jane Doe',      'jane.doe@students.jkuat.ac.ke',      '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'SIT/1024/2023',  'Software Engineering', '0700112233',
       (SELECT id FROM universities WHERE name = 'JKUAT'),                        '72%'),
-  ('David Ochieng', 'david.ochieng@students.uonbi.ac.ke', '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'COM/2210/2022',  'Computer Science',
+  ('David Ochieng', 'david.ochieng@students.uonbi.ac.ke', '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'COM/2210/2022',  'Computer Science', '+254722445566',
       (SELECT id FROM universities WHERE name = 'University of Nairobi'),        '60%'),
-  ('Mary Wanjiru',  'mary.wanjiru@students.mu.ac.ke',     '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'IT/0788/2023',   'Information Technology',
+  ('Mary Wanjiru',  'mary.wanjiru@students.mu.ac.ke',     '$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'IT/0788/2023',   'Information Technology', '0733887766',
       (SELECT id FROM universities WHERE name = 'Moi University'),               '90%'),
-  ('Brian Otieno',  'brian.otieno@students.tukenya.ac.ke','$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'DS/3345/2022',   'Data Science',
+  ('Brian Otieno',  'brian.otieno@students.tukenya.ac.ke','$2b$10$jo/4SZY/GBGI/a3tM/2XuesTbGNM6211OL98wFTpN1I8AVk803LDK', 'DS/3345/2022',   'Data Science', '0799001122',
       (SELECT id FROM universities WHERE name = 'Technical University of Kenya'),'50%');
 
 -- -----------------------------------------------------------------------------

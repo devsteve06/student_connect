@@ -2,6 +2,22 @@
 import { query } from '../data/db.js';
 import { formatDate, todayISO } from '../utils/format.js';
 
+const PHONE_RE = /^(\+?254|0)[17]\d{8}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Shared projection + row mapper for a student's own profile.
+async function fetchProfile(id) {
+  const row = (await query(
+    `SELECT s.id, s.full_name, s.email, s.reg_number, s.course, s.phone,
+            s.profile_completion, u.name AS university
+       FROM students s
+       JOIN universities u ON u.id = s.university_id
+      WHERE s.id = $1`,
+    [id]
+  )).rows[0];
+  return row;
+}
+
 // GET /student/metrics — high-level dashboard counters for the logged-in student
 export const getMetrics = async (req, res, next) => {
   try {
@@ -102,6 +118,92 @@ export const getPlacements = async (req, res, next) => {
       description: r.description
     })));
   } catch (error) {
+    next(error);
+  }
+};
+
+// GET /student/profile — the logged-in student's own personal details
+export const getProfile = async (req, res, next) => {
+  try {
+    const profile = await fetchProfile(req.user.id);
+    if (!profile) {
+      return res.status(404).json({ message: 'Student profile not found.' });
+    }
+    res.json({
+      id: profile.id,
+      fullName: profile.full_name,
+      email: profile.email,
+      regNumber: profile.reg_number,
+      course: profile.course,
+      phone: profile.phone,
+      university: profile.university,
+      profileCompletion: profile.profile_completion
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PATCH /student/profile — edit personal details (name, phone, email)
+export const updateProfile = async (req, res, next) => {
+  const { fullName, phone, email } = req.body || {};
+
+  const updates = {};
+  if (fullName !== undefined) {
+    if (typeof fullName !== 'string' || fullName.trim().length < 2) {
+      return res.status(400).json({ message: 'Full name must be at least 2 characters long.' });
+    }
+    updates.full_name = fullName.trim();
+  }
+  if (phone !== undefined) {
+    const trimmed = phone.trim();
+    if (trimmed && !PHONE_RE.test(trimmed)) {
+      return res.status(400).json({ message: 'Enter a valid Kenyan phone number (e.g. 0712 345 678 or +254712345678).' });
+    }
+    updates.phone = trimmed || null;
+  }
+  if (email !== undefined) {
+    const trimmed = email.trim().toLowerCase();
+    if (!EMAIL_RE.test(trimmed)) {
+      return res.status(400).json({ message: 'Enter a valid email address.' });
+    }
+    updates.email = trimmed;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ message: 'Nothing to update — provide fullName, phone, or email.' });
+  }
+
+  try {
+    const setClause = Object.keys(updates)
+      .map((key, i) => `${key} = $${i + 1}`)
+      .join(', ');
+    const values = [...Object.values(updates), req.user.id];
+
+    const row = (await query(
+      `UPDATE students SET ${setClause} WHERE id = $${values.length} RETURNING id`,
+      values
+    )).rows[0];
+
+    if (!row) {
+      return res.status(404).json({ message: 'Student profile not found.' });
+    }
+
+    const profile = await fetchProfile(req.user.id);
+    res.json({
+      id: profile.id,
+      fullName: profile.full_name,
+      email: profile.email,
+      regNumber: profile.reg_number,
+      course: profile.course,
+      phone: profile.phone,
+      university: profile.university,
+      profileCompletion: profile.profile_completion
+    });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ message: 'That email address is already in use by another account.' });
+    }
     next(error);
   }
 };
