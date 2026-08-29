@@ -8,6 +8,19 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-08-29
+- **Docs consolidation + cleanup**: rewrote `docs/IMPROVEMENT_PLAN.md` as the single MVP roadmap (absorbs the old audit/deploy docs and defines Phases 1–4, exit criteria, standing pre-req).
+  - Deleted stale audit docs (`docs/README.md`, `backend-issues.md`, `frontend-issues.md`, `systems-engineering-review.md`, `deployment.md`) — all remediated items folded into the plan.
+  - Removed legacy json-server mock (`frontend/mock-server.cjs`, `db.json`, `routes.json`), empty `src/input.css`, and dead `useStudentDashboardData.js` hook; dropped the `api` script + `json-server` devDep (lockfile re-synced via `npm install`); pruned now-dangling references from `README.md`, `AGENTS.md`, `backend/README.md`.
+  - Verified: backend `npm test` 11/11; frontend `npm run lint` + `npm run build` green; no stale references remaining.
+
+### 2026-08-28
+- **Student profile editing**: added a `Profile` view so a student can view and edit personal details (full name, phone, email) with read-only identity info (reg number, course, university).
+  - Backend: `students.phone VARCHAR(20)` added to `sql/schema.sql` + sample phones in `sql/seed.sql`; new `getProfile`/`updateProfile` in `studentController.js` (joins `universities`, whitelists fields, validates Kenyan phone `^(\+?254|0)[17]\d{8}$` + email, maps PG `23505` unique-email → friendly 400); wired as `GET/PATCH /api/v1/student/profile` behind the existing student guard.
+  - Frontend: `studentService.getProfile/updateProfile`; new `features/student/views/StudentProfile.jsx` (forms via shared `Input`/`Button`/`Card`, success/error feedback, syncs updated name/email back into the session profile so the navbar updates); "Profile" link added to student nav + `AppRoute.jsx` route.
+  - **Action needed**: run `ALTER TABLE students ADD COLUMN IF NOT EXISTS phone VARCHAR(20);` once in the Supabase SQL Editor — the live table is missing `phone` (verified: `GET /student/profile` currently returns `column s.phone does not exist` on Supabase until migrated).
+  - Verified: backend `npm test` 11/11; frontend `npm run lint` + `npm run build` green; auth on new route confirmed against live API.
+
 ### 2026-08-28
 - **Dark mode (comprehensive)**: added a System/Light/Dark 3-state theme toggle with `prefers-color-scheme` detection, manual override, and `localStorage` persistence.
   - Mechanism: `@custom-variant dark` class strategy in `index.css`; semantic surface/ink/line tokens (`--sc-*`) flip under `.dark` and drive the ~417 previously literal slate/white utilities; FOUC-prevention inline script + `theme-color` meta sync in `index.html`.
@@ -119,6 +132,8 @@ backend/
 - `GET /api/v1/student/applications` - User applications
 - `POST /api/v1/student/applications` - Create application
 - `GET /api/v1/student/placements` - Marketplace vacancies
+- `GET /api/v1/student/profile` - Own personal details
+- `PATCH /api/v1/student/profile` - Edit name, phone, email
 
 ### Firm
 - `GET /api/v1/firm/metrics` - Corporate dashboard
