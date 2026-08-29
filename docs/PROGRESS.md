@@ -9,6 +9,12 @@
 > Updated every time changes are made. Newest entries first.
 
 ### 2026-08-29
+- **Student dashboard wired to real API** (removed the last remaining fake-data view): `StudentDashboard.jsx` now loads via `studentService.getMetrics()` + `getApplications()` (`Promise.all`, retry error state via `EmptyState`, `MetricSkeleton` loading).
+  - Metrics cards now reflect live `metrics` (`totalApplications`, `interviewsScheduled`, `pendingReview`, `profileCompletion`); applications list renders real `companyName`/`role`/`appliedDate`/`status` with `StatusPill`.
+  - Dropped hard-coded mock data: the fake skills track and fake logbook entries. The "Skills in progress" card is gone (no API); the logbook card is an honest `EmptyState` until logbook endpoints land (Phase 1 item 4).
+  - Verified: `npm run lint` clean; `npm run build` green (3.08s).
+
+### 2026-08-29
 - **Docs consolidation + cleanup**: rewrote `docs/IMPROVEMENT_PLAN.md` as the single MVP roadmap (absorbs the old audit/deploy docs and defines Phases 1–4, exit criteria, standing pre-req).
   - Deleted stale audit docs (`docs/README.md`, `backend-issues.md`, `frontend-issues.md`, `systems-engineering-review.md`, `deployment.md`) — all remediated items folded into the plan.
   - Removed legacy json-server mock (`frontend/mock-server.cjs`, `db.json`, `routes.json`), empty `src/input.css`, and dead `useStudentDashboardData.js` hook; dropped the `api` script + `json-server` devDep (lockfile re-synced via `npm install`); pruned now-dangling references from `README.md`, `AGENTS.md`, `backend/README.md`.
