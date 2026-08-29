@@ -9,6 +9,18 @@
 > Updated every time changes are made. Newest entries first.
 
 ### 2026-08-29
+- **University audits wired to a new minimal endpoint** (Phase 1 item 3 resolved): added `GET /api/v1/university/audits` (`getAuditLog` in `universityController.js`, scoped to the university, newest first) returning the full compliance ledger — student, reg, firm, week, firm + faculty sign-off, submitted date.
+  - `universityService.getAuditLog()`; `UniversityAudits.jsx` now renders live rows (loading skeleton + retryable error state), client-side search across student/firm/status, and shows both sign-off pillars.
+  - Deleted orphaned `components/StudentAuditRow.jsx` (dead code from the redesign, never imported; removed its empty dir too).
+  - Verified: backend `npm test` 11/11; frontend `npm run lint` clean + `npm run build` green; pg-mem smoke test (login as `registrar@jkuat.ac.ke` → `GET /audits`) returned the seeded entry. All four university views are now real-API.
+
+### 2026-08-29
+- **University dashboard wired to real API**: `UniversityDashboard.jsx` now loads via `universityService.getCoordinatorMetrics()` + `getPendingLogbooks()` (`Promise.all`, `MetricSkeleton`/`Skeleton` loading, retryable error state).
+  - Metrics cards reflect live `totalEnrolled`/`placedInterns`/`unplacedStudents`/`actionRequiredLogs`; the pending sign-off queue renders real logbook rows with an **Approve** action (`signOffLogbook(id, 'Approved')`, optimistic removal + dismissable error banner), plus a derived review-queue breakdown by stage.
+  - Dropped fabricated data: fake student registry, cohort selector, and export ledger (no such endpoints). Second remaining mock dashboard resolved.
+  - Verified: `npm run lint` clean; `npm run build` green (4.01s).
+
+### 2026-08-29
 - **Student dashboard wired to real API** (removed the last remaining fake-data view): `StudentDashboard.jsx` now loads via `studentService.getMetrics()` + `getApplications()` (`Promise.all`, retry error state via `EmptyState`, `MetricSkeleton` loading).
   - Metrics cards now reflect live `metrics` (`totalApplications`, `interviewsScheduled`, `pendingReview`, `profileCompletion`); applications list renders real `companyName`/`role`/`appliedDate`/`status` with `StatusPill`.
   - Dropped hard-coded mock data: the fake skills track and fake logbook entries. The "Skills in progress" card is gone (no API); the logbook card is an honest `EmptyState` until logbook endpoints land (Phase 1 item 4).

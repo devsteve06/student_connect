@@ -17,5 +17,11 @@ export const universityService = {
   signOffLogbook: async (id, status) => {
     const response = await apiClient.patch(`/api/v1/university/logbooks/${id}`, { facultySignOff: status });
     return response.data;
+  },
+
+  // Fetch the full compliance ledger of logbook entries for this university
+  getAuditLog: async () => {
+    const response = await apiClient.get('/api/v1/university/audits');
+    return response.data;
   }
 };
