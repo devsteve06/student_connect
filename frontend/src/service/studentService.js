@@ -36,6 +36,18 @@ export const studentService = {
   applyForPlacement: async (applicationPayload) => {
     const response = await apiClient.post('/api/v1/student/applications', applicationPayload);
     return response.data;
+  },
+
+  // Fetch the student's own weekly logbook entries
+  getLogbooks: async () => {
+    const response = await apiClient.get('/api/v1/student/logbooks');
+    return response.data;
+  },
+
+  // Submit or update a weekly logbook entry (upserts by week_number)
+  upsertLogbook: async (logbookPayload) => {
+    const response = await apiClient.put('/api/v1/student/logbooks', logbookPayload);
+    return response.data;
   }
 
 };

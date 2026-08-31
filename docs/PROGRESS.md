@@ -9,6 +9,14 @@
 > Updated every time changes are made. Newest entries first.
 
 ### 2026-08-29
+- **Student logbook backend + view** (Phase 1 items 2–3): the last `// TODO(real-api)` view is now real.
+  - `GET /student/logbooks` (`getMyLogbooks`): the student's weeks newest-first with both sign-off pillars + submitted date; firm attached via LEFT JOIN.
+  - `PUT /student/logbooks` (`upsertLogbook`): upserts on `UNIQUE(student_id, week_number)`, sets `firm_sign_off='Pending Review'` on submit/resubmit, locks faculty-approved weeks (400), validates `week_number` (positive integer) + requires `weeklyReflection` and ≥1 daily note; inserts pick `firm_id` from the student's most recent application.
+  - `StudentLogBook.jsx` form rebuilt around the real schema (`monday..friday` + `weekly_reflection`), replacing the mock `activities/competencies/challenges/dateRange` fields.
+  - **Tests**: 7 new pg-mem-backed integration tests (18 total, was 11) covering ordering, create/resubmit status, week-number + content validation, the faculty-approve lock, and a full student→coordinator-pending→approval round-trip. Also confirms importing controllers is side-effect-safe (lazy-init `db.js`).
+  - Verified: backend `npm test` 18/18; frontend `npm run lint` clean + `npm run build` green; pg-mem HTTP smoke (Mary Wanjiru logs week 1 → `GET /university/logbooks/pending` sees it → `PATCH` approves). **All four previously-mocked views now read live DB** — Phase 1 exit criteria met.
+
+### 2026-08-29
 - **University audits wired to a new minimal endpoint** (Phase 1 item 3 resolved): added `GET /api/v1/university/audits` (`getAuditLog` in `universityController.js`, scoped to the university, newest first) returning the full compliance ledger — student, reg, firm, week, firm + faculty sign-off, submitted date.
   - `universityService.getAuditLog()`; `UniversityAudits.jsx` now renders live rows (loading skeleton + retryable error state), client-side search across student/firm/status, and shows both sign-off pillars.
   - Deleted orphaned `components/StudentAuditRow.jsx` (dead code from the redesign, never imported; removed its empty dir too).

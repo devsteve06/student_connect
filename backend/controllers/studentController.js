@@ -5,6 +5,21 @@ import { formatDate, todayISO } from '../utils/format.js';
 const PHONE_RE = /^(\+?254|0)[17]\d{8}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const logbookShape = (r) => ({
+  id: r.id,
+  weekNumber: r.week_number,
+  companyName: r.company_name,
+  monday: r.monday,
+  tuesday: r.tuesday,
+  wednesday: r.wednesday,
+  thursday: r.thursday,
+  friday: r.friday,
+  weeklyReflection: r.weekly_reflection,
+  firmStatus: r.firm_sign_off,
+  facultyStatus: r.faculty_sign_off,
+  submittedAt: formatDate(r.created_at)
+});
+
 // Shared projection + row mapper for a student's own profile.
 async function fetchProfile(id) {
   const row = (await query(
@@ -204,6 +219,78 @@ export const updateProfile = async (req, res, next) => {
     if (error.code === '23505') {
       return res.status(400).json({ message: 'That email address is already in use by another account.' });
     }
+    next(error);
+  }
+};
+
+// GET /student/logbooks — the logged-in student's own weekly logbook entries
+export const getMyLogbooks = async (req, res, next) => {
+  try {
+    const rows = (await query(
+      `SELECT l.id, l.week_number, f.company_name, l.monday, l.tuesday, l.wednesday,
+              l.thursday, l.friday, l.weekly_reflection, l.firm_sign_off, l.faculty_sign_off, l.created_at
+         FROM logbooks l
+         LEFT JOIN firms f ON f.id = l.firm_id
+        WHERE l.student_id = $1
+        ORDER BY l.week_number DESC`,
+      [req.user.id]
+    )).rows;
+    res.json(rows.map(logbookShape));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PUT /student/logbooks — submit or update a weekly logbook entry.
+// Upserts on (student_id, week_number); submitting (re)sets firm_sign_off to
+// 'Pending Review'. Weeks already signed off by faculty are locked.
+export const upsertLogbook = async (req, res, next) => {
+  const { weekNumber, monday, tuesday, wednesday, thursday, friday, weeklyReflection } = req.body || {};
+
+  const week = Number(weekNumber);
+  if (!Number.isInteger(week) || week < 1) {
+    return res.status(400).json({ message: 'weekNumber must be a positive whole number.' });
+  }
+  if (!weeklyReflection || !String(weeklyReflection).trim()) {
+    return res.status(400).json({ message: 'weeklyReflection is required to record a logbook week.' });
+  }
+
+  const dayText = (value) => (typeof value === 'string' ? value.trim() : '');
+  const days = [monday, tuesday, wednesday, thursday, friday].map(dayText);
+  if (days.every((day) => day === '')) {
+    return res.status(400).json({ message: 'Add at least one daily note (monday–friday) for the week.' });
+  }
+
+  try {
+    const existing = (await query(
+      'SELECT id, faculty_sign_off FROM logbooks WHERE student_id = $1 AND week_number = $2',
+      [req.user.id, week]
+    )).rows[0];
+
+    if (existing && existing.faculty_sign_off === 'Approved') {
+      return res.status(400).json({ message: 'This week is signed off by your faculty supervisor and is locked.' });
+    }
+
+    const saved = (await query(
+      `INSERT INTO logbooks (student_id, firm_id, week_number, monday, tuesday, wednesday, thursday, friday, weekly_reflection, firm_sign_off, faculty_sign_off)
+       VALUES ($1, (SELECT firm_id FROM applications WHERE student_id = $1 ORDER BY applied_date DESC, id DESC LIMIT 1),
+               $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (student_id, week_number)
+       DO UPDATE SET monday = EXCLUDED.monday, tuesday = EXCLUDED.tuesday,
+                     wednesday = EXCLUDED.wednesday, thursday = EXCLUDED.thursday,
+                     friday = EXCLUDED.friday, weekly_reflection = EXCLUDED.weekly_reflection,
+                     firm_sign_off = 'Pending Review'
+       RETURNING id, week_number, firm_sign_off, faculty_sign_off`,
+      [req.user.id, week, days[0], days[1], days[2], days[3], days[4], String(weeklyReflection).trim(), 'Pending Review', 'Not Started']
+    )).rows[0];
+
+    res.status(existing ? 200 : 201).json({
+      id: saved.id,
+      weekNumber: saved.week_number,
+      firmStatus: saved.firm_sign_off,
+      facultyStatus: saved.faculty_sign_off
+    });
+  } catch (error) {
     next(error);
   }
 };

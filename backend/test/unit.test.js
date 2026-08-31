@@ -97,3 +97,141 @@ test('notFound responds with 404', () => {
   notFound({ method: 'GET', originalUrl: '/nope' }, res);
   assert.equal(res.statusCode, 404);
 });
+
+// --- student logbook endpoints (pg-mem integration) ------------------------
+import { initDb, query } from '../data/db.js';
+import { getMyLogbooks, upsertLogbook } from '../controllers/studentController.js';
+import { getPendingLogbooks, signOffLogbook } from '../controllers/universityController.js';
+
+// Boots the in-memory Postgres once, forcing pg-mem mode even if DATABASE_URL
+// happens to be exported into the test runner's environment.
+let dbPromise;
+function ensureDb() {
+  if (!dbPromise) {
+    const snapshot = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
+    dbPromise = initDb().finally(() => {
+      if (snapshot !== undefined) process.env.DATABASE_URL = snapshot;
+    });
+  }
+  return dbPromise;
+}
+
+async function studentIdByEmail(email) {
+  const row = (await query('SELECT id FROM students WHERE email = $1', [email])).rows[0];
+  assert.ok(row, `seed student ${email} exists`);
+  return row.id;
+}
+
+test('logbook: getMyLogbooks lists the student\'s weeks newest-first', async () => {
+  await ensureDb();
+  const id = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const res = mockRes();
+  await getMyLogbooks({ user: { id } }, res, () => { throw new Error('next should not be called'); });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.length, 2);
+  assert.equal(res.body[0].weekNumber, 2);
+  assert.equal(res.body[0].firmStatus, 'Pending Review');
+  assert.equal(res.body[0].facultyStatus, 'Not Started');
+  assert.equal(res.body[0].companyName, 'TechCorp Solutions');
+  assert.equal(res.body[1].weekNumber, 1);
+  assert.equal(res.body[1].facultyStatus, 'Approved');
+  assert.ok(res.body[0].weeklyReflection.length > 0);
+});
+
+test('logbook: upsert creates a new week with Pending Review status', async () => {
+  await ensureDb();
+  const id = await studentIdByEmail('jane.doe@students.jkuat.ac.ke');
+  const res = mockRes();
+  await upsertLogbook(
+    { user: { id }, body: { weekNumber: 2, monday: 'Built a reporting widget.', weeklyReflection: 'Learned component-driven builds.' } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.firmStatus, 'Pending Review');
+  assert.equal(res.body.facultyStatus, 'Not Started');
+  await query('DELETE FROM logbooks WHERE student_id = $1 AND week_number = 2', [id]);
+});
+
+test('logbook: upsert resubmitting a Pending Review week keeps it Pending Review', async () => {
+  await ensureDb();
+  const id = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const res = mockRes();
+  await upsertLogbook(
+    { user: { id }, body: { weekNumber: 2, tuesday: 'Updated note.', weeklyReflection: 'Resubmitted after feedback.' } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.firmStatus, 'Pending Review');
+});
+
+test('logbook: upsert rejects non-positive or non-integer week numbers', async () => {
+  await ensureDb();
+  const id = await studentIdByEmail('jane.doe@students.jkuat.ac.ke');
+  for (const weekNumber of [0, -1, 1.5, 'abc', undefined, null, '']) {
+    const res = mockRes();
+    await upsertLogbook(
+      { user: { id }, body: { weekNumber, weeklyReflection: 'x' } },
+      res,
+      () => { throw new Error('next should not be called'); }
+    );
+    assert.equal(res.statusCode, 400, `weekNumber=${String(weekNumber)} should be rejected`);
+  }
+});
+
+test('logbook: upsert requires a reflection and at least one daily note', async () => {
+  await ensureDb();
+  const id = await studentIdByEmail('jane.doe@students.jkuat.ac.ke');
+  let res = mockRes();
+  await upsertLogbook({ user: { id }, body: { weekNumber: 9, monday: 'Worked.' } }, res, () => {});
+  assert.equal(res.statusCode, 400);
+
+  res = mockRes();
+  await upsertLogbook({ user: { id }, body: { weekNumber: 9, weeklyReflection: 'Reflection only.' } }, res, () => {});
+  assert.equal(res.statusCode, 400);
+});
+
+test('logbook: upsert blocks edits to a faculty-approved week', async () => {
+  await ensureDb();
+  const id = await studentIdByEmail('alex.kamau@students.strathmore.edu'); // week 1 is faculty Approved
+  const res = mockRes();
+  await upsertLogbook(
+    { user: { id }, body: { weekNumber: 1, monday: 'Trying to rewrite.', weeklyReflection: 'Locked week.' } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 400);
+});
+
+test('logbook: student submit -> coordinator pending -> faculty approval round-trip', async () => {
+  await ensureDb();
+  const studentId = await studentIdByEmail('jane.doe@students.jkuat.ac.ke');
+  const universityId = (await query('SELECT university_id FROM students WHERE id = $1', [studentId])).rows[0].university_id;
+
+  let res = mockRes();
+  await upsertLogbook(
+    { user: { id: studentId }, body: { weekNumber: 2, wednesday: 'Demo the green path.', weeklyReflection: 'End-to-end verified.' } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 201);
+  const newId = res.body.id;
+
+  res = mockRes();
+  await getPendingLogbooks({ user: { id: universityId } }, res, () => {});
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.some((l) => l.id === newId), 'coordinator pending list includes the new entry');
+
+  res = mockRes();
+  await signOffLogbook(
+    { user: { id: universityId }, params: { id: String(newId) }, body: { facultySignOff: 'Approved' } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.facultySignOff, 'Approved');
+
+  await query('DELETE FROM logbooks WHERE id = $1', [newId]);
+});
