@@ -4,6 +4,7 @@ import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
 import StatusPill from '../../components/common/StatusPill';
 import EmptyState from '../../components/common/EmptyState';
+import Input from '../../components/common/Input';
 import Skeleton from '../../components/common/Skeleton';
 import { roleChip } from '../../config/roleTheme';
 import { universityService } from '../../service/universityService';
@@ -81,16 +82,13 @@ export default function UniversityAudits() {
         <p className="mt-1 text-sm text-ink-4">Complete logbook ledger for your students' attachment records.</p>
       </div>
 
-      <div className="relative w-full sm:w-80">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by student, firm, or status…"
-          className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-500/10"
-        />
-      </div>
+      <Input
+        icon={Search}
+        placeholder="Search by student, firm, or status…"
+        className="sm:w-80"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
 
       <Card title="Audit records" eyebrow={`${filtered.length} total`} bodyClassName="p-0">
         {filtered.length === 0 ? (

@@ -5,6 +5,7 @@ import Card from '../../../components/common/Card';
 import MetricCard from '../../../components/data-display/MetricCard';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
+import Input from '../../../components/common/Input';
 import Skeleton, { MetricSkeleton } from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { firmService } from '../../../service/firmService';
@@ -288,16 +289,13 @@ export default function FirmDashboard() {
             </button>
           ))}
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by candidate, role, or university…"
-            className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-amber-500 focus:outline-none focus:ring-4 focus:ring-amber-500/10"
-          />
-        </div>
+        <Input
+          icon={Search}
+          placeholder="Search by candidate, role, or university…"
+          className="sm:w-72"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
       </div>
 
       {/* Applicant cards */}
