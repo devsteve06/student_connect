@@ -10,7 +10,7 @@ import { roleChip } from '../../../config/roleTheme';
 import { universityService } from '../../../service/universityService';
 
 const STAGE_COLORS = {
-  'Not Started': 'bg-slate-400',
+  'Not Started': 'bg-ink-4',
   'Pending Review': 'bg-amber-500',
   Approved: 'bg-emerald-500'
 };

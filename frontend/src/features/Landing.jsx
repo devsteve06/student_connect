@@ -403,7 +403,7 @@ export default function Landing() {
                       </p>
                       <p className="truncate font-mono text-xs text-ink-2">
                         {p.demo}
-                        <span className="mx-1.5 text-slate-300">·</span>
+                        <span className="mx-1.5 text-ink-5">·</span>
                         {p.password}
                       </p>
                     </div>

@@ -8,6 +8,15 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-08-31
+- **Phase 2 — Harden edges + make it feel finished**: all remaining Phase 2 items landed.
+  - **Marketplace data hygiene**: `StudentMarketplace.jsx` drops the hard-coded `studentId: 'std-01'` (the backend derives the student from the JWT anyway) and now sends/renders the consistent `companyName` key. Apply action surfaces a dismissible success/error banner instead of silent `console.error`.
+  - **Auth polish**: corrected the student demo hint + email placeholder in `StudentAuth.jsx` from the wrong domain (`alex.kamau@strathmore.edu`) to the real seeded account (`alex.kamau@students.strathmore.edu`); verified all portal demo hints now match `seed.sql`. `Sidebar` logout routes to the role's own login page via a `LOGIN_ROUTES` map (firm/university no longer dumped on the student login).
+  - **Data hygiene / semantic tokens**: replaced `text-slate-300` dot separators and `bg-slate-400` pipeline fallbacks with theme-flipping `text-ink-5` / `bg-ink-4` in StudentDashboard, FirmDashboard, UniversityDashboard, AuthShell, Navbar, and Landing. Confirmed all `slate-*` literals that remain live on intentionally-dark `bg-slate-950` panels (sidebar rail, auth brand panel, admin cross-portal section) where they are correct.
+  - **Mobile pass confirmed**: drawer nav, responsive grids, `truncate` on long names, native `Select` with custom chevron already in place — no gaps found.
+  - Verified: frontend `npm run lint` clean + `npm run build` green; backend `npm test` 18/18; pg-mem HTTP smoke — corrected demo login succeeds and marketplace apply with `companyName` payload returns 201 (`TechCorp Solutions / Cloud Architecture Intern / Pending Review`). **Phase 2 exit criteria met: no view shows hard-coded data (the last fake app banner was removed); flows survive refresh/logout/login.**
+  - Branch: `feat/phase-2-hardening`.
+
 ### 2026-08-29
 - **Student logbook backend + view** (Phase 1 items 2–3): the last `// TODO(real-api)` view is now real.
   - `GET /student/logbooks` (`getMyLogbooks`): the student's weeks newest-first with both sign-off pillars + submitted date; firm attached via LEFT JOIN.
