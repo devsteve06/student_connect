@@ -6,10 +6,9 @@
 
 **Current state (verified 2026-08-28):**
 - Real API: auth (all 4 portals), student marketplace + profile, firm dashboard/applicants, admin CRUD, university sign-off (`PATCH /university/logbooks/:id`). All against live Supabase.
-- Still mock (`// TODO(real-api)` markers): `StudentDashboard`, `StudentLogBook`, `UniversityDashboard`, `UniversityAudits`.
-- No student logbook submit/list backend. No tests for logbook validation. No deploy/CI/E2E.
+- No student logbook submit/list backend at time of writing — since shipped (Phase 1) along with Phase 2 polish and Phase 3 ops hardening (see PROGRESS.md).
 
-**Standing pre-req:** run `ALTER TABLE students ADD COLUMN IF NOT EXISTS phone VARCHAR(20);` once in the Supabase SQL Editor — needed for the profile feature already built; `GET/PATCH /student/profile` errors on Supabase until then (pg-mem mode is unaffected).
+**Standing pre-req:** was a manual `ALTER TABLE students ADD COLUMN IF NOT EXISTS phone VARCHAR(20);` in the Supabase SQL Editor. Since Phase 3, the migration runner applies `db/migrations/0001_init.sql` automatically on boot against real PostgreSQL (`npm run db:migrate` too), so the `phone` column self-heals — no manual step needed.
 
 ---
 
@@ -39,14 +38,14 @@
 
 **Exit criteria:** no view shows boxes of hard-coded data; flows survive refresh/logout/login.
 
-## Phase 3 — Ops hardening (still-valid items from the deleted systems-engineering review)
+## Phase 3 — Ops hardening ✅ (complete 2026-09-02)
 
-- **Graceful shutdown**: handle `SIGTERM`/`SIGINT` (`server.close`, then `pool.end()`) so Render deploys don't drop in-flight requests.
-- **Health endpoints**: add `/healthz` (liveness) and `/readyz` (runs `SELECT 1`); the current `GET /` is static and ignores DB state.
-- **Edge hardening**: add `helmet`, a rate limiter on `/auth/login`, keep the CORS allowlist via `CORS_ORIGIN`, and an explicit `express.json({ limit })`.
-- **Schema lifecycle**: schema/seed are applied automatically only to pg-mem; against Supabase they're manual. Adopt a migration runner (e.g. node-pg-migrate) with a `migrations` table before more drift.
-- **Reproducibility**: pin Node via `engines` (`.nvmrc` optional) in both `package.json`s.
-- **Observability**: structured logging (levels + per-request id); `errorHandler` already hides 5xx detail in production.
+- ✅ Graceful shutdown (`SIGTERM`/`SIGINT` → `server.close` + `pool.end()`).
+- ✅ Health endpoints `/healthz` (liveness) + `/readyz` (`SELECT 1`).
+- ✅ Edge hardening: `helmet`, login rate limiter, `express.json({ limit: '100kb' })`, CORS allowlist kept.
+- ✅ Schema lifecycle: lightweight forward-only SQL migration runner + `schema_migrations` table (auto-applied on boot for real PG; `npm run db:migrate` for manual). Baseline backfills `students.phone`.
+- ✅ Reproducibility: `engines.node` (+ `.nvmrc`).
+- ✅ Observability: structured JSON logger + per-request UUID middleware.
 
 ## Phase 4 — Ship it: deploy + CI + smoke tests
 

@@ -235,3 +235,54 @@ test('logbook: student submit -> coordinator pending -> faculty approval round-t
 
   await query('DELETE FROM logbooks WHERE id = $1', [newId]);
 });
+
+// --- Phase 3: request tracing + migration runner ---------------------------
+import { EventEmitter } from 'events';
+import { requestContext } from '../middleware/requestContext.js';
+import { runMigrations } from '../data/migrations.js';
+import { newDb } from 'pg-mem';
+
+test('requestContext assigns a UUID request id', () => {
+  const req = {};
+  const res = new EventEmitter();
+  requestContext(req, res, () => {});
+  assert.match(req.id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+});
+
+async function bootMigrationPool() {
+  const mem = newDb();
+  const { Pool } = mem.adapters.createPg();
+  return new Pool();
+}
+
+test('migrations: build the full schema from scratch on an empty database', async () => {
+  const pool = await bootMigrationPool();
+  await runMigrations(pool);
+
+  const tables = (
+    await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
+  ).rows
+    .map((r) => r.table_name)
+    .filter((t) => !t.startsWith('schema_migrations'));
+  for (const t of ['admins', 'universities', 'firms', 'students', 'placements', 'applications', 'logbooks']) {
+    assert.ok(tables.includes(t), `${t} created by 0001_init.sql`);
+  }
+
+  const cols = (
+    await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'students'")
+  ).rows.map((r) => r.column_name);
+  assert.ok(cols.includes('phone'), 'students.phone column exists after migration');
+
+  const applied = (await pool.query('SELECT name FROM schema_migrations')).rows.map((r) => r.name);
+  assert.ok(applied.includes('0001_init.sql'), 'migration recorded in schema_migrations');
+  await pool.end();
+});
+
+test('migrations: re-running is a no-op (idempotent)', async () => {
+  const pool = await bootMigrationPool();
+  await runMigrations(pool);
+  await runMigrations(pool);
+  const count = (await pool.query('SELECT count(*)::int AS c FROM schema_migrations')).rows[0].c;
+  assert.equal(count, 1);
+  await pool.end();
+});
