@@ -150,7 +150,7 @@ export default function StudentDashboard() {
                     </div>
                     <p className="truncate text-sm text-ink-4">
                       <span className="font-semibold text-ink-2">{app.companyName}</span>
-                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="mx-1.5 text-ink-5">·</span>
                       {app.appliedDate}
                     </p>
                   </div>
@@ -179,7 +179,7 @@ export default function StudentDashboard() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-surface-3">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${PIPELINE_COLORS[status] || 'bg-slate-400'}`}
+                        className={`h-full rounded-full transition-all duration-500 ${PIPELINE_COLORS[status] || 'bg-ink-4'}`}
                         style={{ width: `${percent}%` }}
                       />
                     </div>

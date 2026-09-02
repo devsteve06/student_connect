@@ -262,7 +262,7 @@ export default function FirmDashboard() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-surface-3">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${PIPELINE_COLORS[status] || 'bg-slate-400'}`}
+                        className={`h-full rounded-full transition-all duration-500 ${PIPELINE_COLORS[status] || 'bg-ink-4'}`}
                         style={{ width: `${percent}%` }}
                       />
                     </div>

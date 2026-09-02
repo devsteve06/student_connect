@@ -139,7 +139,7 @@ export default function StudentAuth() {
           type="email"
           autoComplete="email"
           icon={Mail}
-          placeholder="alex.kamau@strathmore.edu"
+          placeholder="alex.kamau@students.strathmore.edu"
           value={formData.email}
           onChange={handleInputChange}
           required
@@ -194,7 +194,7 @@ export default function StudentAuth() {
         </div>
       </form>
 
-      <DemoHint email="alex.kamau@strathmore.edu" password="password123" />
+      <DemoHint email="alex.kamau@students.strathmore.edu" password="password123" />
     </AuthShell>
   );
 }

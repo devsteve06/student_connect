@@ -12,6 +12,13 @@ export default function Sidebar({ role = 'student', mobileOpen = false, onClose 
   const theme = roleTheme[role] || roleTheme.student;
   const links = navigationLinks[role] || [];
 
+  const LOGIN_ROUTES = {
+    student: '/login/student',
+    firm: '/login/firm',
+    university: '/login/university',
+    admin: '/login/admin'
+  };
+
   // Lock body scroll while the mobile drawer is open.
   useEffect(() => {
     if (mobileOpen) {
@@ -25,7 +32,7 @@ export default function Sidebar({ role = 'student', mobileOpen = false, onClose 
 
   const handleLogout = () => {
     logout();
-    navigate(role === 'admin' ? '/login/admin' : '/login/student');
+    navigate(LOGIN_ROUTES[role] || '/login/student');
   };
 
   const NavContent = (
