@@ -1,3 +1,6 @@
+# Dependencies — never commit.
+**/node_modules/
+
 # Environment files — contain secrets (DB credentials, JWT secret). Never commit.
 # Use the committed .env.example files as templates instead.
 .env

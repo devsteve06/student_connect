@@ -8,6 +8,16 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-09-02
+- **Phase 3 — Ops hardening** (branch: `feat/phase-3-ops-hardening`):
+  - **Graceful shutdown**: `SIGTERM`/`SIGINT` → `server.closeIdleConnections()` + `server.close` drain in-flight requests, then `closeDb()` + exit, with a 10s force-exit backstop so a hung drain can't stall a Render restart.
+  - **Health endpoints**: `GET /healthz` (liveness, no DB) and `GET /readyz` (runs `SELECT 1`, 200/503). `GET /` stays as the human-facing info root.
+  - **Edge hardening**: `helmet` baseline security headers; `express-rate-limit` on `POST /auth/login` (20/15 min → 429); explicit `express.json({ limit: '100kb' })`; CORS allowlist via `CORS_ORIGIN` unchanged.
+  - **Schema lifecycle**: forward-only SQL migration runner with a `schema_migrations` table — `backend/db/migrations/*.sql` applied in filename order, each in a transaction. Runs automatically on boot against real PostgreSQL and via `npm run db:migrate`. Baseline `0001_init.sql` is idempotent and backfills `students.phone`; verified live: migration recorded on Supabase and the `phone` column now exists (the standing manual SQL-Editor ALTER is no longer needed).
+  - **Reproducibility**: `engines.node >= 20.19.0` in both `package.json`s; root `.nvmrc` pinned to `20.19.0`.
+  - **Observability**: dependency-free structured logger (`utils/logger.js`, one JSON object per line, gated by `LOG_LEVEL`); per-request UUID via `middleware/requestContext.js` with status+duration completion logs; `errorHandler` logs the stack through the logger (prod still hides 5xx detail from clients).
+  - Verified: backend `npm test` 21/21 (3 new: migrations build-from-scratch, migration idempotency, requestContext UUID); frontend `npm run lint` + `npm run build` green; pg-mem HTTP smoke — `/healthz`, `/readyz`, helmet headers, API 404 all correct; login rate limiter returns 401×20 then 429.
+
 ### 2026-08-31
 - **Phase 2 — Harden edges + make it feel finished**: all remaining Phase 2 items landed.
   - **Marketplace data hygiene**: `StudentMarketplace.jsx` drops the hard-coded `studentId: 'std-01'` (the backend derives the student from the JWT anyway) and now sends/renders the consistent `companyName` key. Apply action surfaces a dismissible success/error banner instead of silent `console.error`.
