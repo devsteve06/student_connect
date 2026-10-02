@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
@@ -47,9 +47,9 @@ export default function AdminAuth() {
       footer={
         <p className="text-center text-xs text-ink-4">
           Not an administrator?{' '}
-          <a href="/login/student" className="font-semibold text-rose-700 hover:text-rose-800">
+          <Link to="/login/student" className="font-semibold text-rose-700 hover:text-rose-800">
             Return to portal sign in
-          </a>
+          </Link>
         </p>
       }
     >

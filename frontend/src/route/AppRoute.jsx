@@ -10,6 +10,7 @@ import DashboardLayout from '../components/layouts/DashboardLayout';
 import StudentAuth from '../features/auth/StudentAuth';
 import FirmAuth from '../features/auth/FirmAuth';
 import UniversityAuth from '../features/auth/UniversityAuth';
+import Register from '../features/auth/Register';
 import AdminAuth from '../features/admin/AdminAuth';
 
 // Session State + Route Guards
@@ -42,6 +43,10 @@ export default function AppRoutes() {
           <Route path="/login/firm" element={<GuestRoute><FirmAuth /></GuestRoute>} />
           <Route path="/login/university" element={<GuestRoute><UniversityAuth /></GuestRoute>} />
           <Route path="/login/admin" element={<GuestRoute><AdminAuth /></GuestRoute>} />
+
+          {/* SELF-SERVE SIGNUP — /register picks a portal, /register/:role locks it */}
+          <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+          <Route path="/register/:role" element={<GuestRoute><Register /></GuestRoute>} />
 
           {/* MOUNTED STUDENT HUB INTERFACE (student role required) */}
           <Route path="/student" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentDashboard /></DashboardLayout></ProtectedRoute>} />

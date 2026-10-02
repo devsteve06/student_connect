@@ -130,6 +130,10 @@ Five of each non-admin role are seeded. See `backend/sql/seed.sql` for the full 
 | `/login/firm` | Guest | Firm login |
 | `/login/university` | Guest | University login |
 | `/login/admin` | Guest | Admin login |
+| `/register` | Guest | Signup — pick a portal |
+| `/register/student` | Guest | Student signup |
+| `/register/firm` | Guest | Firm ("Corporate Gate") signup |
+| `/register/university` | Guest | University staff signup |
 | `/student` | Student | Student dashboard |
 | `/student/marketplace` | Student | Browse placements |
 | `/student/logbook` | Student | Logbook |
@@ -148,8 +152,18 @@ All routes are mounted under `/api/v1`. Every portal route requires a valid JWT 
 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
-| POST | `/register` | `{ name, email, password, role, ... }` | Create account + receive JWT |
-| POST | `/login` | `{ email, password }` | Authenticate + receive JWT |
+| POST | `/register` | `{ role, email, password, ...roleFields }` | Create account + receive JWT (10/hour/IP) |
+| POST | `/login` | `{ email, password }` | Authenticate + receive JWT (20/15min/IP) |
+
+Role-specific registration fields, all validated and persisted:
+
+| `role` | Required | Optional |
+|--------|----------|----------|
+| `student` | `name`, `email`, `password`, `regNumber` | `course`, `universityId` |
+| `firm` | `companyName`, `contactPerson`, `email`, `password` | `industrySector`, `location` |
+| `university` | `name`, `email`, `password`, `staffId` | `department`, `location` |
+
+`admin` cannot self-register — admin accounts are provisioned through `POST /api/v1/admin/users` or `POST /api/v1/admin/reset-password`.
 
 ### Student — `/api/v1/student` (student only)
 

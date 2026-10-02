@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FileText, CalendarCheck, Clock, Target, BookOpen, Users, ShieldAlert, RefreshCw } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
@@ -196,9 +197,9 @@ export default function StudentDashboard() {
         title="Logbook"
         eyebrow="Weekly attachment entries"
         action={
-          <a href="/student/logbook" className="text-sm font-semibold text-brand-700 hover:text-brand-800">
+          <Link to="/student/logbook" className="text-sm font-semibold text-brand-700 hover:text-brand-800">
             Open logbook
-          </a>
+          </Link>
         }
         bodyClassName="p-5"
       >

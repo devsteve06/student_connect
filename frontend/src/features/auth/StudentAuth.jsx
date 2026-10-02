@@ -1,24 +1,20 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, KeyRound, Mail } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
 import AuthShell, { FormHeader, DemoHint } from './AuthShell';
 import { useAuth } from '../../context/useAuth';
+import registrationRoles from '../../config/registration';
 
 export default function StudentAuth() {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    fullName: '',
-    regNumber: '',
-    course: 'BBIT',
     email: '',
     password: ''
   });
@@ -33,24 +29,13 @@ export default function StudentAuth() {
     setError('');
     setLoading(true);
     try {
-      if (isRegistering) {
-        await register({
-          name: formData.fullName,
-          email: formData.email,
-          password: formData.password,
-          role: 'student',
-          regNumber: formData.regNumber,
-          course: formData.course
-        });
-      } else {
-        await login(formData.email, formData.password, 'student');
-      }
+      await login(formData.email, formData.password, 'student');
       navigate('/student');
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        err.message ||
-        'Sign in failed. Please check your details and try again.'
+          err.message ||
+          'Sign in failed. Please check your details and try again.'
       );
     } finally {
       setLoading(false);
@@ -67,28 +52,21 @@ export default function StudentAuth() {
       footer={
         <p className="text-center text-xs text-ink-4">
           Work at a firm or a university?{' '}
-          <a href="/login/firm" className="font-semibold text-brand-700 hover:text-brand-800">
+          <Link to="/login/firm" className="font-semibold text-brand-700 hover:text-brand-800">
             Firm sign in
-          </a>{' '}
-          ·{' '}
-          <a href="/login/university" className="font-semibold text-brand-700 hover:text-brand-800">
+          </Link>
+          {' · '}
+          <Link to="/login/university" className="font-semibold text-brand-700 hover:text-brand-800">
             Faculty sign in
-          </a>{' '}
-          ·{' '}
-          <a href="/login/admin" className="font-semibold text-brand-700 hover:text-brand-800">
+          </Link>
+          {' · '}
+          <Link to="/login/admin" className="font-semibold text-brand-700 hover:text-brand-800">
             Admin
-          </a>
+          </Link>
         </p>
       }
     >
-      <FormHeader
-        title={isRegistering ? 'Create your account' : 'Welcome back'}
-        subtitle={
-          isRegistering
-            ? 'A few details to get you started on your placement journey.'
-            : 'Sign in to continue to your student hub.'
-        }
-      />
+      <FormHeader title="Welcome back" subtitle="Sign in to continue to your student hub." />
 
       {error && (
         <div className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
@@ -97,42 +75,6 @@ export default function StudentAuth() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {isRegistering && (
-          <Input
-            label="Full name"
-            name="fullName"
-            autoComplete="name"
-            placeholder="e.g. Alex Kamau"
-            value={formData.fullName}
-            onChange={handleInputChange}
-            required
-          />
-        )}
-
-        {isRegistering && (
-          <Input
-            label="Admission / registration number"
-            name="regNumber"
-            placeholder="e.g. BBIT/4901/2023"
-            value={formData.regNumber}
-            onChange={handleInputChange}
-            required
-          />
-        )}
-
-        {isRegistering && (
-          <Select
-            label="Course"
-            name="course"
-            value={formData.course}
-            onChange={handleInputChange}
-          >
-            <option value="BBIT">B. in Business Information Technology</option>
-            <option value="Bsc-CS">BSc. in Computer Science</option>
-            <option value="Bsc-Informatics">BSc. in Informatics and Computer Systems</option>
-          </Select>
-        )}
-
         <Input
           label="Student email"
           name="email"
@@ -150,18 +92,19 @@ export default function StudentAuth() {
             <label htmlFor="password" className="text-sm font-semibold text-ink-2">
               Password
             </label>
-            {!isRegistering && (
-              <a href="#" className="text-xs font-semibold text-ink-5 hover:text-brand-600">
-                Forgot password?
-              </a>
-            )}
+            {/* No self-service reset exists yet; an admin issues resets from
+                POST /admin/reset-password. Point people at that instead of a
+                dead href="#". */}
+            <span className="text-xs text-ink-5">
+              Locked out? Ask your admin to reset it.
+            </span>
           </div>
           <div className="relative">
             <input
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
-              autoComplete={isRegistering ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
               required
               placeholder="••••••••"
               value={formData.password}
@@ -180,16 +123,15 @@ export default function StudentAuth() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2">
-          <button
-            type="button"
-            onClick={() => setIsRegistering((v) => !v)}
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <Link
+            to={registrationRoles.student.registerPath}
             className="text-sm font-semibold text-brand-700 hover:text-brand-800"
           >
-            {isRegistering ? 'Already have an account? Sign in' : 'New here? Create an account'}
-          </button>
+            New here? Create an account
+          </Link>
           <Button type="submit" disabled={loading}>
-            {loading ? (isRegistering ? 'Creating account…' : 'Signing in…') : isRegistering ? 'Create account' : 'Sign in'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </Button>
         </div>
       </form>
