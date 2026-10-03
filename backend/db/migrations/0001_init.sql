@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS universities (
     location          VARCHAR(120) NOT NULL,
     contact_email     VARCHAR(150) NOT NULL UNIQUE,
     password_hash     VARCHAR(255) NOT NULL,
+    staff_id          VARCHAR(50),
+    department        VARCHAR(150),
     total_enrolled    INTEGER      NOT NULL DEFAULT 0,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -35,6 +37,7 @@ CREATE TABLE IF NOT EXISTS firms (
     password_hash     VARCHAR(255) NOT NULL,
     location          VARCHAR(120) NOT NULL,
     industry          VARCHAR(120),
+    contact_person    VARCHAR(120),
     active_interns    INTEGER      NOT NULL DEFAULT 0,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );

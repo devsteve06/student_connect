@@ -20,6 +20,10 @@ export const ROLE_TABLES = {
 export async function findAccountByEmail(identifier) {
   if (!identifier) return null;
 
+  // Emails are matched case-insensitively; every writer stores them lowercased.
+  identifier = String(identifier).trim().toLowerCase();
+  if (!identifier) return null;
+
   const admin = (await query(
     'SELECT id, full_name AS name, email, password_hash FROM admins WHERE username = $1 OR email = $1',
     [identifier]
@@ -69,16 +73,17 @@ export async function findAccountById(role, id) {
 }
 
 // Create an account in the table matching its role. Returns { id, name, email, role }.
-export async function createAccount({ name, username, email, password, role, regNumber, companyName, course, location, universityId }) {
+export async function createAccount({ name, username, email, password, role, regNumber, companyName, contactPerson, industrySector, staffId, department, course, location, universityId }) {
   const hash = await bcrypt.hash(password, await bcrypt.genSalt(10));
+  const loginEmail = String(email).trim().toLowerCase();
 
   if (role === 'admin') {
     const row = (await query(
       `INSERT INTO admins (username, email, password_hash, full_name)
        VALUES ($1, $2, $3, $4) RETURNING id`,
-      [username || email, email || null, hash, name || 'System Administrator']
+      [username || loginEmail, loginEmail, hash, name || 'System Administrator']
     )).rows[0];
-    return { id: row.id, name: name || username, email, role };
+    return { id: row.id, name: name || username, email: loginEmail, role };
   }
 
   if (role === 'student') {
@@ -86,27 +91,35 @@ export async function createAccount({ name, username, email, password, role, reg
     const row = (await query(
       `INSERT INTO students (full_name, email, password_hash, reg_number, course, university_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [name, email, hash, regNumber || `REG/${Date.now()}`, course || 'General', uniId]
+      [name, loginEmail, hash, regNumber || `REG/${Date.now()}`, course || 'General', uniId]
     )).rows[0];
-    return { id: row.id, name, email, role };
+    return { id: row.id, name, email: loginEmail, role };
   }
 
   if (role === 'firm') {
+    const firmName = (companyName || name || '').trim();
     const row = (await query(
-      `INSERT INTO firms (company_name, contact_email, password_hash, location)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [companyName || name, email, hash, location || 'Nairobi, KE']
+      `INSERT INTO firms (company_name, contact_email, password_hash, location, industry, contact_person)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [firmName, loginEmail, hash, location || 'Nairobi, KE', (industrySector || '').trim() || null, (contactPerson || '').trim() || null]
     )).rows[0];
-    return { id: row.id, name: companyName || name, email, role };
+    return { id: row.id, name: firmName, email: loginEmail, role };
   }
 
   if (role === 'university') {
     const row = (await query(
-      `INSERT INTO universities (name, location, contact_email, password_hash)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [name, location || 'Nairobi, KE', email, hash]
+      `INSERT INTO universities (name, location, contact_email, password_hash, staff_id, department)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [
+        name,
+        location || 'Nairobi, KE',
+        loginEmail,
+        hash,
+        (staffId || '').trim() || null,
+        (department || '').trim() || null
+      ]
     )).rows[0];
-    return { id: row.id, name, email, role };
+    return { id: row.id, name, email: loginEmail, role };
   }
 
   throw new Error(`Unknown role: ${role}`);

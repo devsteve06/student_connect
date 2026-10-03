@@ -60,10 +60,20 @@ endpoints (`/api/v1/firm/...`).
 ### Auth — `/api/v1/auth`
 | Method | Path        | Body                                        | Returns            |
 |--------|-------------|---------------------------------------------|--------------------|
-| POST   | `/register` | `{ name, email, password, role, regNumber?, companyName?, course?, location? }` | account + JWT |
+| POST   | `/register` | see role table below                        | account + JWT      |
 | POST   | `/login`    | `{ email, password }`                       | account + JWT      |
 
 Login and register span all three role tables (`students`, `firms`, `universities`).
+Emails are stored and matched lowercased. Both endpoints are rate limited per IP —
+`/register` at 10/hour, `/login` at 20 per 15 minutes.
+
+| `role` | Required | Optional |
+|--------|----------|----------|
+| `student` | `name`, `email`, `password`, `regNumber` | `course`, `universityId` |
+| `firm` | `companyName`, `contactPerson`, `email`, `password` | `industrySector`, `location` |
+| `university` | `name`, `email`, `password`, `staffId` | `department`, `location` |
+
+`admin` is rejected by `/register` — admins are created via `/api/v1/admin/users`.
 
 ### Student — `/api/v1/student`
 | Method | Path            | Notes                                  |
