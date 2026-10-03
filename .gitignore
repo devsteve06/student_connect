@@ -1,3 +1,6 @@
+# Dependencies — never commit.
+**/node_modules/
+
 # Environment files — contain secrets (DB credentials, JWT secret). Never commit.
 # Use the committed .env.example files as templates instead.
 .env
@@ -5,4 +8,7 @@
 .env.*.local
 
 # Local-only engineering documentation (not tracked).
-docs/
+# Exception: PROGRESS.md + IMPROVEMENT_PLAN.md must stay in version control.
+docs/*
+!docs/PROGRESS.md
+!docs/IMPROVEMENT_PLAN.md

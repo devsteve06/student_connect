@@ -1,5 +1,6 @@
 // controllers/universityController.js
 import { query } from '../data/db.js';
+import { formatDate } from '../utils/format.js';
 
 // Allowed faculty sign-off states (mirrors the logbooks.faculty_sign_off CHECK constraint).
 const FACULTY_SIGN_OFFS = ['Not Started', 'Pending Review', 'Approved'];
@@ -100,6 +101,37 @@ export const signOffLogbook = async (req, res, next) => {
 
     const row = (await query(`${PENDING_SELECT} WHERE l.id = $1`, [id])).rows[0];
     res.json(logbookShape(row));
+  } catch (error) {
+    next(error);
+  }
+};
+
+const auditShape = (r) => ({
+  id: r.id,
+  studentName: r.student_name,
+  regNumber: r.reg_number,
+  companyName: r.company_name,
+  weekNumber: r.week_number,
+  firmStatus: r.firm_sign_off,
+  facultySignOff: r.faculty_sign_off,
+  submittedAt: formatDate(r.created_at)
+});
+
+// GET /university/audits — compliance ledger: every logbook entry belonging to
+// this university's students, newest first
+export const getAuditLog = async (req, res, next) => {
+  try {
+    const rows = (await query(
+      `SELECT l.id, s.full_name AS student_name, s.reg_number, f.company_name,
+              l.week_number, l.firm_sign_off, l.faculty_sign_off, l.created_at
+         FROM logbooks l
+         JOIN students s ON s.id = l.student_id
+         LEFT JOIN firms f ON f.id = l.firm_id
+        WHERE s.university_id = $1
+        ORDER BY l.created_at DESC, l.id DESC`,
+      [req.user.id]
+    )).rows;
+    res.json(rows.map(auditShape));
   } catch (error) {
     next(error);
   }

@@ -6,6 +6,7 @@ import {
   Users,
   GraduationCap,
   ShieldCheck,
+  User,
 } from 'lucide-react';
 
 // Single source of truth for sidebar navigation.
@@ -15,6 +16,7 @@ export const navigationLinks = {
     { name: 'Overview', href: '/student', icon: LayoutDashboard },
     { name: 'Marketplace', href: '/student/marketplace', icon: Briefcase },
     { name: 'Logbook', href: '/student/logbook', icon: BookOpen },
+    { name: 'Profile', href: '/student/profile', icon: User },
   ],
   firm: [
     { name: 'Overview', href: '/firm', icon: LayoutDashboard },

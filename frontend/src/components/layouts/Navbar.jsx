@@ -29,7 +29,7 @@ export default function Navbar({ role = 'student', onOpenSidebar }) {
         </button>
         <nav aria-label="Breadcrumb" className="hidden truncate sm:flex sm:items-center sm:gap-2">
           <span className="text-sm text-ink-5">Student Connect</span>
-          <span className="text-slate-300">/</span>
+          <span className="text-ink-5">/</span>
           <span className="truncate text-sm font-semibold text-ink-2">{currentPage}</span>
         </nav>
         <span className="truncate text-sm font-semibold text-ink-2 sm:hidden">

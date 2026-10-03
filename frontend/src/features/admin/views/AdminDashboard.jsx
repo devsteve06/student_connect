@@ -204,16 +204,13 @@ export default function AdminDashboard() {
             </button>
           ))}
         </div>
-        <div className="relative w-full sm:w-72">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-5" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, email, or reg number…"
-            className="w-full rounded-xl border border-line bg-surface py-2 pl-10 pr-3 text-sm text-ink placeholder:text-ink-5 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10"
-          />
-        </div>
+        <Input
+          icon={Search}
+          placeholder="Search name, email, or reg number…"
+          className="sm:w-72"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
       {/* Table */}

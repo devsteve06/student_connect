@@ -28,8 +28,7 @@ student_connect/
 │       ├── route/        # AppRoute, ProtectedRoute, GuestRoute
 │       ├── context/      # AuthProvider
 │       └── components/   # Shared layouts and UI components
-├── docs/                 # System documentation
-├── PROGRESS.md           # Development progress tracker
+├── docs/                 # System documentation + PROGRESS.md, IMPROVEMENT_PLAN.md
 └── README.md             # This file
 ```
 
@@ -105,11 +104,10 @@ The dev server runs on `http://localhost:5173`. It connects to the backend via `
 | `npm run build` | Production build |
 | `npm run lint` | Run ESLint |
 | `npm run preview` | Preview production build |
-| `npm run api` | Legacy mock server (json-server on `db.json`) |
 
 ### Running Both Together
 
-Start the backend on port 5000, then start the frontend — it will connect to the backend automatically. Do **not** run the backend and the legacy mock server (`npm run api`) at the same time on the same port.
+Start the backend on port 5000, then start the frontend — it will connect to the backend automatically.
 
 ## Demo Accounts
 
@@ -238,4 +236,4 @@ Runs the built-in `node:test` suite (11 tests covering auth, routes, and validat
 
 ## Documentation
 
-Additional system documentation is available in the `docs/` directory. Project progress is tracked in `PROGRESS.md`.
+Additional system documentation is available in the `docs/` directory. Project progress is tracked in `docs/PROGRESS.md`.

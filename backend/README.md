@@ -22,8 +22,7 @@ npm run dev      # nodemon, auto-reload
 # or: npm start
 ```
 
-Listens on `http://localhost:5000` (override with `PORT` in `.env`). This replaces the old
-`frontend/mock-server.cjs` (json-server) — run **one or the other** on the same port, not both.
+Listens on `http://localhost:5000` (override with `PORT` in `.env`).
 
 ### Point at a real PostgreSQL database
 

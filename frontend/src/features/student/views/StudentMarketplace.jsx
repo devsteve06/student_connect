@@ -13,6 +13,7 @@ export default function StudentMarketplace() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submittingId, setSubmittingId] = useState(null);
+  const [notice, setNotice] = useState(null);
 
   useEffect(() => {
     const fetchMarketplace = async () => {
@@ -30,19 +31,18 @@ export default function StudentMarketplace() {
 
   const handleApply = async (placement) => {
     setSubmittingId(placement.id);
-    // TODO(real-api): use the authenticated student's id from sessionStore
-    // (sessionStore.getProfile()) instead of the hard-coded "std-01".
+    setNotice(null);
     const payload = {
-      studentId: 'std-01',
-      companyName: placement.company,
+      companyName: placement.companyName,
       role: placement.role,
       appliedDate: new Date().toISOString().split('T')[0],
       status: 'Pending review'
     };
     try {
       await studentService.applyForPlacement(payload);
+      setNotice({ type: 'success', text: `Applied to ${placement.role} at ${placement.companyName || 'the firm'}.` });
     } catch (err) {
-      console.error('Failed to submit application:', err);
+      setNotice({ type: 'error', text: err?.response?.data?.message || 'Could not submit your application. Please try again.' });
     } finally {
       setSubmittingId(null);
     }
@@ -76,6 +76,21 @@ export default function StudentMarketplace() {
         <p className="mt-1 text-sm text-ink-4">Browse placements from trusted partner firms and apply in a click.</p>
       </div>
 
+      {notice && (
+        <div
+          className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-sm font-semibold ${
+            notice.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-rose-200 bg-rose-50 text-rose-700'
+          }`}
+        >
+          <span>{notice.text}</span>
+          <button onClick={() => setNotice(null)} className="font-bold hover:opacity-70">
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {error ? (
         <Card>
           <EmptyState
@@ -108,7 +123,7 @@ export default function StudentMarketplace() {
                     <h3 className="truncate text-sm font-bold text-ink group-hover:text-brand-700">
                       {job.role}
                     </h3>
-                    <p className="truncate text-sm text-ink-4">{job.company}</p>
+                    <p className="truncate text-sm text-ink-4">{job.companyName}</p>
                   </div>
                   <span className="shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-xs font-semibold text-ink-3">
                     {job.duration || '3 Months'}

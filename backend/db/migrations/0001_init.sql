@@ -1,27 +1,15 @@
 -- =============================================================================
--- Student Connect — Relational Schema (PostgreSQL)
+-- 0001_init.sql — baseline schema (idempotent)
 -- =============================================================================
--- Backing store for the backend data layer (backend/data/db.js + accounts.js):
---   admins, universities, firms, students  +  placements, applications, logbooks
+-- Mirrors backend/sql/schema.sql but is safe to run repeatedly against an
+-- existing database: CREATE TABLE IF NOT EXISTS is a no-op when the table is
+-- already present, and CREATE INDEX IF NOT EXISTS keeps indexes additive.
 --
--- Dialect: PostgreSQL. For MySQL, replace `SERIAL` with `INT AUTO_INCREMENT`,
--- `TIMESTAMPTZ` with `DATETIME`, and drop the `IF NOT EXISTS` on types.
---
--- Run:  psql -d student_connect -f schema.sql
--- =============================================================================
+-- The trailing ALTER on students.phone backfills the column on databases that
+-- existed before the profile feature — this is the ALTER that previously had
+-- to be run by hand in the Supabase SQL Editor.
 
-DROP TABLE IF EXISTS logbooks      CASCADE;
-DROP TABLE IF EXISTS applications   CASCADE;
-DROP TABLE IF EXISTS placements     CASCADE;
-DROP TABLE IF EXISTS students       CASCADE;
-DROP TABLE IF EXISTS firms          CASCADE;
-DROP TABLE IF EXISTS universities   CASCADE;
-DROP TABLE IF EXISTS admins         CASCADE;
-
--- -----------------------------------------------------------------------------
--- admins — system administrators with absolute access across the platform
--- -----------------------------------------------------------------------------
-CREATE TABLE admins (
+CREATE TABLE IF NOT EXISTS admins (
     id                SERIAL PRIMARY KEY,
     username          VARCHAR(50)  NOT NULL UNIQUE,
     email             VARCHAR(150) UNIQUE,
@@ -30,10 +18,7 @@ CREATE TABLE admins (
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
--- universities — academic institutions that enrol students
--- -----------------------------------------------------------------------------
-CREATE TABLE universities (
+CREATE TABLE IF NOT EXISTS universities (
     id                SERIAL PRIMARY KEY,
     name              VARCHAR(150) NOT NULL,
     location          VARCHAR(120) NOT NULL,
@@ -43,10 +28,7 @@ CREATE TABLE universities (
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
--- firms — corporate partners that post placements and hire interns
--- -----------------------------------------------------------------------------
-CREATE TABLE firms (
+CREATE TABLE IF NOT EXISTS firms (
     id                SERIAL PRIMARY KEY,
     company_name      VARCHAR(150) NOT NULL,
     contact_email     VARCHAR(150) NOT NULL UNIQUE,
@@ -57,10 +39,7 @@ CREATE TABLE firms (
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
--- students — trainees seeking / undertaking industrial attachment
--- -----------------------------------------------------------------------------
-CREATE TABLE students (
+CREATE TABLE IF NOT EXISTS students (
     id                  SERIAL PRIMARY KEY,
     full_name           VARCHAR(120) NOT NULL,
     email               VARCHAR(150) NOT NULL UNIQUE,
@@ -73,10 +52,7 @@ CREATE TABLE students (
     created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
--- placements — vacancy postings owned by a firm (marketplace listings)
--- -----------------------------------------------------------------------------
-CREATE TABLE placements (
+CREATE TABLE IF NOT EXISTS placements (
     id            SERIAL PRIMARY KEY,
     firm_id       INTEGER      NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
     role          VARCHAR(150) NOT NULL,
@@ -87,12 +63,7 @@ CREATE TABLE placements (
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
--- applications — a student's application to a firm/placement
---   status mirrors the backend enums (Pending Review / Interviewing /
---   Approved / Hired / Rejected)
--- -----------------------------------------------------------------------------
-CREATE TABLE applications (
+CREATE TABLE IF NOT EXISTS applications (
     id            SERIAL PRIMARY KEY,
     student_id    INTEGER      NOT NULL REFERENCES students(id)   ON DELETE CASCADE,
     placement_id  INTEGER          NULL REFERENCES placements(id) ON DELETE SET NULL,
@@ -104,10 +75,7 @@ CREATE TABLE applications (
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
--- -----------------------------------------------------------------------------
--- logbooks — weekly attachment logs with firm + faculty sign-off
--- -----------------------------------------------------------------------------
-CREATE TABLE logbooks (
+CREATE TABLE IF NOT EXISTS logbooks (
     id                 SERIAL PRIMARY KEY,
     student_id         INTEGER     NOT NULL REFERENCES students(id) ON DELETE CASCADE,
     firm_id            INTEGER         NULL REFERENCES firms(id)    ON DELETE SET NULL,
@@ -123,13 +91,13 @@ CREATE TABLE logbooks (
     faculty_sign_off   VARCHAR(20) NOT NULL DEFAULT 'Not Started'
                        CHECK (faculty_sign_off IN ('Not Started','Pending Review','Approved')),
     created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    -- a student can only log one entry per week
     UNIQUE (student_id, week_number)
 );
 
--- Helpful lookup indexes
-CREATE INDEX idx_students_university ON students(university_id);
-CREATE INDEX idx_placements_firm     ON placements(firm_id);
-CREATE INDEX idx_applications_student ON applications(student_id);
-CREATE INDEX idx_applications_firm    ON applications(firm_id);
-CREATE INDEX idx_logbooks_student     ON logbooks(student_id);
+CREATE INDEX IF NOT EXISTS idx_students_university  ON students(university_id);
+CREATE INDEX IF NOT EXISTS idx_placements_firm      ON placements(firm_id);
+CREATE INDEX IF NOT EXISTS idx_applications_student ON applications(student_id);
+CREATE INDEX IF NOT EXISTS idx_applications_firm    ON applications(firm_id);
+CREATE INDEX IF NOT EXISTS idx_logbooks_student     ON logbooks(student_id);
+
+ALTER TABLE students ADD COLUMN IF NOT EXISTS phone VARCHAR(20);

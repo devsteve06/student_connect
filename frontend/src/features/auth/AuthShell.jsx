@@ -96,7 +96,7 @@ export function DemoHint({ email, username, password }) {
       <p className="mb-1 font-bold uppercase tracking-wider text-ink-5">Demo access</p>
       <p className="font-mono">
         {username ? `Username: ${username}` : `Email: ${email}`}
-        <span className="mx-1.5 text-slate-300">·</span>
+        <span className="mx-1.5 text-ink-5">·</span>
         Password: {password}
       </p>
     </div>
