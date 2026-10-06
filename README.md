@@ -9,14 +9,34 @@ An Industrial Attachment platform connecting students with firms and universitie
 - **Auth**: JWT-based with role enforcement via middleware (`protect` + `authorizeRoles`)
 - **Database**: 7 tables — universities, students, firms, placements, applications, logbooks, admins
 
+## Project Status
+
+As of **2026-10-02**:
+
+| | State |
+|---|---|
+| Feature work (Phases 1–3) | Complete and merged to `main` |
+| Signup hardening (`/register*`) | Complete, on `feat/registration-flow` — **no PR opened yet, not on `main`** |
+| Deploy config + CI (Phase 4) | Written but **uncommitted** — so **CI is not running** and nothing is deployed |
+| Live deploy | Not started — no Supabase project, Render service or Vercel project exists |
+| Tests | 29 backend (`npm test`), no frontend test runner |
+
+The only substantive work left is the live deploy. `AGENTS.md` tracks the
+committed-vs-uncommitted split in detail; `docs/IMPROVEMENT_PLAN.md` has the roadmap.
+
+**Known gap:** there is no self-service password reset. Recovery goes through an
+admin (`POST /api/v1/admin/reset-password`), and the sign-in screens deliberately
+omit a "Forgot password?" link until a token + delivery flow exists.
+
 ## Project Structure
 
 ```
 student_connect/
 ├── backend/              # Express API server
 │   ├── server.js         # App bootstrap, CORS, route mounting
-│   ├── sql/              # DDL, seed data, migrations
-│   ├── data/             # Dual-mode DB pool + auth lookups
+│   ├── db/migrations/    # Forward-only SQL migrations (applied on boot)
+│   ├── sql/              # schema.sql (pg-mem dev) + seed.sql demo data
+│   ├── data/             # Dual-mode DB pool, migrations runner, auth lookups
 │   ├── routes/           # One router per domain
 │   ├── controllers/      # SQL-backed request handlers
 │   ├── middleware/        # JWT auth, role guard, error handling
@@ -24,19 +44,22 @@ student_connect/
 ├── frontend/             # React + Vite application
 │   └── src/
 │       ├── features/     # Role-specific views (admin, auth, firm, student, university)
+│       ├── config/       # roleTheme.js (accents), registration.js (signup paths)
 │       ├── service/      # API clients (axios with JWT interceptor)
 │       ├── route/        # AppRoute, ProtectedRoute, GuestRoute
 │       ├── context/      # AuthProvider
 │       └── components/   # Shared layouts and UI components
-├── docs/                 # System documentation + PROGRESS.md, IMPROVEMENT_PLAN.md
+├── docs/                 # PROGRESS.md, IMPROVEMENT_PLAN.md
+├── AGENTS.md             # Commands, architecture quirks, current standing
+├── DEPLOYMENT.md         # Supabase → Render → Vercel runbook
 └── README.md             # This file
 ```
 
 ## Prerequisites
 
-- Node.js (v18 or higher recommended)
+- **Node.js 20.19.0 or newer** (pinned in `.nvmrc` and enforced via `engines` in both packages)
 - npm
-- PostgreSQL (optional — the backend falls back to an in-memory pg-mem store if `DATABASE_URL` is not set)
+- PostgreSQL — *optional for development* (the backend falls back to an in-memory pg-mem store when `DATABASE_URL` is unset), but **required** when `NODE_ENV=production`
 
 ## Getting Started
 
@@ -58,16 +81,19 @@ The server listens on `http://localhost:5000` by default.
 
 | Mode | When | Behavior |
 |------|------|----------|
-| **In-memory (pg-mem)** | `DATABASE_URL` unset (default) | Spins up in-process PostgreSQL, loads schema + seed on every boot. Data resets on restart. |
-| **Real PostgreSQL** | `DATABASE_URL` set | Connects to your server. Run the SQL files once first (see below). |
+| **In-memory (pg-mem)** | `DATABASE_URL` unset (default) | Spins up in-process PostgreSQL, loads schema + seed on every boot. Data resets on restart. **Fatal under `NODE_ENV=production`.** |
+| **Real PostgreSQL** | `DATABASE_URL` set | Connects to your server. `db/migrations/*.sql` are applied automatically on boot. |
 
 **Using a real PostgreSQL database:**
 
 ```bash
-createdb student_connect
-psql -d student_connect -f backend/sql/schema.sql
-psql -d student_connect -f backend/sql/seed.sql
+cd backend
+npm run db:bootstrap -- --seed   # idempotent migrations + demo data
 ```
+
+`--seed` fills demo data only when `students` is empty. An existing database just needs `npm run db:migrate`.
+
+> ⚠️ Do **not** run `backend/sql/schema.sql` against a database that holds data — it starts with `DROP TABLE`. It exists only for the pg-mem dev path, which never runs migrations.
 
 Then set `DATABASE_URL` in `backend/.env`.
 
@@ -75,7 +101,7 @@ Then set `DATABASE_URL` in `backend/.env`.
 
 The backend connects to Supabase like any PostgreSQL host — no Supabase SDK required; the existing `pg` data layer and JWT auth are used as-is. SSL is enabled automatically by `backend/data/db.js` for any `*.supabase.co` / `*.pooler.supabase.com` host.
 
-1. **Create the project** at [supabase.com](https://supabase.com) and run `backend/sql/schema.sql`, then `backend/sql/seed.sql`, in the dashboard **SQL Editor**.
+1. **Create the project** at [supabase.com](https://supabase.com), then provision it from your machine — paste the pooler URI below into `backend/.env`, then run `npm run db:bootstrap -- --seed`. Do **not** paste `sql/schema.sql` into the Supabase **SQL Editor**.
 2. **Copy a connection string** from *Project Settings → Database → Connect*:
    - **Session pooler** (recommended; works on IPv4 networks):
      `postgresql://postgres.<project-ref>:<PASSWORD>@aws-0-<region>.pooler.supabase.com:5432/postgres`
@@ -83,7 +109,9 @@ The backend connects to Supabase like any PostgreSQL host — no Supabase SDK re
 3. **Set `DATABASE_URL`** in `backend/.env` with that string.
    - The username must include the project reference: `postgres.<project-ref>` (not just `postgres`) — required by the pooler.
    - Do **not** add `?sslmode=...` to the URL; it overrides the SSL config in `data/db.js`.
-4. Start the backend: the startup log must show `Connected to PostgreSQL via DATABASE_URL.` (not the pg-mem message).
+4. Start the backend: the startup log must show `Connected to PostgreSQL via DATABASE_URL.` (not the pg-mem message), and the pending-migration lines confirm the schema is current.
+
+Full production runbook: **[`DEPLOYMENT.md`](DEPLOYMENT.md)**.
 
 ### 2. Frontend
 
@@ -126,6 +154,7 @@ Five of each non-admin role are seeded. See `backend/sql/seed.sql` for the full 
 
 | Path | Access | Description |
 |------|--------|-------------|
+| `/` | Public | Landing page — portal cards + signup CTA |
 | `/login/student` | Guest | Student login |
 | `/login/firm` | Guest | Firm login |
 | `/login/university` | Guest | University login |
@@ -137,12 +166,14 @@ Five of each non-admin role are seeded. See `backend/sql/seed.sql` for the full 
 | `/student` | Student | Student dashboard |
 | `/student/marketplace` | Student | Browse placements |
 | `/student/logbook` | Student | Logbook |
+| `/student/profile` | Student | Profile |
 | `/firm` | Firm | Firm dashboard |
 | `/firm/applicants` | Firm | Candidate roster |
 | `/university` | University | University dashboard |
 | `/university/audits` | University | Logbook audits |
+| `/admin` | Admin | Admin control plane |
 
-All protected routes redirect unauthenticated users to the appropriate login page. Invalid tokens trigger automatic session cleanup.
+All protected routes redirect unauthenticated users to the appropriate login page. Invalid tokens trigger automatic session cleanup. The `/login/*` screens are **login-only** — signup lives at `/register*` so the URL is shareable and survives a refresh. There is no `/register/admin`: admin accounts are created by an existing admin.
 
 ## API Endpoints
 
@@ -246,8 +277,11 @@ cd backend
 npm test
 ```
 
-Runs the built-in `node:test` suite (11 tests covering auth, routes, and validation).
+Runs the built-in `node:test` suite — **29 tests** covering the logbook submit/sign-off loop and its validation rules, self-service registration (per-role field persistence, admin rejection, case-insensitive duplicate detection, register→login round-trip), the auth/role middleware, the migration runner, and error handling.
 
 ## Documentation
 
-Additional system documentation is available in the `docs/` directory. Project progress is tracked in `docs/PROGRESS.md`.
+- `AGENTS.md` (repo root) — commands, architecture quirks, and what's committed vs still uncommitted.
+- `DEPLOYMENT.md` (repo root) — the Supabase → Render → Vercel runbook.
+- `docs/PROGRESS.md` — dated changelog of every meaningful change, newest first.
+- `docs/IMPROVEMENT_PLAN.md` — the phase roadmap and current standing.

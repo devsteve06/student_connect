@@ -29,6 +29,13 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .map((o) => o.trim())
   .filter(Boolean);
 
+if (allowedOrigins.length === 0 && process.env.NODE_ENV === 'production') {
+  logger.warn(
+    'CORS_ORIGIN is not set — the API will accept browser requests from ANY origin. ' +
+      'Set CORS_ORIGIN to your deployed frontend URL(s).'
+  );
+}
+
 app.use(
   cors(
     allowedOrigins.length > 0

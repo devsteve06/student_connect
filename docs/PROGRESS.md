@@ -1,12 +1,33 @@
 # Student Connect - Project Progress
 
 ## Current Status
-- **Date**: 2026-08-27
-- **Phase**: Frontend visual redesign (clean SaaS) complete
-- **Overall Progress**: ~55%
+- **Date**: 2026-10-02
+- **Phase**: Phases 1–3 complete; Phase 4 (deploy) configured, not yet executed
+- **Overall Progress**: ~90% — remaining work is the live deploy itself
+- **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-02
+- **Registration links, signup fields, and the `/auth/register` surface** — the registration entry point was never a real link: the three auth screens used a `useState` toggle, so there was no `/register` route, nothing was deep-linkable, and the client (firm / "Corporate Gate") section had no registration affordance anywhere.
+  - **New signup routes and page**: `/register` (portal picker) and `/register/:role` (`/register/student`, `/register/firm`, `/register/university`), both guest-guarded. New `frontend/src/features/auth/Register.jsx` replaces the in-page toggle — the auth screens are now login-only, so the form boots in a known state and the URL is shareable and refresh-safe. Password gets an 8-char minimum and a confirm field. `frontend/src/config/registration.js` is the new single source of truth pairing each registrable role with its login/register/home paths and accent; `admin` is deliberately absent so admin self-signup is impossible.
+  - **Registration links wired into the client section**: `/login/firm` "New here? Join as a partner" → `/register/firm`; the landing header, hero, footer, and every self-serve portal card (Corporate Gate included) now link to signup. The admin card deliberately shows no signup link. The hero's secondary CTA stays "How it works" — the previous "Enter a portal" button was not repurposed away.
+  - **Silently-dropped signup fields fixed**: the firm form collected `industrySector` and `contactPerson`, the university form collected `staffId` and `department`, and **none of the four reached the database** — `createAccount` never destructured them and the tables had no columns for them. Added `firms.contact_person`, `universities.staff_id`, `universities.department` via new idempotent migration `db/migrations/0002_signup_fields.sql` (mirrored into `sql/schema.sql` for pg-mem dev and into `0001_init.sql` for fresh builds), and threaded all four through `createAccount`.
+  - **Backend hardening**: `POST /auth/register` is now rate limited (10/hour/IP, its own budget separate from `/login`). `registerUser` validates the per-role required field set, so a form can no longer collect input the API quietly throws away. Emails are normalized to lowercase on both write and lookup, closing the duplicate-account hole where `Grace@Lumen.co.ke` and `grace@lumen.co.ke` were distinct accounts.
+  - **Dead links removed**: the `href="#"` "Forgot password?" on all three auth screens is replaced with static "Locked out? Ask your admin to reset it." — there is no self-service reset, and `POST /admin/reset-password` already covers it. Raw `<a href>` cross-portal footers on the four auth screens plus `StudentDashboard.jsx` are now react-router `<Link>`s, so they no longer force a full page reload.
+  - **Tests**: `backend/test/unit.test.js` grew from 21 to 29 — 6 new covering registration persisting each role's fields, admin self-signup rejection, missing-field rejection writing nothing, case-insensitive duplicate detection, and register→login round-trip; plus a migration test for the new columns. The migration-idempotency test now counts actual files instead of hard-coding 1, and `JWT_SECRET` is defaulted for the runner since CI has no `.env`.
+  - Verified: backend `npm test` 29/29; frontend `npm run lint` clean + `npm run build` green. Live pg-mem HTTP smoke against `node server.js` — firm signup with contact person + industry returns 201 with a JWT, immediate login with a mixed-case email succeeds, `role: admin` → 400, firm missing `contactPerson` → 400 with `Missing required field: contactPerson.`, and the 11th signup from one IP returns 429.
+
+### 2026-09-30
+- **Phase 4 — Ship it: deployment config for Vercel + Render + Supabase** (config only; nothing is deployed yet):
+  - **Render**: root `render.yaml` blueprint — `rootDir: backend`, `nodeVersion: 20.19.0` (in sync with `.nvmrc`), `npm ci` / `npm start`, `healthCheckPath: /readyz`, `autoDeploy`. `NODE_ENV=production`, `LOG_LEVEL`, `JWT_EXPIRES_IN` and a Render-**generated** `JWT_SECRET` are declared inline; `CORS_ORIGIN` + `DATABASE_URL` are `sync: false` so they're prompted for, never committed. `backend/Procfile` added for portability.
+  - **Vercel**: `frontend/vercel.json` — Vite preset, `npm ci` / `npm run build`, `outputDirectory: dist`, and `rewrites: /(.*) -> /index.html`. This is required because Vercel ignores `frontend/public/_redirects`, so before this every deep link (`/student`, `/login/firm`) 404'd on refresh. `frontend/.env.example` added documenting that `VITE_API_BASE_URL` is inlined at **build** time.
+  - **Supabase**: `npm run db:bootstrap` (`backend/data/bootstrap-db.js`) provisions a fresh managed database from the idempotent `db/migrations/*.sql` — deliberately *not* `sql/schema.sql`, which `DROP TABLE`s. `--seed` inserts demo data only when `students` is empty (`--force-seed` overrides) and prints a row-count summary. Documents the session pooler (5432, not transaction pooler 6543) and the `postgres.<project-ref>` username rule.
+  - **Production boot safety**: `NODE_ENV=production` with a missing/unsubstituted `DATABASE_URL` is now **fatal** instead of silently booting a throwaway pg-mem store (which would have served fake, non-persistent data from a live URL). Unset `CORS_ORIGIN` in production logs a loud warning. `createPgPool` TLS is now env-driven: `DATABASE_SSL_CA_FILE` pins the provider CA and turns on chain verification; `DATABASE_SSL_REJECT_UNAUTHORIZED` is an explicit override. Dev default (no CA file) is unchanged.
+  - **CI**: `.github/workflows/ci.yml` — backend `npm test` + frontend `lint`/`build` on push and PR to `main`, Node from `.nvmrc`, per-package `npm ci` (no root `package.json`).
+  - **Runbook**: `DEPLOYMENT.md` at the repo root (`docs/` is gitignored) — ordered Supabase → Render → Vercel steps, verification checklist, troubleshooting table, pre-launch security notes.
+  - Verified: backend `npm test` 21/21; frontend `npm run lint` clean + `npm run build` green (with `VITE_API_BASE_URL` set, mirroring CI); `dist/` contains `index.html`, `assets/`, `favicon.svg`; production boot guard exits 1 with the pg-mem refusal instead of starting; TLS matrix checked across no-CA / CA / CA+opt-out / explicit-on / non-Supabase host; `db:bootstrap` exits 1 with a clear message when `DATABASE_URL` is absent.
 
 ### 2026-09-02
 - **Phase 3 — Ops hardening** (branch: `feat/phase-3-ops-hardening`):
@@ -205,32 +226,36 @@ backend/
 | university | `registrar@jkuat.ac.ke`                 | `password123`|
 
 ## Data Source Status
-> Where each frontend view gets its data today, and the service method to use when wiring the real API.
-> Pages mark their swap points with `// TODO(real-api)`.
+> Where each frontend view gets its data today, and the service method behind it.
+> **Every view reads the real API** — no `// TODO(real-api)` markers remain in `frontend/src`.
 
-| View | Current source | Swap target when wired |
+| View | Current source | Service methods in use |
 |------|----------------|------------------------|
-| `StudentDashboard` | inline mock | `studentService.getMetrics()`, `getApplications()` |
-| `StudentMarketplace` | **real API** | already wired (`getPlacements()`, `applyForPlacement()`) |
-| `StudentLogBook` | inline mock | `studentService` (add `getLogbooks` / `submitLogbook`) |
-| `FirmDashboard` | **real API** | already wired (`getFirmMetrics()` + `getApplicants()`; `updateApplicantStatus()` for Pass/Shortlist/Place actions) |
-| `FirmApplicants` | **real API** | already wired (`getApplicants()`) |
-| `UniversityDashboard` | inline mock | `universityService.getCoordinatorMetrics()`, `getPendingLogbooks()`, `signOffLogbook()` |
-| `UniversityAudits` | inline mock | `universityService` audit endpoint (TBD) |
-| `AdminDashboard` | **real API** | already wired (`adminService.*`) |
-| Auth (all portals) | **real API** | already wired (`authService.login/register/adminLogin`) |
+| `StudentDashboard` | **real API** | `studentService.getMetrics()`, `getApplications()` |
+| `StudentMarketplace` | **real API** | `getPlacements()`, `applyForPlacement()` |
+| `StudentLogBook` | **real API** | `getLogbooks()`, `upsertLogbook()` |
+| `StudentProfile` | **real API** | `getProfile()`, `updateProfile()` |
+| `FirmDashboard` | **real API** | `getFirmMetrics()` + `getApplicants()`; `updateApplicantStatus()` for Pass/Shortlist/Place actions |
+| `FirmApplicants` | **real API** | `getApplicants()`, `updateApplicantStatus()` |
+| `UniversityDashboard` | **real API** | `getCoordinatorMetrics()`, `getPendingLogbooks()`, `signOffLogbook()` |
+| `UniversityAudits` | **real API** | `getAuditLog()`, `signOffLogbook()` |
+| `AdminDashboard` | **real API** | `adminService.getUsers/createUser/resetPassword/deleteUser` |
+| Auth (all portals) | **real API** | `authService.login/register/adminLogin` |
+| Signup (`/register/*`) | **real API** | `authService.register()` — new in the 2026-10-02 entry |
 
 ## Next Steps
 1. **Frontend**: (done) visual redesign, responsive shell, de-jargoned copy — see Data Source Status for API wiring
-2. **API wiring**: swap remaining mock views to the service methods above
-3. **Testing**: expand test coverage
-4. **Deployment**: set up CI/CD, environment variables
-5. **Documentation**: complete system documentation
-6. **Security**: set strong JWT_SECRET in production
+2. **API wiring**: (done) no mock views remain — every portal reads the real API
+3. **Testing**: (done for now) 29 backend integration tests; no frontend test runner
+4. **Deployment**: (config written but **uncommitted**) run the live deploy in `DEPLOYMENT.md` — provision Supabase, create the Render blueprint, import into Vercel with `VITE_API_BASE_URL`
+5. **Open PRs**: `feat/registration-flow` is pushed but has no PR; Phase 4's files are still only in the working tree, so **CI is not running**
+6. **Documentation**: (done) `README.md` + `AGENTS.md` + `DEPLOYMENT.md` + this log
+7. **Security**: (config done) `render.yaml` generates `JWT_SECRET`; still to do before launch — rotate seeded passwords, pin the Supabase CA, keep `CORS_ORIGIN` set
+8. **Deferred**: no self-service password reset — recovery is admin-assisted via `POST /admin/reset-password`, and the auth screens deliberately omit a "Forgot password?" link until a token + delivery flow exists
 
 ## Notes
-- Backend runs on port 5000 (configurable via PORT env)
-- Frontend uses Vite dev server with proxy to backend
-- Database falls back to pg-mem if DATABASE_URL not set
-- Connected to Supabase via the session pooler (`aws-1-eu-west-1.pooler.supabase.com:5432`); SSL auto-enabled in `backend/data/db.js`
+- Backend runs on port 5000 locally, or `process.env.PORT` when hosted (Render injects it)
+- The frontend has **no** Vite dev proxy — `VITE_API_BASE_URL` must point at a running backend and dev CORS is permissive
+- Database falls back to pg-mem if `DATABASE_URL` is not set, but that is now **fatal** under `NODE_ENV=production`
+- Connected to Supabase via the session pooler (`aws-1-eu-west-1.pooler.supabase.com:5432`); SSL auto-enabled in `backend/data/db.js`, verifiable via `DATABASE_SSL_CA_FILE`
 - All backend security issues have been remediated
