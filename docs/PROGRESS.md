@@ -9,6 +9,12 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-06
+- **Mobile header slimming + single-icon theme toggle** — the landing header was cramped on small screens and the theme control was a 3-segment pill.
+  - `frontend/src/components/common/ThemeToggle.jsx` is now **one icon button** that cycles System → Light → Dark → System on click (label/tooltip/`aria-label` always name the current *and* next mode). The `compact` prop is gone; the three call sites (`Landing.jsx`, `Navbar.jsx`, `AuthShell.jsx`) now render `<ThemeToggle />`. All three modes remain reachable, so nothing was lost for keyboard/screen-reader users.
+  - `frontend/src/features/Landing.jsx` header shrinks on mobile: bar `h-14`/`px-4` (→ `sm:h-16`/`sm:px-6`), logo `h-8` (→ `sm:h-9`), tighter gaps, and the top action buttons (Sign in, Create account, Explore portals, plus the signed-in "Back to …" / sign-out controls) get `max-md:h-8 max-md:px-2.5 max-md:text-xs` via `className` on `Button`, which overrides `size="sm"` at every width below the `md` nav breakpoint. Full size returns at `md`+, and `Explore portals` stays `hidden` under `sm` where there is no room for it.
+  - Verified: frontend `npm run lint` clean + `npm run build` green.
+
 ### 2026-10-02
 - **Registration links, signup fields, and the `/auth/register` surface** — the registration entry point was never a real link: the three auth screens used a `useState` toggle, so there was no `/register` route, nothing was deep-linkable, and the client (firm / "Corporate Gate") section had no registration affordance anywhere.
   - **New signup routes and page**: `/register` (portal picker) and `/register/:role` (`/register/student`, `/register/firm`, `/register/university`), both guest-guarded. New `frontend/src/features/auth/Register.jsx` replaces the in-page toggle — the auth screens are now login-only, so the form boots in a known state and the URL is shareable and refresh-safe. Password gets an 8-char minimum and a confirm field. `frontend/src/config/registration.js` is the new single source of truth pairing each registrable role with its login/register/home paths and accent; `admin` is deliberately absent so admin self-signup is impossible.

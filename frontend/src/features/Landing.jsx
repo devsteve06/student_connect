@@ -129,10 +129,14 @@ export default function Landing() {
       {/* Header                                                             */}
       {/* ------------------------------------------------------------------ */}
       <header className="sticky top-0 z-40 border-b border-line/70 bg-surface/80 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-3">
-            <img src="/favicon.svg" alt="Student Connect logo" className="h-9 w-9 rounded-xl shadow-soft" />
-            <span className="text-base font-extrabold tracking-tight text-ink">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-2 sm:gap-3">
+            <img
+              src="/favicon.svg"
+              alt="Student Connect logo"
+              className="h-8 w-8 rounded-xl shadow-soft sm:h-9 sm:w-9"
+            />
+            <span className="text-sm font-extrabold tracking-tight text-ink sm:text-base">
               Student Connect
             </span>
           </Link>
@@ -168,35 +172,48 @@ export default function Landing() {
             </button>
           </nav>
 
-          <div className="flex items-center gap-3">
-            <ThemeToggle compact />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ThemeToggle />
 
             {signedInRole ? (
               <>
                 <p className="hidden text-xs font-semibold uppercase tracking-wider text-ink-5 sm:block">
                   Signed in as <span className={activeTheme.text}>{activeTheme.label}</span>
                 </p>
-                <Button size="sm" onClick={() => navigate(PORTAL_HOMES[signedInRole])}>
+                <Button size="sm" className="max-md:h-8 max-md:px-2.5 max-md:text-xs" onClick={() => navigate(PORTAL_HOMES[signedInRole])}>
                   Back to {activeTheme.portal}
                 </Button>
                 <button
                   type="button"
                   onClick={handleSignOut}
                   aria-label="Sign out"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-xl px-3.5 text-sm font-semibold text-ink-4 transition-colors hover:bg-surface-3 hover:text-ink-2"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-sm font-semibold text-ink-4 transition-colors hover:bg-surface-3 hover:text-ink-2 sm:h-9 sm:w-auto sm:px-3.5"
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
               </>
             ) : (
               <>
-                <Button variant="secondary" size="sm" onClick={() => navigate('/login/student')}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="max-md:h-8 max-md:px-2.5 max-md:text-xs"
+                  onClick={() => navigate('/login/student')}
+                >
                   Sign in
                 </Button>
-                <Button size="sm" onClick={() => navigate('/register')}>
+                <Button
+                  size="sm"
+                  className="max-md:h-8 max-md:px-2.5 max-md:text-xs"
+                  onClick={() => navigate('/register')}
+                >
                   Create account
                 </Button>
-                <Button size="sm" className="hidden sm:inline-flex" onClick={() => scrollToId('portals')}>
+                <Button
+                  size="sm"
+                  className="hidden sm:inline-flex max-md:h-8 max-md:px-2.5 max-md:text-xs"
+                  onClick={() => scrollToId('portals')}
+                >
                   Explore portals
                 </Button>
               </>

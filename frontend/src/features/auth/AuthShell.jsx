@@ -65,7 +65,7 @@ export default function AuthShell({
       {/* Form panel */}
       <main className="relative flex w-full flex-1 flex-col items-center justify-center bg-surface-2 px-4 py-10 sm:px-8">
         <div className="absolute right-4 top-4">
-          <ThemeToggle compact />
+          <ThemeToggle />
         </div>
         <div className="mb-8 flex flex-col items-center lg:hidden">
           <img src="/favicon.svg" alt="Student Connect logo" className="mb-3 h-12 w-12 rounded-2xl shadow-lifted" />
