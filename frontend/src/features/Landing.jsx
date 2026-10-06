@@ -15,6 +15,7 @@ import {
 import Button from '../components/common/Button';
 import ThemeToggle from '../components/common/ThemeToggle';
 import roleTheme from '../config/roleTheme';
+import registrationRoles from '../config/registration';
 import { useAuth } from '../context/useAuth';
 
 const PORTAL_HOMES = {
@@ -192,6 +193,9 @@ export default function Landing() {
                 <Button variant="secondary" size="sm" onClick={() => navigate('/login/student')}>
                   Sign in
                 </Button>
+                <Button size="sm" onClick={() => navigate('/register')}>
+                  Create account
+                </Button>
                 <Button size="sm" className="hidden sm:inline-flex" onClick={() => scrollToId('portals')}>
                   Explore portals
                 </Button>
@@ -235,8 +239,8 @@ export default function Landing() {
               marketplace applications to weekly logbook sign-off.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Button size="lg" onClick={() => scrollToId('portals')}>
-                Enter a portal
+              <Button size="lg" onClick={() => navigate('/register')}>
+                Create an account
                 <ArrowRight className="h-4 w-4" />
               </Button>
               <Button
@@ -248,6 +252,10 @@ export default function Landing() {
                 How it works
               </Button>
             </div>
+            <p className="mt-3 text-xs text-ink-4">
+              Students, firms and universities sign up here. Admin accounts are created by an
+              existing admin.
+            </p>
           </div>
 
           {/* Portal cards */}
@@ -255,12 +263,13 @@ export default function Landing() {
             {PORTALS.map((p) => {
               const theme = roleTheme[p.role];
               const Icon = p.icon;
-              return (
-                <Link
-                  key={p.role}
-                  to={p.loginPath}
-                  className="group relative rounded-2xl border border-slate-700/60 bg-slate-900/40 p-6 transition-all duration-150 hover:-translate-y-1 hover:border-slate-500 hover:bg-slate-900/70 hover:shadow-pop"
-                >
+              // Admin accounts are provisioned by an existing admin, so that
+              // card deliberately offers no self-service signup link.
+              const registerPath = registrationRoles[p.role]?.registerPath;
+              const CardShell = 'group relative rounded-2xl border border-slate-700/60 bg-slate-900/40 p-6 transition-all duration-150 hover:-translate-y-1 hover:border-slate-500 hover:bg-slate-900/70 hover:shadow-pop';
+
+              const body = (
+                <>
                   <div
                     className={`mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl ${theme.softBg} ${theme.text}`}
                   >
@@ -282,7 +291,23 @@ export default function Landing() {
                       <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5" />
                     </span>
                   </div>
-                </Link>
+                </>
+              );
+
+              return (
+                <div key={p.role} className="group relative flex flex-col">
+                  <Link to={p.loginPath} className={`${CardShell} flex-1`}>
+                    {body}
+                  </Link>
+                  {registerPath && (
+                    <Link
+                      to={registerPath}
+                      className="mt-2 rounded-xl border border-dashed border-slate-700/70 px-4 py-2.5 text-center text-xs font-semibold text-ink-4 transition-colors hover:border-slate-500 hover:bg-slate-900/50 hover:text-ink-2"
+                    >
+                      New here? Create an account
+                    </Link>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -435,10 +460,17 @@ export default function Landing() {
                   Student Connect
                 </span>
               </div>
-              <p className="max-w-xs text-sm leading-relaxed text-ink-5">
+              <p className="mt-4 max-w-xs text-sm leading-relaxed text-ink-5">
                 The industrial attachment platform connecting students, firms, and universities —
                 one workflow, no paperwork.
               </p>
+              <Link
+                to="/register"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-300 transition-colors hover:text-brand-200"
+              >
+                Create an account
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
 
             <div>

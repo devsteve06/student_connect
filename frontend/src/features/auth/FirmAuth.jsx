@@ -1,24 +1,20 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Building2, Eye, EyeOff, Mail } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Mail } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import Select from '../../components/common/Select';
 import AuthShell, { FormHeader, DemoHint } from './AuthShell';
 import { useAuth } from '../../context/useAuth';
+import registrationRoles from '../../config/registration';
 
 export default function FirmAuth() {
-  const [isRegistering, setIsRegistering] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login } = useAuth();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [formData, setFormData] = useState({
-    companyName: '',
-    industrySector: 'Technology',
-    contactPerson: '',
     email: '',
     password: ''
   });
@@ -33,23 +29,13 @@ export default function FirmAuth() {
     setError('');
     setLoading(true);
     try {
-      if (isRegistering) {
-        await register({
-          name: formData.companyName,
-          companyName: formData.companyName,
-          email: formData.email,
-          password: formData.password,
-          role: 'firm'
-        });
-      } else {
-        await login(formData.email, formData.password, 'firm');
-      }
+      await login(formData.email, formData.password, 'firm');
       navigate('/firm');
     } catch (err) {
       setError(
         err.response?.data?.message ||
-        err.message ||
-        'Sign in failed. Please check your details and try again.'
+          err.message ||
+          'Sign in failed. Please check your details and try again.'
       );
     } finally {
       setLoading(false);
@@ -66,23 +52,19 @@ export default function FirmAuth() {
       footer={
         <p className="text-center text-xs text-ink-4">
           A student or institution?{' '}
-          <a href="/login/student" className="font-semibold text-amber-700 hover:text-amber-800">
+          <Link to="/login/student" className="font-semibold text-amber-700 hover:text-amber-800">
             Student sign in
-          </a>{' '}
-          ·{' '}
-          <a href="/login/university" className="font-semibold text-amber-700 hover:text-amber-800">
+          </Link>
+          {' · '}
+          <Link to="/login/university" className="font-semibold text-amber-700 hover:text-amber-800">
             Faculty sign in
-          </a>
+          </Link>
         </p>
       }
     >
       <FormHeader
-        title={isRegistering ? 'Create a partner account' : 'Welcome back'}
-        subtitle={
-          isRegistering
-            ? 'Join the network and start receiving student applications.'
-            : 'Sign in to your corporate workspace.'
-        }
+        title="Welcome back"
+        subtitle="Sign in to your corporate workspace."
       />
 
       {error && (
@@ -92,42 +74,6 @@ export default function FirmAuth() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {isRegistering && (
-          <Input
-            label="Company name"
-            name="companyName"
-            icon={Building2}
-            placeholder="e.g. TechCorp Solutions Ltd"
-            value={formData.companyName}
-            onChange={handleInputChange}
-            required
-          />
-        )}
-
-        {isRegistering && (
-          <Select
-            label="Industry"
-            name="industrySector"
-            value={formData.industrySector}
-            onChange={handleInputChange}
-          >
-            <option value="Technology">Technology & software</option>
-            <option value="Telecommunications">Telecommunications</option>
-            <option value="Banking">Banking & financial services</option>
-          </Select>
-        )}
-
-        {isRegistering && (
-          <Input
-            label="Contact person"
-            name="contactPerson"
-            placeholder="e.g. Jane Mercer"
-            value={formData.contactPerson}
-            onChange={handleInputChange}
-            required
-          />
-        )}
-
         <Input
           label="Work email"
           name="email"
@@ -145,18 +91,19 @@ export default function FirmAuth() {
             <label htmlFor="password" className="text-sm font-semibold text-ink-2">
               Password
             </label>
-            {!isRegistering && (
-              <a href="#" className="text-xs font-semibold text-ink-5 hover:text-amber-600">
-                Forgot password?
-              </a>
-            )}
+            {/* No self-service reset exists yet; an admin issues resets from
+                POST /admin/reset-password. Point people at that instead of a
+                dead href="#". */}
+            <span className="text-xs text-ink-5">
+              Locked out? Ask your admin to reset it.
+            </span>
           </div>
           <div className="relative">
             <input
               id="password"
               name="password"
               type={showPassword ? 'text' : 'password'}
-              autoComplete={isRegistering ? 'new-password' : 'current-password'}
+              autoComplete="current-password"
               required
               placeholder="••••••••"
               value={formData.password}
@@ -174,16 +121,12 @@ export default function FirmAuth() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2">
-          <button
-            type="button"
-            onClick={() => setIsRegistering((v) => !v)}
-            className="text-sm font-semibold text-amber-700 hover:text-amber-800"
-          >
-            {isRegistering ? 'Already have an account? Sign in' : 'New here? Join as a partner'}
-          </button>
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <Link to={registrationRoles.firm.registerPath} className="text-sm font-semibold text-amber-700 hover:text-amber-800">
+            New here? Join as a partner
+          </Link>
           <Button type="submit" disabled={loading}>
-            {loading ? (isRegistering ? 'Creating account…' : 'Signing in…') : isRegistering ? 'Create account' : 'Sign in'}
+            {loading ? 'Signing in…' : 'Sign in'}
           </Button>
         </div>
       </form>
