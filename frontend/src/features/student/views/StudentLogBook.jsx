@@ -7,6 +7,7 @@ import Modal from '../../../components/common/Modal';
 import Card from '../../../components/common/Card';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
+import PageBanner from '../../../components/common/PageBanner';
 import Skeleton from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { studentService } from '../../../service/studentService';
@@ -162,18 +163,20 @@ export default function StudentLogbook() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className={eyebrow.classes}>{eyebrow.label}</p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-            Industrial training logbook
-          </h1>
-          <p className="mt-1 text-sm text-ink-4">Log weekly activities and competencies for supervisor sign-off.</p>
+      <PageBanner role="student">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className={eyebrow.classes}>{eyebrow.label}</p>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+              Industrial training logbook
+            </h1>
+            <p className="mt-1 text-sm text-ink-4">Log weekly activities and competencies for supervisor sign-off.</p>
+          </div>
+          <Button icon={Plus} onClick={openAdd} className="self-start sm:self-center">
+            Add weekly entry
+          </Button>
         </div>
-        <Button icon={Plus} onClick={openAdd} className="self-start sm:self-center">
-          Add weekly entry
-        </Button>
-      </div>
+      </PageBanner>
 
       {error && (
         <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">

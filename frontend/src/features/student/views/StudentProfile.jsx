@@ -3,6 +3,7 @@ import { Building2, GraduationCap, Hash, Phone, Save, User } from 'lucide-react'
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import Input from '../../../components/common/Input';
+import PageBanner from '../../../components/common/PageBanner';
 import Skeleton from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { studentService } from '../../../service/studentService';
@@ -108,17 +109,19 @@ export default function StudentProfile() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <span className={eyebrow.classes}>{eyebrow.label}</span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-            Profile
-          </h1>
-          <p className="mt-1 text-sm text-ink-4">
-            Keep your personal details up to date so firms can reach you.
-          </p>
+      <PageBanner role="student">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <span className={eyebrow.classes}>{eyebrow.label}</span>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+              Profile
+            </h1>
+            <p className="mt-1 text-sm text-ink-4">
+              Keep your personal details up to date so firms can reach you.
+            </p>
+          </div>
         </div>
-      </div>
+      </PageBanner>
 
       {loading ? (
         <Skeleton variant="card" lines={5} className="max-w-2xl" />

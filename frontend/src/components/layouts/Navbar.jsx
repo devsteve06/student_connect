@@ -49,7 +49,7 @@ export default function Navbar({ role = 'student', onOpenSidebar }) {
 
         <div className="hidden h-5 w-px bg-surface-4 sm:block" />
 
-        <ThemeToggle compact />
+        <ThemeToggle />
 
         <div className="flex items-center gap-2.5">
           <span className="hidden text-right sm:block">

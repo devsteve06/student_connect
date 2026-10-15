@@ -7,35 +7,26 @@ const OPTIONS = [
   { value: 'dark', label: 'Dark', Icon: Moon },
 ];
 
-export default function ThemeToggle({ compact = false }) {
+export default function ThemeToggle() {
   const { mode, setMode } = useTheme();
 
+  const index = Math.max(
+    0,
+    OPTIONS.findIndex((option) => option.value === mode)
+  );
+  const current = OPTIONS[index];
+  const next = OPTIONS[(index + 1) % OPTIONS.length];
+  const Icon = current.Icon;
+
   return (
-    <div
-      role="radiogroup"
-      aria-label="Colour theme"
-      className="flex items-center gap-0.5 rounded-xl border border-line bg-surface-2 p-0.5 shadow-soft"
+    <button
+      type="button"
+      onClick={() => setMode(next.value)}
+      aria-label={`Theme: ${current.label}. Switch to ${next.label}.`}
+      title={`${current.label} theme — click for ${next.label}`}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-line bg-surface-2 text-ink-3 shadow-soft transition-colors hover:text-ink max-sm:h-8 max-sm:w-8"
     >
-      {OPTIONS.map(({ value, label, Icon }) => {
-        const active = mode === value;
-        return (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            aria-label={`${label} theme`}
-            title={label}
-            onClick={() => setMode(value)}
-            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition-all duration-150 ${
-              active ? 'bg-surface text-ink shadow-soft' : 'text-ink-4 hover:text-ink-2'
-            }`}
-          >
-            <Icon className="h-4 w-4" />
-            {!compact && <span className="hidden sm:inline">{label}</span>}
-          </button>
-        );
-      })}
-    </div>
+      <Icon className="h-4 w-4" />
+    </button>
   );
 }

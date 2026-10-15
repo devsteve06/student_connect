@@ -10,8 +10,24 @@ The data layer (`data/db.js`) is **dual-mode** — the same query code runs eith
 
 | Mode | When | Behaviour |
 |------|------|-----------|
-| **In-memory (`pg-mem`)** | `DATABASE_URL` **unset** (default) | Spins up an in-process PostgreSQL, loads `sql/schema.sql` + `sql/seed.sql` on every boot. Zero setup; data resets on restart. |
-| **Real PostgreSQL (`pg`)** | `DATABASE_URL` **set** | Connects to your server. Run `sql/schema.sql` + `sql/seed.sql` against it once first. |
+| **In-memory (`pg-mem`)** | `DATABASE_URL` **unset** (default) | Spins up an in-process PostgreSQL, loads `sql/schema.sql` + `sql/seed.sql` on every boot. Zero setup; data resets on restart. Fatal under `NODE_ENV=production`. |
+| **Real PostgreSQL (`pg`)** | `DATABASE_URL` **set** | Connects to your server. Schema is applied from `db/migrations/*.sql` automatically on boot. |
+
+### Schema and migrations
+
+`db/migrations/*.sql` are applied in filename order by the runner in
+`data/migrations.js`, each in a transaction and recorded in `schema_migrations`,
+so re-running is a no-op. Two commands:
+
+```bash
+npm run db:migrate                # apply pending migrations
+npm run db:bootstrap -- --seed    # provision a fresh empty database, then seed demo data
+```
+
+⚠️ Do **not** run `sql/schema.sql` against a database that holds data — it starts
+with `DROP TABLE`. It exists for the pg-mem dev path, which never runs migrations.
+When adding a column, mirror it into **all three** of `db/migrations/NNNN_*.sql`,
+`sql/schema.sql` and `db/migrations/0001_init.sql`.
 
 ## Run
 
@@ -22,22 +38,37 @@ npm run dev      # nodemon, auto-reload
 # or: npm start
 ```
 
-Listens on `http://localhost:5000` (override with `PORT` in `.env`).
+Listens on `http://localhost:5000` (override with `PORT` in `.env`). `JWT_SECRET`
+must be set or the server refuses to start — copy `.env.example` to `.env`.
 
 ### Point at a real PostgreSQL database
 
 ```bash
-createdb student_connect
-psql -d student_connect -f sql/schema.sql
-psql -d student_connect -f sql/seed.sql
-# then in .env:
-# DATABASE_URL=postgresql://user:password@localhost:5432/student_connect
+cd backend
+cp .env.example .env       # paste DATABASE_URL into it
+npm run db:bootstrap -- --seed
 ```
+
+`--seed` inserts demo data only when `students` is empty. Existing databases only
+need `npm run db:migrate`.
 
 SSL is enabled automatically for Supabase hosts (`db.<ref>.supabase.co` direct, or
 `aws-0-<region>.pooler.supabase.com` session pooler). For Supabase, use the **session pooler**
 string on IPv4-only networks (the direct host is IPv6-only), keep the `postgres.<project-ref>`
-username the pooler requires, and omit any `?sslmode=` param from the URL.
+username the pooler requires, and omit any `?sslmode=` param from the URL — `data/db.js`
+owns TLS. Chain verification is off unless you point `DATABASE_SSL_CA_FILE` at the
+provider's CA bundle (`DATABASE_SSL_REJECT_UNAUTHORIZED` is an explicit override).
+
+## Tests
+
+```bash
+npm test
+```
+
+29 tests via `node --test`: the logbook submit/sign-off loop and its validation
+rules, self-service registration, auth/role middleware, the migration runner,
+and error handling. The runner defaults `JWT_SECRET` itself, so no `.env` is
+needed.
 
 ## Demo accounts
 

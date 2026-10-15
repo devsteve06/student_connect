@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { MapPin, Clock, ArrowUpRight } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
+import PageBanner from '../../../components/common/PageBanner';
 import Skeleton from '../../../components/common/Skeleton';
 import EmptyState from '../../../components/common/EmptyState';
 import { roleChip } from '../../../config/roleTheme';
@@ -68,13 +69,13 @@ export default function StudentMarketplace() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-line-2 pb-6">
+      <PageBanner role="student">
         <p className={eyebrow.classes}>{eyebrow.label}</p>
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
           Attachment marketplace
         </h1>
         <p className="mt-1 text-sm text-ink-4">Browse placements from trusted partner firms and apply in a click.</p>
-      </div>
+      </PageBanner>
 
       {notice && (
         <div
