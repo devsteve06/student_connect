@@ -9,6 +9,12 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-15 — portal cross-links on the sign-in screens
+- **Consistent portal sign-in links** — the footer at the bottom of the four sign-in screens named the same destination differently ("Firm sign in" vs "Faculty sign in" vs "Return to portal sign in"), omitted admin from the firm and university screens, and the admin screen only linked back to students.
+  - **New config** `frontend/src/config/signInPortals.js` — single source of truth for the four cross-portal sign-in links, pulling names straight from `roleTheme.portal` (Student Hub, Corporate Gate, Faculty Console, Admin Center). Unlike `registration.js` this list **includes admin**, because signing in is not self-service — every portal is reachable from every other.
+  - **New shared footer** `PortalSignInLinks` exported from `AuthShell.jsx` — renders links to every portal *except* the current one, tinted with the current screen's accent. All four screens (`StudentAuth`, `FirmAuth`, `UniversityAuth`, `AdminAuth`) now pass `footer={<PortalSignInLinks currentRole="…" />}`, so the wording and destinations can never drift again. The unused `Link` import was dropped from `AdminAuth.jsx`.
+  - Verified: frontend `npm run lint` clean + `npm run build` green (1853 modules).
+
 ### 2026-10-15
 - **Background imagery across the UI** — added decorative, role-aware background photos to the landing hero, the auth brand panel, every role dashboard header, and the sidebar.
   - **New config** `frontend/src/config/backgrounds.js` — single source of truth mapping each role to an Unsplash image (free to use, no attribution required) plus public `landing`/`auth` images. URLs are built from a `photo-...` id + size query params via a `sized()` helper, so the repo carries no binary assets and a surface can be re-skinned by swapping one id. Mirrors the `roleTheme.js` pattern; `getRoleBackground(role)` falls back to the student image.
