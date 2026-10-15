@@ -5,6 +5,7 @@ import Card from '../../components/common/Card';
 import StatusPill from '../../components/common/StatusPill';
 import EmptyState from '../../components/common/EmptyState';
 import Input from '../../components/common/Input';
+import PageBanner from '../../components/common/PageBanner';
 import Skeleton from '../../components/common/Skeleton';
 import { roleChip } from '../../config/roleTheme';
 import { universityService } from '../../service/universityService';
@@ -76,11 +77,11 @@ export default function UniversityAudits() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-line-2 pb-6">
+      <PageBanner role="university">
         <p className={eyebrow.classes}>{eyebrow.label}</p>
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Compliance audits</h1>
         <p className="mt-1 text-sm text-ink-4">Complete logbook ledger for your students' attachment records.</p>
-      </div>
+      </PageBanner>
 
       <Input
         icon={Search}

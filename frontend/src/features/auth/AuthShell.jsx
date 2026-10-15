@@ -1,4 +1,6 @@
+import BackgroundImage from '../../components/common/BackgroundImage';
 import roleTheme from '../../config/roleTheme';
+import { publicBackgrounds } from '../../config/backgrounds';
 import ThemeToggle from '../../components/common/ThemeToggle';
 
 export default function AuthShell({
@@ -16,6 +18,13 @@ export default function AuthShell({
     <div className="flex min-h-screen bg-surface">
       {/* Brand panel */}
       <aside className="relative hidden w-5/12 overflow-hidden bg-slate-950 lg:flex lg:flex-col lg:justify-between">
+        {/* Background photo + scrim */}
+        <BackgroundImage
+          src={publicBackgrounds.auth.url}
+          position={publicBackgrounds.auth.position}
+          priority
+          overlayClassName="bg-gradient-to-t from-slate-950 via-slate-950/85 to-slate-950/70"
+        />
         {/* Decorative layers */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.07] bg-[radial-gradient(#8b5cf6_1px,transparent_1px)] [background-size:22px_22px]"

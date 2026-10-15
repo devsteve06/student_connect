@@ -12,8 +12,10 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react';
+import BackgroundImage from '../components/common/BackgroundImage';
 import Button from '../components/common/Button';
 import ThemeToggle from '../components/common/ThemeToggle';
+import { publicBackgrounds } from '../config/backgrounds';
 import roleTheme from '../config/roleTheme';
 import registrationRoles from '../config/registration';
 import { useAuth } from '../context/useAuth';
@@ -226,6 +228,12 @@ export default function Landing() {
       {/* Hero (dark brand panel, mirrors the auth shell treatment)          */}
       {/* ------------------------------------------------------------------ */}
       <section className="relative overflow-hidden bg-slate-950">
+        <BackgroundImage
+          src={publicBackgrounds.landing.url}
+          position={publicBackgrounds.landing.position}
+          priority
+          overlayClassName="bg-slate-950/75"
+        />
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(#8b5cf6_1px,transparent_1px)] opacity-[0.07] [background-size:22px_22px]"
           aria-hidden="true"

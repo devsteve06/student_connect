@@ -1,13 +1,20 @@
 # Student Connect - Project Progress
 
 ## Current Status
-- **Date**: 2026-10-02
+- **Date**: 2026-10-15
 - **Phase**: Phases 1–3 complete; Phase 4 (deploy) configured, not yet executed
 - **Overall Progress**: ~90% — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-15
+- **Background imagery across the UI** — added decorative, role-aware background photos to the landing hero, the auth brand panel, every role dashboard header, and the sidebar.
+  - **New config** `frontend/src/config/backgrounds.js` — single source of truth mapping each role to an Unsplash image (free to use, no attribution required) plus public `landing`/`auth` images. URLs are built from a `photo-...` id + size query params via a `sized()` helper, so the repo carries no binary assets and a surface can be re-skinned by swapping one id. Mirrors the `roleTheme.js` pattern; `getRoleBackground(role)` falls back to the student image.
+  - **New components** — `frontend/src/components/common/BackgroundImage.jsx` renders a lazy-loaded (`loading="lazy"`, `decoding="async"`, `draggable={false}`) `aria-hidden`, `pointer-events-none` `<img>` with an optional overlay, filling a `relative overflow-hidden` parent; a failed remote image hides itself leaving the parent's own gradients as fallback. `frontend/src/components/common/PageBanner.jsx` wraps the existing dashboard header markup and paints the role's photo behind it, with a scrim built from the semantic `surface` token so it washes light in light mode and dark in dark mode — one image stays legible in both, no second asset.
+  - **Wired up**: `Landing.jsx` hero (photo behind the existing radial-dots + blurred blobs), `AuthShell.jsx` brand panel, `Sidebar.jsx` desktop + mobile drawer (per-role image at `opacity-20` under a dark gradient), and the header block of all nine role views replaced with `PageBanner` — `StudentDashboard`, `StudentProfile`, `StudentMarketplace`, `StudentLogBook`, `FirmDashboard`, `FirmApplicants`, `UniversityDashboard`, `UniversityAudits`, `AdminDashboard`. The now-redundant `border-b border-line-2 pb-6` on each header was dropped so the image reads as one panel. Existing text colours and semantic tokens are untouched, so light/dark both stay legible.
+  - Verified: frontend `npm run lint` clean + `npm run build` green (1852 modules, `dist/index.html` + `assets/` emitted).
 
 ### 2026-10-06
 - **Mobile header slimming + single-icon theme toggle** — the landing header was cramped on small screens and the theme control was a 3-segment pill.

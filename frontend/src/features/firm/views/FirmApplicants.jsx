@@ -5,6 +5,7 @@ import Card from '../../../components/common/Card';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
 import Input from '../../../components/common/Input';
+import PageBanner from '../../../components/common/PageBanner';
 import Skeleton from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { firmService } from '../../../service/firmService';
@@ -46,11 +47,11 @@ export default function FirmApplicants() {
 
   return (
     <div className="space-y-6">
-      <div className="border-b border-line-2 pb-6">
+      <PageBanner role="firm">
         <p className={eyebrow.classes}>{eyebrow.label}</p>
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Applicants</h1>
         <p className="mt-1 text-sm text-ink-4">Review the students who've applied to your openings.</p>
-      </div>
+      </PageBanner>
 
       <Input
         icon={Search}

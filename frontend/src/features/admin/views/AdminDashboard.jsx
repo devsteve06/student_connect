@@ -10,6 +10,7 @@ import Select from '../../../components/common/Select';
 import Modal from '../../../components/common/Modal';
 import Badge from '../../../components/common/Badge';
 import EmptyState from '../../../components/common/EmptyState';
+import PageBanner from '../../../components/common/PageBanner';
 import {
   adminService
 } from '../../../service/adminService';
@@ -128,21 +129,23 @@ export default function AdminDashboard() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <span className={eyebrow.classes}>{eyebrow.label}</span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Admin overview</h1>
-          <p className="mt-1 text-sm text-ink-4">Manage accounts across every portal.</p>
+      <PageBanner role="admin">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <span className={eyebrow.classes}>{eyebrow.label}</span>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Admin overview</h1>
+            <p className="mt-1 text-sm text-ink-4">Manage accounts across every portal.</p>
+          </div>
+          <div className="flex items-center gap-3 self-start md:self-center">
+            <Button variant="secondary" icon={RefreshCw} onClick={loadUsers}>
+              Refresh
+            </Button>
+            <Button icon={UserPlus} onClick={() => setCreateOpen(true)}>
+              Create account
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-3 self-start md:self-center">
-          <Button variant="secondary" icon={RefreshCw} onClick={loadUsers}>
-            Refresh
-          </Button>
-          <Button icon={UserPlus} onClick={() => setCreateOpen(true)}>
-            Create account
-          </Button>
-        </div>
-      </div>
+      </PageBanner>
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
