@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, X } from 'lucide-react';
+import BackgroundImage from '../common/BackgroundImage';
 import { navigationLinks } from './navigationConfig';
 import roleTheme from '../../config/roleTheme';
+import { getRoleBackground } from '../../config/backgrounds';
 import { useAuth } from '../../context/useAuth';
 
 export default function Sidebar({ role = 'student', mobileOpen = false, onClose }) {
@@ -11,6 +13,7 @@ export default function Sidebar({ role = 'student', mobileOpen = false, onClose 
   const { logout } = useAuth();
   const theme = roleTheme[role] || roleTheme.student;
   const links = navigationLinks[role] || [];
+  const background = getRoleBackground(role);
 
   const LOGIN_ROUTES = {
     student: '/login/student',
@@ -109,15 +112,29 @@ export default function Sidebar({ role = 'student', mobileOpen = false, onClose 
     <>
       {/* Desktop */}
       <aside className="hidden w-64 shrink-0 bg-slate-950 lg:block">
-        <div className="fixed inset-y-0 left-0 z-30 w-64 bg-slate-950">{NavContent}</div>
+        <div className="fixed inset-y-0 left-0 z-30 w-64 overflow-hidden bg-slate-950">
+          <BackgroundImage
+            src={background.url}
+            position={background.position}
+            className="opacity-20"
+            overlayClassName="bg-gradient-to-b from-slate-950/70 via-slate-950/60 to-slate-950/80"
+          />
+          <div className="relative z-10 h-full">{NavContent}</div>
+        </div>
       </aside>
 
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 animate-fade-in bg-slate-950/60 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-          <aside className="absolute inset-y-0 left-0 w-72 animate-slide-in-left bg-slate-950 shadow-pop">
-            {NavContent}
+          <aside className="absolute inset-y-0 left-0 w-72 overflow-hidden animate-slide-in-left bg-slate-950 shadow-pop">
+            <BackgroundImage
+              src={background.url}
+              position={background.position}
+              className="opacity-20"
+              overlayClassName="bg-gradient-to-b from-slate-950/70 via-slate-950/60 to-slate-950/80"
+            />
+            <div className="relative z-10 h-full">{NavContent}</div>
           </aside>
         </div>
       )}

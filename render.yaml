@@ -1,0 +1,53 @@
+# Render blueprint for the Student Connect API (Express 5 + PostgreSQL).
+#
+# Usage:  Render dashboard -> New -> Blueprint -> point at this repository.
+#         Render reads this file and creates the web service + prompts for the
+#         two `sync: false` secrets (CORS_ORIGIN, DATABASE_URL).
+#
+# The database itself is NOT declared here — it lives in Supabase (see
+# DEPLOYMENT.md). Only the API runs on Render.
+
+services:
+  - type: web
+    name: student-connect-api
+    runtime: node
+    plan: free # spins down after inactivity (~50s cold start). Use `starter` to avoid it.
+    rootDir: backend
+    region: oregon # pick the region closest to your Supabase project (e.g. frankfurt / singapore)
+    # Keep in sync with .nvmrc at the repo root.
+    nodeVersion: 20.19.0
+    # Deterministic install from backend/package-lock.json. --omit=dev drops
+    # nodemon (the only devDependency, unused at runtime). pg-mem is a real
+    # dependency, so the dev fallback still works if you ever run without a DB.
+    #
+    # Migrations deliberately do NOT run here — initDb() applies them on boot.
+    # Build can execute without a running service, so DDL in this phase can
+    # race across concurrent builds.
+    buildCommand: npm ci --omit=dev
+    # `node server.js` directly rather than `npm start`: npm adds a process between
+    # Render and the app, which can delay the SIGTERM that drives the graceful
+    # shutdown in server.js. Keep this in sync with the `start` script.
+    startCommand: node server.js
+    # Readiness probe: 200 only when `SELECT 1` succeeds against the real DB.
+    # Use /healthz instead if you want a DB-independent liveness signal.
+    healthCheckPath: /readyz
+    autoDeploy: true
+
+    envVars:
+      - key: NODE_ENV
+        value: production # hides 5xx detail in error responses
+      - key: JWT_SECRET
+        generateValue: true # Render generates a 64-char secret; do not override
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: LOG_LEVEL
+        value: info
+      # Set this to your Vercel URL(s), comma-separated. Leave unset in dev
+      # only — an unset CORS_ORIGIN makes the API reflect any origin.
+      - key: CORS_ORIGIN
+        sync: false
+      # Supabase *session pooler* connection string. Must include the project
+      # ref in the username: postgres.<project-ref>:<password>@...
+      # Do NOT append ?sslmode=... (data/db.js owns the TLS config).
+      - key: DATABASE_URL
+        sync: false

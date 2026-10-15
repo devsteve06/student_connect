@@ -1,4 +1,6 @@
+import BackgroundImage from '../../components/common/BackgroundImage';
 import roleTheme from '../../config/roleTheme';
+import { publicBackgrounds } from '../../config/backgrounds';
 import ThemeToggle from '../../components/common/ThemeToggle';
 
 export default function AuthShell({
@@ -16,6 +18,13 @@ export default function AuthShell({
     <div className="flex min-h-screen bg-surface">
       {/* Brand panel */}
       <aside className="relative hidden w-5/12 overflow-hidden bg-slate-950 lg:flex lg:flex-col lg:justify-between">
+        {/* Background photo + scrim */}
+        <BackgroundImage
+          src={publicBackgrounds.auth.url}
+          position={publicBackgrounds.auth.position}
+          priority
+          overlayClassName="bg-gradient-to-t from-slate-950 via-slate-950/85 to-slate-950/70"
+        />
         {/* Decorative layers */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.07] bg-[radial-gradient(#8b5cf6_1px,transparent_1px)] [background-size:22px_22px]"
@@ -65,7 +74,7 @@ export default function AuthShell({
       {/* Form panel */}
       <main className="relative flex w-full flex-1 flex-col items-center justify-center bg-surface-2 px-4 py-10 sm:px-8">
         <div className="absolute right-4 top-4">
-          <ThemeToggle compact />
+          <ThemeToggle />
         </div>
         <div className="mb-8 flex flex-col items-center lg:hidden">
           <img src="/favicon.svg" alt="Student Connect logo" className="mb-3 h-12 w-12 rounded-2xl shadow-lifted" />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { GraduationCap, TrendingUp, Users, ClipboardCheck, Check, ShieldAlert, RefreshCw } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
+import PageBanner from '../../../components/common/PageBanner';
 import MetricCard from '../../../components/data-display/MetricCard';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
@@ -121,15 +122,17 @@ export default function UniversityDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 border-b border-line-2 pb-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <span className={eyebrow.classes}>{eyebrow.label}</span>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Overview</h1>
-          <p className="mt-1 text-sm text-ink-4">
-            Monitor placements and sign off weekly logbook entries.
-          </p>
+      <PageBanner role="university">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <span className={eyebrow.classes}>{eyebrow.label}</span>
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Overview</h1>
+            <p className="mt-1 text-sm text-ink-4">
+              Monitor placements and sign off weekly logbook entries.
+            </p>
+          </div>
         </div>
-      </div>
+      </PageBanner>
 
       {/* Error banner for failed sign-offs */}
       {saveError && (
