@@ -314,7 +314,7 @@ test('migrations: signup-only columns exist on firms and universities', async ()
 });
 
 // --- auth: self-service registration ---------------------------------------
-import { registerUser, loginUser, verifyEmail } from '../controllers/authController.js';
+import { registerUser, loginUser } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { resetPassword } from '../data/accounts.js';
 
@@ -450,7 +450,7 @@ test('register: rejects a duplicate email regardless of casing', async () => {
 
 test('login: works immediately after registering, and finds the email case-insensitively', async () => {
   await ensureDb();
-  const reg = await register({
+  await register({
     companyName: 'Tidewater Labs',
     contactPerson: 'Peter Muriuki',
     industrySector: 'Technology & software',
@@ -458,14 +458,6 @@ test('login: works immediately after registering, and finds the email case-insen
     password: 'Passw0rd!',
     role: 'firm'
   });
-  assert.equal(reg.statusCode, 201);
-
-  // Verify email before logging in
-  const verify = mockRes();
-  await verifyEmail({
-    body: { role: 'firm', email: 'peter@tidewater.co.ke', token: reg.body.verification_token }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 200);
 
   const res = mockRes();
   await loginUser({ body: { email: 'PETER@Tidewater.co.ke', password: 'Passw0rd!' } }, res, () => {});
@@ -480,7 +472,7 @@ test('login: works immediately after registering, and finds the email case-insen
 
 test('login: failed attempt increments login_attempts', async () => {
   await ensureDb();
-  const reg = await register({
+  await register({
     companyName: 'Lockout Test Ltd',
     contactPerson: 'Test User',
     industrySector: 'Technology & software',
@@ -488,14 +480,6 @@ test('login: failed attempt increments login_attempts', async () => {
     password: 'Passw0rd!',
     role: 'firm'
   });
-  assert.equal(reg.statusCode, 201);
-
-  // Verify email before attempting login
-  const verify = mockRes();
-  await verifyEmail({
-    body: { role: 'firm', email: 'lockout@test.co.ke', token: reg.body.verification_token }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 200);
 
   // 5 failed attempts
   for (let i = 0; i < 5; i++) {
@@ -512,7 +496,7 @@ test('login: failed attempt increments login_attempts', async () => {
 
 test('login: account is locked after 5 failed attempts', async () => {
   await ensureDb();
-  const reg = await register({
+  await register({
     companyName: 'Locked Out Ltd',
     contactPerson: 'Locked User',
     industrySector: 'Technology & software',
@@ -520,14 +504,6 @@ test('login: account is locked after 5 failed attempts', async () => {
     password: 'Passw0rd!',
     role: 'firm'
   });
-  assert.equal(reg.statusCode, 201);
-
-  // Verify email before attempting login
-  const verify = mockRes();
-  await verifyEmail({
-    body: { role: 'firm', email: 'locked@test.co.ke', token: reg.body.verification_token }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 200);
 
   // Exhaust the lockout threshold
   for (let i = 0; i < 5; i++) {
@@ -549,7 +525,7 @@ test('login: account is locked after 5 failed attempts', async () => {
 
 test('login: successful login resets attempts and clears lockout', async () => {
   await ensureDb();
-  const reg = await register({
+  await register({
     companyName: 'Reset Test Ltd',
     contactPerson: 'Reset User',
     industrySector: 'Technology & software',
@@ -557,14 +533,6 @@ test('login: successful login resets attempts and clears lockout', async () => {
     password: 'Passw0rd!',
     role: 'firm'
   });
-  assert.equal(reg.statusCode, 201);
-
-  // Verify email before attempting login
-  const verify = mockRes();
-  await verifyEmail({
-    body: { role: 'firm', email: 'reset@test.co.ke', token: reg.body.verification_token }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 200);
 
   // A few failed attempts
   for (let i = 0; i < 3; i++) {
@@ -606,14 +574,7 @@ test('protect: token issued before a password change is rejected', async () => {
   });
   assert.equal(reg.statusCode, 201);
 
-  // Verify email before logging in
-  const verify = mockRes();
-  await verifyEmail({
-    body: { role: 'firm', email: 'token@test.co.ke', token: reg.body.verification_token }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 200);
-
-  // Issue a token at registration time (after verification).
+  // Issue a token at registration time.
   const login = mockRes();
   await loginUser({ body: { email: 'token@test.co.ke', password: 'Passw0rd!' } }, login, () => {});
   assert.equal(login.statusCode, 200);
@@ -670,140 +631,6 @@ test('protect: accounts without password_changed_at still validate (backward com
     result.next
   );
   assert.equal(result.called, true, 'protect should call next when password_changed_at is not set');
-});
-
-// --- auth: email verification ------------------------------------------------
-
-test('register: issues verification_token instead of full JWT, email_verified false', async () => {
-  await ensureDb();
-  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
-  assert.ok(uniRow, 'seed university exists');
-  const res = await register({
-    name: 'Verify User',
-    regNumber: 'VERIFY/0001/2026',
-    course: 'BSc. Test',
-    universityId: uniRow.id,
-    email: 'verify@test.co.ke',
-    password: 'Passw0rd!',
-    role: 'student'
-  });
-  assert.equal(res.statusCode, 201);
-  assert.equal(res.body.email_verified, false);
-  assert.ok(res.body.verification_token, 'verification_token should be issued');
-  assert.equal(res.body.token, undefined, 'no full JWT should be issued before verification');
-
-  await query('DELETE FROM students WHERE email = $1', ['verify@test.co.ke']);
-});
-
-test('verify-email: valid token marks account as verified', async () => {
-  await ensureDb();
-  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
-  const reg = await register({
-    name: 'Verify User',
-    regNumber: 'VERIFY/0002/2026',
-    course: 'BSc. Test',
-    universityId: uniRow.id,
-    email: 'verify2@test.co.ke',
-    password: 'Passw0rd!',
-    role: 'student'
-  });
-  assert.equal(reg.statusCode, 201);
-
-  const verify = mockRes();
-  await verifyEmail({
-    body: {
-      role: 'student',
-      email: 'verify2@test.co.ke',
-      token: reg.body.verification_token
-    }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 200);
-  assert.equal(verify.body.email_verified, true);
-
-  // Confirm in DB
-  const row = (await query('SELECT email_verified FROM students WHERE email = $1', ['verify2@test.co.ke'])).rows[0];
-  assert.equal(row.email_verified, true);
-
-  await query('DELETE FROM students WHERE email = $1', ['verify2@test.co.ke']);
-});
-
-test('verify-email: invalid token is rejected', async () => {
-  await ensureDb();
-  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
-  const reg = await register({
-    name: 'Verify User',
-    regNumber: 'VERIFY/0003/2026',
-    course: 'BSc. Test',
-    universityId: uniRow.id,
-    email: 'verify3@test.co.ke',
-    password: 'Passw0rd!',
-    role: 'student'
-  });
-  assert.equal(reg.statusCode, 201);
-
-  const verify = mockRes();
-  await verifyEmail({
-    body: {
-      role: 'student',
-      email: 'verify3@test.co.ke',
-      token: 'invalid-token'
-    }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 400);
-
-  await query('DELETE FROM students WHERE email = $1', ['verify3@test.co.ke']);
-});
-
-test('login: unverified account is rejected with 403', async () => {
-  await ensureDb();
-  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
-  await register({
-    name: 'Verify User',
-    regNumber: 'VERIFY/0004/2026',
-    course: 'BSc. Test',
-    universityId: uniRow.id,
-    email: 'verify4@test.co.ke',
-    password: 'Passw0rd!',
-    role: 'student'
-  });
-
-  const login = mockRes();
-  await loginUser({ body: { email: 'verify4@test.co.ke', password: 'Passw0rd!' } }, login, () => {});
-  assert.equal(login.statusCode, 403, 'unverified account should be rejected');
-
-  await query('DELETE FROM students WHERE email = $1', ['verify4@test.co.ke']);
-});
-
-test('login: verified account succeeds', async () => {
-  await ensureDb();
-  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
-  const reg = await register({
-    name: 'Verify User',
-    regNumber: 'VERIFY/0005/2026',
-    course: 'BSc. Test',
-    universityId: uniRow.id,
-    email: 'verify5@test.co.ke',
-    password: 'Passw0rd!',
-    role: 'student'
-  });
-  assert.equal(reg.statusCode, 201);
-
-  const verify = mockRes();
-  await verifyEmail({
-    body: {
-      role: 'student',
-      email: 'verify5@test.co.ke',
-      token: reg.body.verification_token
-    }
-  }, verify, () => {});
-  assert.equal(verify.statusCode, 200);
-
-  const login = mockRes();
-  await loginUser({ body: { email: 'verify5@test.co.ke', password: 'Passw0rd!' } }, login, () => {});
-  assert.equal(login.statusCode, 200, 'verified account should log in');
-  assert.ok(login.body.token, 'full JWT should be issued after verification');
-
-  await query('DELETE FROM students WHERE email = $1', ['verify5@test.co.ke']);
 });
 
 // --- auth: remaining validation / integrity tests ----------------------------

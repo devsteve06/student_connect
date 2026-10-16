@@ -1,7 +1,7 @@
 // routes/authRoutes.js
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { registerUser, loginUser, verifyEmail } from '../controllers/authController.js';
+import { registerUser, loginUser } from '../controllers/authController.js';
 
 const router = Router();
 
@@ -32,7 +32,6 @@ const registerLimiter = rateLimit({
 });
 
 router.post('/register', registerLimiter, registerUser);
-router.post('/verify-email', verifyEmail);
 router.post('/login', loginLimiter, loginUser);
 
 export default router;
