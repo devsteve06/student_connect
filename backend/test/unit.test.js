@@ -1,6 +1,7 @@
 // Unit tests for pure helpers and middleware. Run with: npm test (node --test).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import jwt from 'jsonwebtoken';
 
 // The auth controllers sign JWTs with process.env.JWT_SECRET at call time, and
 // CI has no .env to load. Set it before any test body runs.
@@ -314,6 +315,8 @@ test('migrations: signup-only columns exist on firms and universities', async ()
 
 // --- auth: self-service registration ---------------------------------------
 import { registerUser, loginUser } from '../controllers/authController.js';
+import { protect } from '../middleware/authMiddleware.js';
+import { resetPassword } from '../data/accounts.js';
 
 async function register(payload) {
   const res = mockRes();
@@ -550,3 +553,80 @@ test('login: successful login resets attempts and clears lockout', async () => {
 
   await query('DELETE FROM firms WHERE contact_email = $1', ['reset@test.co.ke']);
 });
+
+// --- auth: token binding to password version ---------------------------------
+
+function protectMockNext() {
+  let called = false;
+  const next = () => { called = true; };
+  return { next, get called() { return called; } };
+}
+
+test('protect: token issued before a password change is rejected', async () => {
+  await ensureDb();
+  await register({
+    companyName: 'Token Binding Ltd',
+    contactPerson: 'Token User',
+    industrySector: 'Technology & software',
+    email: 'token@test.co.ke',
+    password: 'Passw0rd!',
+    role: 'firm'
+  });
+
+  // Issue a token at registration time.
+  const login = mockRes();
+  await loginUser({ body: { email: 'token@test.co.ke', password: 'Passw0rd!' } }, login, () => {});
+  assert.equal(login.statusCode, 200);
+  const oldToken = login.body.token;
+
+  // Rotate the password (admin operation).
+  const firmRow = (await query('SELECT id FROM firms WHERE contact_email = $1', ['token@test.co.ke'])).rows[0];
+  assert.ok(firmRow, 'firm exists');
+  await resetPassword('firm', firmRow.id, 'NewPass1!');
+
+  // The old token must be rejected by protect.
+  const result1 = protectMockNext();
+  await protect(
+    { headers: { authorization: `Bearer ${oldToken}` } },
+    mockRes(),
+    result1.next
+  );
+  assert.equal(result1.called, false, 'protect should not call next for a pre-rotation token');
+
+  // A fresh token issued after rotation must be accepted.
+  const fresh = mockRes();
+  await loginUser({ body: { email: 'token@test.co.ke', password: 'NewPass1!' } }, fresh, () => {});
+  assert.equal(fresh.statusCode, 200);
+  const freshToken = fresh.body.token;
+
+  const result2 = protectMockNext();
+  await protect(
+    { headers: { authorization: `Bearer ${freshToken}` } },
+    mockRes(),
+    result2.next
+  );
+  assert.equal(result2.called, true, 'protect should call next for a post-rotation token');
+
+  await query('DELETE FROM firms WHERE contact_email = $1', ['token@test.co.ke']);
+});
+
+test('protect: accounts without password_changed_at still validate (backward compat)', async () => {
+  await ensureDb();
+
+  // Seed admin has no password_changed_at column value set; a token for it
+  // should still validate.
+  const token = jwt.sign(
+    { id: 1, role: 'admin', passwordChangedAt: 0 },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+
+  const result = protectMockNext();
+  await protect(
+    { headers: { authorization: `Bearer ${token}` } },
+    mockRes(),
+    result.next
+  );
+  assert.equal(result.called, true, 'protect should call next when password_changed_at is not set');
+});
+

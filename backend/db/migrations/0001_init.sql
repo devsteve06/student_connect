@@ -121,3 +121,9 @@ ALTER TABLE firms ADD COLUMN IF NOT EXISTS last_login_at  TIMESTAMPTZ;
 ALTER TABLE universities ADD COLUMN IF NOT EXISTS login_attempts INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE universities ADD COLUMN IF NOT EXISTS locked_until   TIMESTAMPTZ;
 ALTER TABLE universities ADD COLUMN IF NOT EXISTS last_login_at  TIMESTAMPTZ;
+
+-- Bind JWTs to password change time (revoke tokens issued before rotation)
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+ALTER TABLE universities ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;

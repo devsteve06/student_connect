@@ -1,6 +1,7 @@
 // middleware/authMiddleware.js
 import jwt from 'jsonwebtoken';
 import { findAccountById } from '../data/accounts.js';
+import { logger } from '../utils/logger.js';
 
 // Verifies the Bearer token and injects the matching account onto req.user.
 export const protect = async (req, res, next) => {
@@ -19,10 +20,41 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Authorization rejected: account no longer exists.' });
     }
 
+    // Token binding: if the account's password was changed after this token was
+    // issued, the token is invalidated. Clients always see a generic 401; the
+    // specific reason is logged server-side for admin diagnosis.
+    if (account.password_changed_at && decoded.passwordChangedAt != null) {
+      const tokenIssuedAt = new Date(decoded.passwordChangedAt);
+      const passwordChangedAt = new Date(account.password_changed_at);
+      if (passwordChangedAt > tokenIssuedAt) {
+        logger.warn('token invalidated by password rotation', {
+          requestId: req.id,
+          accountId: account.id,
+          role: account.role,
+          tokenIssuedAt: tokenIssuedAt.toISOString(),
+          passwordChangedAt: passwordChangedAt.toISOString()
+        });
+        return res.status(401).json({ message: 'Authorization rejected: access token missing.' });
+      }
+    }
+
     req.user = account;
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Security check failed: token validation corrupted.' });
+    // Distinguish expired tokens for server-side diagnostics; the client still
+    // receives a generic 401 so no token validity information leaks.
+    if (error.name === 'TokenExpiredError') {
+      logger.warn('token expired', {
+        requestId: req.id,
+        error: error.message
+      });
+    } else {
+      logger.warn('token validation failed', {
+        requestId: req.id,
+        error: error.message
+      });
+    }
+    return res.status(401).json({ message: 'Authorization rejected: access token missing.' });
   }
 };
 
