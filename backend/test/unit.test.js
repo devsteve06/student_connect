@@ -330,7 +330,7 @@ test('register: a firm account persists the contact person and industry', async 
     contactPerson: 'Grace Wanjiru',
     industrySector: 'Banking & financial services',
     email: 'Grace@Lumen-Analytics.co.ke',
-    password: 'password123',
+    password: 'Passw0rd!',
     role: 'firm'
   });
   assert.equal(res.statusCode, 201);
@@ -356,7 +356,7 @@ test('register: a university account persists the staff id and department', asyn
     staffId: 'ST-7781',
     department: 'School of Engineering',
     email: 'a.otieno@tuk.ac.ke',
-    password: 'password123',
+    password: 'Passw0rd!',
     role: 'university'
   });
   assert.equal(res.statusCode, 201);
@@ -375,12 +375,15 @@ test('register: a university account persists the staff id and department', asyn
 
 test('register: a student account persists the reg number and course', async () => {
   await ensureDb();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+  assert.ok(uniRow, 'seed university exists');
   const res = await register({
     name: 'Brian Mutua',
     regNumber: 'BBIT/9001/2026',
     course: 'BSc. in Computer Science',
+    universityId: uniRow.id,
     email: 'brian.mutua@students.strathmore.edu',
-    password: 'password123',
+    password: 'Passw0rd!',
     role: 'student'
   });
   assert.equal(res.statusCode, 201);
@@ -402,7 +405,7 @@ test('register: rejects an admin self-signup', async () => {
   const res = await register({
     name: 'Rogue Admin',
     email: 'rogue@example.com',
-    password: 'password123',
+    password: 'Passw0rd!',
     role: 'admin'
   });
   assert.equal(res.statusCode, 400);
@@ -415,7 +418,7 @@ test('register: rejects a firm that omits its contact person', async () => {
     companyName: 'Half Formed Ltd',
     industrySector: 'Technology & software',
     email: 'nobody@halfformed.co.ke',
-    password: 'password123',
+    password: 'Passw0rd!',
     role: 'firm'
   });
   assert.equal(res.statusCode, 400);
@@ -428,11 +431,14 @@ test('register: rejects a firm that omits its contact person', async () => {
 
 test('register: rejects a duplicate email regardless of casing', async () => {
   await ensureDb();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+  assert.ok(uniRow, 'seed university exists');
   const res = await register({
     name: 'Alex Kamau',
     regNumber: 'BBIT/1111/2020',
+    universityId: uniRow.id,
     email: 'ALEX.KAMAU@students.strathmore.edu',
-    password: 'password123',
+    password: 'Passw0rd!',
     role: 'student'
   });
   assert.equal(res.statusCode, 400);
@@ -446,12 +452,12 @@ test('login: works immediately after registering, and finds the email case-insen
     contactPerson: 'Peter Muriuki',
     industrySector: 'Technology & software',
     email: 'peter@tidewater.co.ke',
-    password: 'password123',
+    password: 'Passw0rd!',
     role: 'firm'
   });
 
   const res = mockRes();
-  await loginUser({ body: { email: 'PETER@Tidewater.co.ke', password: 'password123' } }, res, () => {});
+  await loginUser({ body: { email: 'PETER@Tidewater.co.ke', password: 'Passw0rd!' } }, res, () => {});
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.role, 'firm');
   assert.ok(res.body.token);

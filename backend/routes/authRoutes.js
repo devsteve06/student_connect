@@ -10,7 +10,11 @@ const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   legacyHeaders: false,
-  message: { message: 'Too many login attempts. Please try again later.' }
+  message: { message: 'Too many login attempts. Please try again later.' },
+  handler: (_req, res) => {
+    res.set('Retry-After', String(Math.ceil(15 * 60)));
+    res.status(429).json({ message: 'Too many login attempts. Please try again later.' });
+  }
 });
 
 // Signup is unauthenticated and every call hashes a password and writes a row,
@@ -20,7 +24,11 @@ const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 10,
   legacyHeaders: false,
-  message: { message: 'Too many accounts created from this network. Please try again later.' }
+  message: { message: 'Too many accounts created from this network. Please try again later.' },
+  handler: (_req, res) => {
+    res.set('Retry-After', String(Math.ceil(60 * 60)));
+    res.status(429).json({ message: 'Too many accounts created from this network. Please try again later.' });
+  }
 });
 
 router.post('/register', registerLimiter, registerUser);

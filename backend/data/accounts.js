@@ -73,12 +73,15 @@ export async function findAccountById(role, id) {
 }
 
 // Create an account in the table matching its role. Returns { id, name, email, role }.
-export async function createAccount({ name, username, email, password, role, regNumber, companyName, contactPerson, industrySector, staffId, department, course, location, universityId }) {
+// When `client` is supplied (from `data/db.js#transaction`) all writes run inside
+// that transaction so registration is atomic.
+export async function createAccount({ name, username, email, password, role, regNumber, companyName, contactPerson, industrySector, staffId, department, course, location, universityId }, client) {
+  const run = (text, params) => (client ? client.query(text, params) : query(text, params));
   const hash = await bcrypt.hash(password, await bcrypt.genSalt(10));
   const loginEmail = String(email).trim().toLowerCase();
 
   if (role === 'admin') {
-    const row = (await query(
+    const row = (await run(
       `INSERT INTO admins (username, email, password_hash, full_name)
        VALUES ($1, $2, $3, $4) RETURNING id`,
       [username || loginEmail, loginEmail, hash, name || 'System Administrator']
@@ -87,18 +90,25 @@ export async function createAccount({ name, username, email, password, role, reg
   }
 
   if (role === 'student') {
-    const uniId = universityId || (await query('SELECT id FROM universities ORDER BY id LIMIT 1')).rows[0]?.id;
-    const row = (await query(
+    // A student must explicitly choose a university; never fabricate a link to an
+    // arbitrary one. The caller is responsible for validating universityId.
+    const uniId = universityId;
+    if (!uniId) {
+      const err = new Error('A university is required to register a student account.');
+      err.status = 400;
+      throw err;
+    }
+    const row = (await run(
       `INSERT INTO students (full_name, email, password_hash, reg_number, course, university_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [name, loginEmail, hash, regNumber || `REG/${Date.now()}`, course || 'General', uniId]
+      [name, loginEmail, hash, regNumber, course, uniId]
     )).rows[0];
     return { id: row.id, name, email: loginEmail, role };
   }
 
   if (role === 'firm') {
     const firmName = (companyName || name || '').trim();
-    const row = (await query(
+    const row = (await run(
       `INSERT INTO firms (company_name, contact_email, password_hash, location, industry, contact_person)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
       [firmName, loginEmail, hash, location || 'Nairobi, KE', (industrySector || '').trim() || null, (contactPerson || '').trim() || null]
@@ -107,7 +117,7 @@ export async function createAccount({ name, username, email, password, role, reg
   }
 
   if (role === 'university') {
-    const row = (await query(
+    const row = (await run(
       `INSERT INTO universities (name, location, contact_email, password_hash, staff_id, department)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
       [

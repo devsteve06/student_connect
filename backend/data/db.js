@@ -107,6 +107,25 @@ export function query(text, params) {
   return pool.query(text, params);
 }
 
+// Runs `callback` inside a single database transaction (pg and pg-mem both
+// expose a Pool whose client supports BEGIN/COMMIT/ROLLBACK). The callback
+// receives a `client` it should use for every query in the unit of work.
+export async function transaction(callback) {
+  if (!pool) throw new Error('Database not initialised — call initDb() first.');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function closeDb() {
   if (pool) {
     await pool.end();
