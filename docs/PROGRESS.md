@@ -9,6 +9,14 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-16 (CV builder Phase 2 — guided wizard UI)
+- **Guided wizard UI landed (Phase 2)** — the multi-step form the plan describes, plus its API client and routes. Backend Phase 1 endpoints were already in place and are called as-is; no backend file was touched.
+  - **New `frontend/src/service/cvService.js`** — `listCvs`/`createCv`/`getCv`/`updateCv`/`deleteCv`/`setPrimaryCv` against `/api/v1/students/cv`, following the full-prefix + `response.data` conventions of the other service modules.
+  - **New `CvBuilderWizard`** (`features/student/views/CvBuilderWizard.jsx`) — eight guided steps (your details → summary → education → experience → skills → projects → certifications → review). Every step keeps its answers while navigating; the final review shows a lightweight self-checklist (Phase 4 adds real scoring) and, when editing an existing CV, a "this is my primary" control. Save posts a new CV or patches the existing one depending on whether the route carried a `:cvId`.
+  - **New components** — `CvStepper.jsx` renders the step indicator (completed steps ticked, current step highlighted, order enforced). `CvSectionForm.jsx` is the reusable section editor: scalar fields are plain `Input`/`Textarea`, list-valued sections (education, experience, skills, projects, certifications) get an inline repeatable-row editor with add/remove. The email address in the personal step stays read-only so the login identity cannot be broken mid-wizard.
+  - **Routing** — `AppRoute.jsx` mounts `/students/cv-builder` and `/students/cv-builder/:cvId` behind the existing student guard, inside the student dashboard layout. The CV Builder card on the student dashboard itself is deliberately **not** added yet — that is Phase 5's exit item.
+  - Verified: `frontend npm run lint` clean + `frontend npm run build` green (1856 modules); no backend commands re-run (no backend file changed).
+
 ### 2026-10-16 (CV builder Phase 1 — schema + backend CRUD)
 - **CV builder backend landed (Phase 1 of `CV_BUILDER_PLAN.md`)** — the plan's first phase is now real, with no frontend files touched (the wizard UI arrives in Phase 2).
   - **New migration** `backend/db/migrations/0006_cv_builder.sql` — adds `student_cvs` (versioned CVs: title, `is_primary`, and JSONB section columns `personal_info` / `professional_summary` / `education` / `experience` / `skills` / `projects` / `certifications`) and `cv_analyses` (Phase 4 stub: job placement, job title/description, match score, keyword/gap/section JSONB). Both are idempotent; `cv_analyses` is written but unused until the analyzer lands.

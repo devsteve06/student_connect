@@ -23,6 +23,7 @@ import StudentDashboard from '../features/student/views/StudentDashboard';
 import StudentMarketplace from '../features/student/views/StudentMarketplace';
 import StudentLogbook from '../features/student/views/StudentLogBook'; // <-- IMPORT CORE VIEW
 import StudentProfile from '../features/student/views/StudentProfile';
+import CvBuilderWizard from '../features/student/views/CvBuilderWizard';
 import FirmDashboard from '../features/firm/views/FirmDashboard';
 import UniversityDashboard from '../features/university/views/UniversityDashboard';
 import AdminDashboard from '../features/admin/views/AdminDashboard';
@@ -52,7 +53,11 @@ export default function AppRoutes() {
           <Route path="/students" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentDashboard /></DashboardLayout></ProtectedRoute>} />
           <Route path="/students/marketplace" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentMarketplace /></DashboardLayout></ProtectedRoute>} />
           <Route path="/students/logbook" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentLogbook /></DashboardLayout></ProtectedRoute>} /> {/* <-- LINK COMPONENT */}
-          <Route path="/students/profile" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentProfile /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/students/profile" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentProfile /></DashboardLayout></ProtectedRoute>} />
+
+          {/* CV builder (Phase 2 — guided wizard; export/preview arrive in Phases 3–4) */}
+          <Route path="/students/cv-builder" element={<ProtectedRoute role="student"><DashboardLayout role="student"><CvBuilderWizard /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/students/cv-builder/:cvId" element={<ProtectedRoute role="student"><DashboardLayout role="student"><CvBuilderWizard /></DashboardLayout></ProtectedRoute>} />
 
           {/* MOUNTED CORPORATE WORKSPACE (firm role required) */}
           <Route path="/firms" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmDashboard /></DashboardLayout></ProtectedRoute>} />
