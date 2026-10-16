@@ -320,7 +320,9 @@ import {
   getCv,
   updateCv,
   deleteCv,
-  setPrimaryCv
+  setPrimaryCv,
+  analyzeCv,
+  getAnalyses
 } from '../controllers/cvController.js';
 
 async function register(payload) {
@@ -657,5 +659,155 @@ test('cv: set primary demotes the current primary and promotes the target', asyn
 
   // Only one primary may exist; promoting again onto itself is fine, but the
   // controller must never end up with two primary CVs.
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+// --- CV job analyzer (Phase 4) ----------------------------------------------
+test('cv: analyze against a pasted job description scores keyword overlap', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+
+  const cv = (
+    await query(
+      `INSERT INTO student_cvs (student_id, title, is_primary, professional_summary, skills)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at`,
+      [
+        STUDENT_ID,
+        'Software Engineer CV',
+        true,
+        'JavaScript developer with React and Node.js experience building web applications.',
+        JSON.stringify([{ category: 'Languages', items: ['JavaScript', 'React', 'Node.js'] }])
+      ]
+    )
+  ).rows[0];
+
+  const res = mockRes();
+  await analyzeCv(
+    {
+      user: { id: STUDENT_ID },
+      body: {
+        cvId: cv.id,
+        jobTitle: 'React Developer',
+        jobDescription: 'We need React, Node.js, and JavaScript experience for frontend work.'
+      }
+    },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 201);
+  assert.ok(res.body.matchScore > 0, 'match score should be positive');
+  assert.ok(Array.isArray(res.body.keywordMatch.matched));
+  assert.ok(Array.isArray(res.body.keywordMatch.missing));
+  assert.ok(typeof res.body.gapAnalysis === 'string');
+  assert.ok(typeof res.body.sectionScores === 'object');
+
+  await query('DELETE FROM cv_analyses WHERE student_id = $1', [STUDENT_ID]);
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+test('cv: analyze against a placement pulls the job from the placements table', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+
+  const placement = (
+    await query('SELECT id, role, description FROM placements LIMIT 1')
+  ).rows[0];
+  assert.ok(placement, 'seed placement exists');
+
+  const cv = (
+    await query(
+      `INSERT INTO student_cvs (student_id, title, is_primary, professional_summary)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [STUDENT_ID, 'Test CV', true, 'React and Node.js developer.']
+    )
+  ).rows[0];
+
+  const res = mockRes();
+  await analyzeCv(
+    { user: { id: STUDENT_ID }, body: { cvId: cv.id, placementId: placement.id } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.jobTitle, placement.role);
+  assert.equal(res.body.placementId, placement.id);
+
+  await query('DELETE FROM cv_analyses WHERE student_id = $1', [STUDENT_ID]);
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+test('cv: analyze rejects a missing job title and description', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+
+  const res = mockRes();
+  await analyzeCv(
+    { user: { id: STUDENT_ID }, body: {} },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 400);
+  assert.ok(res.body.message.includes('required'));
+});
+
+test('cv: analyze returns 404 for a CV the student does not own', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+
+  const res = mockRes();
+  await analyzeCv(
+    { user: { id: STUDENT_ID }, body: { cvId: 99999, jobTitle: 'Developer' } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 404);
+});
+
+test('cv: analyze returns 400 when the student has no CV', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+
+  const res = mockRes();
+  await analyzeCv(
+    { user: { id: STUDENT_ID }, body: { jobTitle: 'Developer' } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 400);
+});
+
+test('cv: get analyses lists past runs newest first', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+
+  const cv = (
+    await query(
+      `INSERT INTO student_cvs (student_id, title, is_primary, professional_summary)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [STUDENT_ID, 'Analysis CV', true, 'React developer.']
+    )
+  ).rows[0];
+
+  await analyzeCv(
+    { user: { id: STUDENT_ID }, body: { cvId: cv.id, jobTitle: 'React Developer', jobDescription: 'React and Node.js.' } },
+    mockRes(),
+    () => {}
+  );
+
+  const res = mockRes();
+  await getAnalyses(
+    { user: { id: STUDENT_ID } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.ok(Array.isArray(res.body));
+  assert.ok(res.body.length >= 1);
+  assert.equal(res.body[0].studentId, STUDENT_ID);
+
+  await query('DELETE FROM cv_analyses WHERE student_id = $1', [STUDENT_ID]);
   await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
 });

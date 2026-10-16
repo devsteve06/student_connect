@@ -10,6 +10,7 @@ import EmptyState from '../../../components/common/EmptyState';
 import Skeleton, { MetricSkeleton } from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { studentService } from '../../../service/studentService';
+import { cvService } from '../../../service/cvService';
 
 const PIPELINE_COLORS = {
   'Pending Review': 'bg-amber-500',
@@ -25,16 +26,19 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [cvs, setCvs] = useState([]);
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const [overview, rows] = await Promise.all([
+        const [overview, rows, studentCvs] = await Promise.all([
           studentService.getMetrics(),
-          studentService.getApplications()
+          studentService.getApplications(),
+          cvService.listCvs()
         ]);
         setMetrics(overview);
         setApplications(rows || []);
+        setCvs(Array.isArray(studentCvs) ? studentCvs : []);
       } catch (err) {
         setError(err?.response?.data?.message || 'This dashboard could not be loaded.');
       } finally {
@@ -211,6 +215,61 @@ export default function StudentDashboard() {
           title="No logbook entries yet"
           description="Submit weekly entries from the logbook — they'll appear here for review."
         />
+      </Card>
+
+      {/* CV Builder */}
+      <Card
+        title="CV Builder"
+        eyebrow="Create, preview, and analyze your CV"
+        action={
+          <Link
+            to="/students/cv-builder"
+            className="text-sm font-semibold text-brand-700 hover:text-brand-800"
+          >
+            Build CV
+          </Link>
+        }
+        bodyClassName="p-5"
+      >
+        <div className="space-y-3">
+          {cvs.length > 0 ? (
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-2">Primary CV: {cvs.find((c) => c.isPrimary)?.title ?? cvs[0]?.title ?? 'Untitled'}</span>
+                <Link
+                  to={`/students/cv/${cvs.find((c) => c.isPrimary)?.id ?? cvs[0]?.id}/view`}
+                  className="text-brand-700 hover:text-brand-800 text-xs font-semibold"
+                >
+                  View CV
+                </Link>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-2">Score your CV against a job description</span>
+                <Link
+                  to="/students/cv-analyzer"
+                  className="text-brand-700 hover:text-brand-800 text-xs font-semibold"
+                >
+                  Analyze CV
+                </Link>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-ink-4">
+                You haven't created a CV yet. Build one from your profile and get an ATS score against any job.
+              </p>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-2">Create your first CV</span>
+                <Link
+                  to="/students/cv-builder"
+                  className="text-brand-700 hover:text-brand-800 text-xs font-semibold"
+                >
+                  Build CV
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
     </div>
   );

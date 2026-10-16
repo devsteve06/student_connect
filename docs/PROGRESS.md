@@ -1,13 +1,19 @@
 # Student Connect - Project Progress
 
 ## Current Status
-- **Date**: 2026-10-16
-- **Phase**: CV builder Phase 1 (schema + backend CRUD) is implemented; Phases 1–3 platform work complete; Phase 4 (deploy) configured, not yet executed
-- **Overall Progress**: ~90% — remaining work is the live deploy itself
+- **Date**: 2026-10-17
+- **Phase**: CV builder Phase 5 (dashboard integration + tests) complete; Phases 1–5 all implemented; Phase 4 (deploy) configured, not yet executed
+- **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-17 (CV builder Phase 5 — dashboard integration + tests)
+- **CV Builder card landed on StudentDashboard (Phase 5)** — the dashboard now surfaces CV creation, viewing, and analysis entry points.
+  - **Frontend** (`StudentDashboard.jsx`): fetches the student's CVs via `cvService.listCvs()` alongside metrics and applications. A new "CV Builder" card shows the primary CV with a "View CV" link when one exists, or a "Create your first CV" CTA when it doesn't. Both states include an "Analyze CV" link to `/students/cv-analyzer`. The card's header action always links to `/students/cv-builder`.
+  - **Backend tests** (`unit.test.js`): 6 new analyzer tests — paste-JD scoring, placementId-based scoring, missing-JD 400, non-owned CV 404, no-CV 400, and past-analyses listing. Total backend tests: 41/41 passing.
+  - Verified: `backend npm test` 41/41; `frontend npm run lint` clean; `frontend npm run build` green (1858 modules).
 
 ### 2026-10-17 (CV builder Phase 4 — job analyzer)
 - **Job analyzer landed (Phase 4 of `CV_BUILDER_PLAN.md`)** — dependency-free keyword-overlap scoring behind a new UI.
