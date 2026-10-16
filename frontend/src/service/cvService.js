@@ -32,5 +32,17 @@ export const cvService = {
   setPrimaryCv: async (cvId) => {
     const response = await apiClient.post(`/api/v1/students/cv/${cvId}/primary`);
     return response.data;
+  },
+
+  // Phase 4 — score a CV against a job (placementId or pasted job title/description).
+  analyzeCv: async (analysisPayload) => {
+    const response = await apiClient.post('/api/v1/students/cv/analyze', analysisPayload);
+    return response.data;
+  },
+
+  // Phase 4 — the student's past analysis runs, newest first.
+  getAnalyses: async () => {
+    const response = await apiClient.get('/api/v1/students/cv/analyses');
+    return response.data;
   }
 };

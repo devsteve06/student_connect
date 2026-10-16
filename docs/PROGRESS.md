@@ -9,6 +9,13 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-17 (CV builder Phase 4 — job analyzer)
+- **Job analyzer landed (Phase 4 of `CV_BUILDER_PLAN.md`)** — dependency-free keyword-overlap scoring behind a new UI.
+  - **Backend** (`cvController.js` + `cvRoutes.js`): `POST /api/v1/students/cv/analyze` scores a CV against a job and `GET /api/v1/students/cv/analyses` lists the student's past runs (both before the parameterized `/cv/:id` routes so `analyses` is never read as a CV id). Scoring is plain token overlap: lowercase tokens of 3+ chars are matched against per-section CV text (personal, summary, education, experience, skills, projects, certifications); `match_score` = % of JD tokens found, `keyword_match = { matched, missing }`, `section_scores` = per-section coverage, `gap_analysis` = generated prose. `placementId` pulls the job from the placements table; an explicit `jobTitle`/`jobDescription` handles pasted JDs; the CV defaults to the student's primary.
+  - **Bug caught during live verification**: the analyzer read raw DB rows (snake_case) while accessing camelCase fields, so the professional summary never scored and always triggered the "summary is empty" gap. Fixed with a `toCamelCv` normalization before scoring; re-verified live on both paths (explicit JD → score 67, placementId → 27).
+  - **Frontend**: new `CvAnalyzer` view (`/students/cv-analyzer`) — pick a placement from the live listings or paste a JD, run the analysis, then read the score banner, matched/missing keyword chips, gap analysis, and per-section coverage bars; past analyses are listed and reloadable. `cvService` gained `analyzeCv`/`getAnalyses`.
+  - Verified live via handler probes on both the explicit-JD and placementId paths; `backend npm test` 35/35; `frontend npm run lint` clean + `frontend npm run build` green (1858 modules).
+
 ### 2026-10-16 (CV builder Phase 3 — export + preview)
 - **Export + read-only preview landed (Phase 3)** — the last two Phase 1–3 feature items.
   - **Backend**: `GET /api/v1/students/cv/:id/export` (`exportCv` in `cvController.js`) renders the saved CV through `pdfkit` (added to `backend/package.json`) into a simple branded A4 PDF (personal details, summary, education, experience, skills, projects, certifications) and streams it back as `application/pdf` with an attachment filename derived from the CV title. 404 for a CV the student does not own. Verified with a live handler probe (200, PDF magic bytes OK, correct content-type).

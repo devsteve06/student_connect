@@ -9,13 +9,19 @@ import {
   updateCv,
   deleteCv,
   setPrimaryCv,
-  exportCv
+  exportCv,
+  analyzeCv,
+  getAnalyses
 } from '../controllers/cvController.js';
 
 const router = Router();
 
 router.get('/cv', getCvs);
 router.post('/cv', createCv);
+// Analyzer routes must be declared before /cv/:id so that "analyses" is never
+// read as a numeric CV id by the parameterized GET below.
+router.post('/cv/analyze', analyzeCv);
+router.get('/cv/analyses', getAnalyses);
 router.get('/cv/:id', getCv);
 router.patch('/cv/:id', updateCv);
 router.delete('/cv/:id', deleteCv);

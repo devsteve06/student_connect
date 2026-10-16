@@ -25,6 +25,7 @@ import StudentLogbook from '../features/student/views/StudentLogBook'; // <-- IM
 import StudentProfile from '../features/student/views/StudentProfile';
 import CvBuilderWizard from '../features/student/views/CvBuilderWizard';
 import CvPreview from '../features/student/views/CvPreview';
+import CvAnalyzer from '../features/student/views/CvAnalyzer';
 import FirmDashboard from '../features/firm/views/FirmDashboard';
 import UniversityDashboard from '../features/university/views/UniversityDashboard';
 import AdminDashboard from '../features/admin/views/AdminDashboard';
@@ -62,6 +63,9 @@ export default function AppRoutes() {
 
           {/* CV preview + server-side PDF export (Phase 3) */}
           <Route path="/students/cv/:cvId/view" element={<ProtectedRoute role="student"><DashboardLayout role="student"><CvPreview /></DashboardLayout></ProtectedRoute>} />
+
+          {/* CV job analyzer (Phase 4) */}
+          <Route path="/students/cv-analyzer" element={<ProtectedRoute role="student"><DashboardLayout role="student"><CvAnalyzer /></DashboardLayout></ProtectedRoute>} />
 
           {/* MOUNTED CORPORATE WORKSPACE (firm role required) */}
           <Route path="/firms" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmDashboard /></DashboardLayout></ProtectedRoute>} />

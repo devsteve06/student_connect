@@ -376,3 +376,196 @@ export const exportCv = async (req, res, next) => {
     next(error);
   }
 };
+
+// ---------------------------------------------------------------------------
+// Job analyzer (Phase 4) — dependency-free keyword overlap scoring.
+// ---------------------------------------------------------------------------
+
+// Lowercase tokens of 3+ characters, de-duplicated, order preserved.
+function tokenize(text) {
+  const tokens = new Set();
+  for (const raw of String(text ?? '').toLowerCase().split(/[^a-z0-9]+/)) {
+    const token = raw.trim();
+    if (token.length >= 3) tokens.add(token);
+  }
+  return [...tokens];
+}
+
+// One lowercase text blob per CV section, ready for keyword matching.
+function cvSectionTexts(cv) {
+  return {
+    personal: [
+      cv.personalInfo?.name,
+      cv.personalInfo?.phone,
+      cv.personalInfo?.location,
+      cv.personalInfo?.links
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase(),
+    summary: String(cv.professionalSummary ?? '').toLowerCase(),
+    education: (cv.education ?? [])
+      .map((entry) => [entry.school, entry.degree, entry.year, entry.description].filter(Boolean).join(' '))
+      .join(' ')
+      .toLowerCase(),
+    experience: (cv.experience ?? [])
+      .map((entry) => [entry.company, entry.role, entry.start, entry.end, entry.description].filter(Boolean).join(' '))
+      .join(' ')
+      .toLowerCase(),
+    skills: (cv.skills ?? [])
+      .map((entry) => [entry.category, ...(Array.isArray(entry.items) ? entry.items : [])].filter(Boolean).join(' '))
+      .join(' ')
+      .toLowerCase(),
+    projects: (cv.projects ?? [])
+      .map((entry) => [entry.name, entry.link, entry.description].filter(Boolean).join(' '))
+      .join(' ')
+      .toLowerCase(),
+    certifications: (cv.certifications ?? [])
+      .map((entry) => [entry.title, entry.issuer, entry.year, entry.description].filter(Boolean).join(' '))
+      .join(' ')
+      .toLowerCase()
+  };
+}
+
+// The DB rows come back with snake_case column names; the analyzer works with
+// the camelCase CV shape, so normalize before scoring.
+const toCamelCv = (row) => ({
+  ...row,
+  personalInfo: row.personal_info ?? null,
+  professionalSummary: row.professional_summary ?? null
+});
+
+// POST /student/cv/analyze — score a CV against a job. Body may carry a
+// placementId (role + description are then pulled from the placements table)
+// or explicit jobTitle / jobDescription. The CV defaults to the student's
+// primary when no cvId is supplied.
+export const analyzeCv = async (req, res, next) => {
+  try {
+    const { cvId, placementId, jobTitle, jobDescription } = req.body || {};
+
+    let resolvedJobTitle = String(jobTitle ?? '').trim();
+    let resolvedJobDescription = String(jobDescription ?? '').trim();
+    let placementIdUsed = null;
+    if (placementId) {
+      const placement = (
+        await query('SELECT id, role, description FROM placements WHERE id = $1', [placementId])
+      ).rows[0];
+      if (!placement) {
+        return res.status(404).json({ message: 'Placement not found.' });
+      }
+      resolvedJobTitle = placement.role ?? resolvedJobTitle;
+      resolvedJobDescription = placement.description ?? resolvedJobDescription;
+      placementIdUsed = placement.id;
+    }
+    if (!resolvedJobTitle && !resolvedJobDescription) {
+      return res.status(400).json({ message: 'A job title or description is required to analyze.' });
+    }
+
+    let cv;
+    let cvIdUsed = cvId ?? null;
+    if (cvId) {
+      const byId = (
+        await query('SELECT * FROM student_cvs WHERE id = $1 AND student_id = $2', [cvId, studentIdOf(req)])
+      ).rows[0];
+      if (!byId) {
+        return res.status(404).json({ message: 'No CV found for this student.' });
+      }
+      cv = toCamelCv(byId);
+    } else {
+      const primary = (
+        await query('SELECT * FROM student_cvs WHERE student_id = $1 AND is_primary = true', [studentIdOf(req)])
+      ).rows[0];
+      if (!primary) {
+        return res.status(400).json({ message: 'Create a CV before running an analysis.' });
+      }
+      cv = toCamelCv(primary);
+      cvIdUsed = primary.id;
+    }
+
+    const jdText = [resolvedJobTitle, resolvedJobDescription].filter(Boolean).join(' ');
+    const jdTokens = tokenize(jdText);
+    const haystack = cvSectionTexts(cv);
+
+    const matchedKeywords = [];
+    const missingKeywords = [];
+    for (const token of jdTokens) {
+      const found = Object.values(haystack).some((text) => text.includes(token));
+      if (found) {
+        matchedKeywords.push(token);
+      } else {
+        missingKeywords.push(token);
+      }
+    }
+
+    const matchScore =
+      jdTokens.length > 0 ? Math.round((matchedKeywords.length / jdTokens.length) * 100) : 0;
+
+    const sectionScores = {};
+    for (const [section, text] of Object.entries(haystack)) {
+      const tokens = tokenize(text);
+      const tokenSet = new Set(jdTokens);
+      let hits = 0;
+      for (const token of tokenSet) {
+        if (tokens.includes(token)) hits += 1;
+      }
+      sectionScores[section] = jdTokens.length > 0 ? Math.round((hits / jdTokens.length) * 100) : 0;
+    }
+
+    const gaps = [];
+    if (missingKeywords.length > 0) {
+      gaps.push(
+        `Missing keywords (${missingKeywords.length}): ${missingKeywords.join(', ')} — add these to your summary or skills to strengthen the match.`
+      );
+    }
+    if (!(cv.professionalSummary ?? '').trim()) {
+      gaps.push('Your professional summary is empty — add one to improve ATS shortlisting.');
+    }
+    if (!(cv.skills ?? []).length) {
+      gaps.push('No skills are recorded yet — add skill categories before relying on this score.');
+    }
+    const gapAnalysis = gaps.length > 0 ? gaps.join('\n') : 'No gaps found — the CV covers the job description well.';
+
+    const analysis = (
+      await query(
+        `INSERT INTO cv_analyses (student_id, cv_id, placement_id, job_title, job_description, match_score, keyword_match, gap_analysis, section_scores)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id, student_id, cv_id, placement_id, job_title, job_description, match_score, keyword_match, gap_analysis, section_scores, created_at`,
+        [
+          studentIdOf(req),
+          cvIdUsed,
+          placementIdUsed,
+          resolvedJobTitle || null,
+          resolvedJobDescription || null,
+          matchScore,
+          { matched: matchedKeywords, missing: missingKeywords },
+          gapAnalysis,
+          sectionScores
+        ]
+      )
+    ).rows[0];
+
+    res.status(201).json(analysisShape(analysis));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /student/cv/analyses — the student's past analysis runs, newest first.
+export const getAnalyses = async (req, res, next) => {
+  try {
+    const rows = (
+      await query(
+        `SELECT id, student_id, cv_id, placement_id, job_title, job_description, match_score, keyword_match, gap_analysis, section_scores, created_at
+           FROM cv_analyses
+          WHERE student_id = $1
+          ORDER BY created_at DESC, id DESC`,
+        [studentIdOf(req)]
+      )
+    ).rows;
+    res.json(rows.map(analysisShape));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /student/cv/:id/export — stream the CV as a PDF attachment (Phase 3).
