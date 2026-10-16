@@ -136,3 +136,20 @@ CREATE INDEX idx_placements_firm     ON placements(firm_id);
 CREATE INDEX idx_applications_student ON applications(student_id);
 CREATE INDEX idx_applications_firm    ON applications(firm_id);
 CREATE INDEX idx_logbooks_student     ON logbooks(student_id);
+
+-- Per-account brute-force lockout + login audit
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS login_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS locked_until   TIMESTAMPTZ;
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS last_login_at  TIMESTAMPTZ;
+
+ALTER TABLE students ADD COLUMN IF NOT EXISTS login_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS locked_until   TIMESTAMPTZ;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS last_login_at  TIMESTAMPTZ;
+
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS login_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS locked_until   TIMESTAMPTZ;
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS last_login_at  TIMESTAMPTZ;
+
+ALTER TABLE universities ADD COLUMN IF NOT EXISTS login_attempts INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE universities ADD COLUMN IF NOT EXISTS locked_until   TIMESTAMPTZ;
+ALTER TABLE universities ADD COLUMN IF NOT EXISTS last_login_at  TIMESTAMPTZ;
