@@ -25,25 +25,25 @@ export async function findAccountByEmail(identifier) {
   if (!identifier) return null;
 
   const admin = (await query(
-    'SELECT id, full_name AS name, email, password_hash FROM admins WHERE username = $1 OR email = $1',
+    'SELECT id, full_name AS name, email, password_hash, login_attempts, locked_until FROM admins WHERE username = $1 OR email = $1',
     [identifier]
   )).rows[0];
   if (admin) return { ...admin, role: 'admin' };
 
   const student = (await query(
-    'SELECT id, full_name AS name, email, password_hash FROM students WHERE email = $1',
+    'SELECT id, full_name AS name, email, password_hash, login_attempts, locked_until FROM students WHERE email = $1',
     [identifier]
   )).rows[0];
   if (student) return { ...student, role: 'student' };
 
   const firm = (await query(
-    'SELECT id, company_name AS name, contact_email AS email, password_hash FROM firms WHERE contact_email = $1',
+    'SELECT id, company_name AS name, contact_email AS email, password_hash, login_attempts, locked_until FROM firms WHERE contact_email = $1',
     [identifier]
   )).rows[0];
   if (firm) return { ...firm, role: 'firm' };
 
   const uni = (await query(
-    'SELECT id, name, contact_email AS email, password_hash FROM universities WHERE contact_email = $1',
+    'SELECT id, name, contact_email AS email, password_hash, login_attempts, locked_until FROM universities WHERE contact_email = $1',
     [identifier]
   )).rows[0];
   if (uni) return { ...uni, role: 'university' };
@@ -54,19 +54,19 @@ export async function findAccountByEmail(identifier) {
 // Find an account by id within a known role (used to rehydrate req.user from a JWT).
 export async function findAccountById(role, id) {
   if (role === 'admin') {
-    const row = (await query('SELECT id, full_name AS name, email, username FROM admins WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, full_name AS name, email, username, login_attempts, locked_until FROM admins WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   if (role === 'student') {
-    const row = (await query('SELECT id, full_name AS name, email FROM students WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, full_name AS name, email, login_attempts, locked_until FROM students WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   if (role === 'firm') {
-    const row = (await query('SELECT id, company_name AS name, contact_email AS email FROM firms WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, company_name AS name, contact_email AS email, login_attempts, locked_until FROM firms WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   if (role === 'university') {
-    const row = (await query('SELECT id, name, contact_email AS email FROM universities WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, name, contact_email AS email, login_attempts, locked_until FROM universities WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   return null;
@@ -133,6 +133,65 @@ export async function createAccount({ name, username, email, password, role, reg
   }
 
   throw new Error(`Unknown role: ${role}`);
+}
+
+// Number of failed attempts before an account is locked.
+export const LOGIN_LOCKOUT_THRESHOLD = 5;
+// How long an account stays locked after reaching the threshold.
+export const LOGIN_LOCKOUT_MINUTES = 5;
+
+// Record a failed login attempt for an account. Increments login_attempts;
+// when the threshold is reached, locks the account for LOGIN_LOCKOUT_MINUTES.
+// Returns the new attempt count, or null if no row matched.
+export async function recordFailedLogin(role, id) {
+  const table = ROLE_TABLES[role];
+  if (!table) throw new Error(`Unknown role: ${role}`);
+
+  const row = (await query(
+    `UPDATE ${table}
+      SET login_attempts = login_attempts + 1
+      WHERE id = $1
+      RETURNING id, login_attempts`,
+    [id]
+  )).rows[0];
+  if (!row) return null;
+
+  if (row.login_attempts >= LOGIN_LOCKOUT_THRESHOLD) {
+    await query(
+      `UPDATE ${table} SET locked_until = NOW() + INTERVAL '${LOGIN_LOCKOUT_MINUTES} minutes' WHERE id = $1`,
+      [id]
+    );
+  }
+  return row.login_attempts;
+}
+
+// Record a successful login: reset attempts, clear lockout, set last_login_at.
+// Returns true if a row was updated.
+export async function recordSuccessfulLogin(role, id) {
+  const table = ROLE_TABLES[role];
+  if (!table) throw new Error(`Unknown role: ${role}`);
+
+  const row = (await query(
+    `UPDATE ${table}
+      SET login_attempts = 0, locked_until = NULL, last_login_at = NOW()
+      WHERE id = $1
+      RETURNING id`,
+    [id]
+  )).rows[0];
+  return !!row;
+}
+
+// Returns true if the account is currently locked (locked_until is in the future).
+export async function isAccountLocked(role, id) {
+  const table = ROLE_TABLES[role];
+  if (!table) throw new Error(`Unknown role: ${role}`);
+
+  const row = (await query(
+    `SELECT locked_until FROM ${table} WHERE id = $1`,
+    [id]
+  )).rows[0];
+  if (!row || !row.locked_until) return false;
+  return new Date(row.locked_until) > new Date();
 }
 
 // Overwrite the password hash for any account (admin-only operation).

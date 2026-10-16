@@ -1,7 +1,7 @@
 // controllers/authController.js
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { findAccountByEmail, createAccount } from '../data/accounts.js';
+import { findAccountByEmail, createAccount, isAccountLocked, recordFailedLogin, recordSuccessfulLogin } from '../data/accounts.js';
 import { query, transaction } from '../data/db.js';
 
 const generateToken = (id, role) =>
@@ -122,7 +122,15 @@ export const loginUser = async (req, res, next) => {
 
   try {
     const account = await findAccountByEmail(email);
+
+    // A locked account always fails with a generic message — we never reveal
+    // whether the lockout or the password caused the rejection.
+    if (account && await isAccountLocked(account.role, account.id)) {
+      return res.status(401).json({ message: 'Invalid credentials provided.' });
+    }
+
     if (account && (await bcrypt.compare(password || '', account.password_hash))) {
+      await recordSuccessfulLogin(account.role, account.id);
       return res.json({
         _id: account.id,
         name: account.name,
@@ -130,6 +138,12 @@ export const loginUser = async (req, res, next) => {
         role: account.role,
         token: generateToken(account.id, account.role)
       });
+    }
+
+    // Record the failed attempt (only when an account exists; a missing email
+    // is treated the same way so we don't leak account existence).
+    if (account) {
+      await recordFailedLogin(account.role, account.id);
     }
     res.status(401).json({ message: 'Invalid credentials provided.' });
   } catch (error) {
