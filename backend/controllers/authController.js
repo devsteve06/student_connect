@@ -4,8 +4,12 @@ import bcrypt from 'bcryptjs';
 import { findAccountByEmail, createAccount, isAccountLocked, recordFailedLogin, recordSuccessfulLogin } from '../data/accounts.js';
 import { query, transaction } from '../data/db.js';
 
-const generateToken = (id, role) =>
-  jwt.sign({ id, role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+const generateToken = (id, role, passwordChangedAt) =>
+  jwt.sign(
+    { id, role, passwordChangedAt: passwordChangedAt ? passwordChangedAt.getTime() : 0 },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
 
 // Roles that may create their own account through the public signup form.
 // Admins are deliberately excluded — they are provisioned by another admin.
@@ -101,7 +105,7 @@ export const registerUser = async (req, res, next) => {
       name: account.name,
       email: account.email,
       role: account.role,
-      token: generateToken(account.id, account.role)
+      token: generateToken(account.id, account.role, account.password_changed_at)
     });
   } catch (error) {
     // Postgres unique_violation — a concurrent registration won the email.
@@ -136,7 +140,7 @@ export const loginUser = async (req, res, next) => {
         name: account.name,
         email: account.email,
         role: account.role,
-        token: generateToken(account.id, account.role)
+        token: generateToken(account.id, account.role, account.password_changed_at)
       });
     }
 

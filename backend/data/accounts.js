@@ -25,25 +25,25 @@ export async function findAccountByEmail(identifier) {
   if (!identifier) return null;
 
   const admin = (await query(
-    'SELECT id, full_name AS name, email, password_hash, login_attempts, locked_until FROM admins WHERE username = $1 OR email = $1',
+    'SELECT id, full_name AS name, email, password_hash, login_attempts, locked_until, password_changed_at FROM admins WHERE username = $1 OR email = $1',
     [identifier]
   )).rows[0];
   if (admin) return { ...admin, role: 'admin' };
 
   const student = (await query(
-    'SELECT id, full_name AS name, email, password_hash, login_attempts, locked_until FROM students WHERE email = $1',
+    'SELECT id, full_name AS name, email, password_hash, login_attempts, locked_until, password_changed_at FROM students WHERE email = $1',
     [identifier]
   )).rows[0];
   if (student) return { ...student, role: 'student' };
 
   const firm = (await query(
-    'SELECT id, company_name AS name, contact_email AS email, password_hash, login_attempts, locked_until FROM firms WHERE contact_email = $1',
+    'SELECT id, company_name AS name, contact_email AS email, password_hash, login_attempts, locked_until, password_changed_at FROM firms WHERE contact_email = $1',
     [identifier]
   )).rows[0];
   if (firm) return { ...firm, role: 'firm' };
 
   const uni = (await query(
-    'SELECT id, name, contact_email AS email, password_hash, login_attempts, locked_until FROM universities WHERE contact_email = $1',
+    'SELECT id, name, contact_email AS email, password_hash, login_attempts, locked_until, password_changed_at FROM universities WHERE contact_email = $1',
     [identifier]
   )).rows[0];
   if (uni) return { ...uni, role: 'university' };
@@ -54,19 +54,19 @@ export async function findAccountByEmail(identifier) {
 // Find an account by id within a known role (used to rehydrate req.user from a JWT).
 export async function findAccountById(role, id) {
   if (role === 'admin') {
-    const row = (await query('SELECT id, full_name AS name, email, username, login_attempts, locked_until FROM admins WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, full_name AS name, email, username, login_attempts, locked_until, password_changed_at FROM admins WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   if (role === 'student') {
-    const row = (await query('SELECT id, full_name AS name, email, login_attempts, locked_until FROM students WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, full_name AS name, email, login_attempts, locked_until, password_changed_at FROM students WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   if (role === 'firm') {
-    const row = (await query('SELECT id, company_name AS name, contact_email AS email, login_attempts, locked_until FROM firms WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, company_name AS name, contact_email AS email, login_attempts, locked_until, password_changed_at FROM firms WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   if (role === 'university') {
-    const row = (await query('SELECT id, name, contact_email AS email, login_attempts, locked_until FROM universities WHERE id = $1', [id])).rows[0];
+    const row = (await query('SELECT id, name, contact_email AS email, login_attempts, locked_until, password_changed_at FROM universities WHERE id = $1', [id])).rows[0];
     return row ? { ...row, role } : null;
   }
   return null;
@@ -82,11 +82,11 @@ export async function createAccount({ name, username, email, password, role, reg
 
   if (role === 'admin') {
     const row = (await run(
-      `INSERT INTO admins (username, email, password_hash, full_name)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
+      `INSERT INTO admins (username, email, password_hash, full_name, password_changed_at)
+       VALUES ($1, $2, $3, $4, NOW()) RETURNING id, password_changed_at`,
       [username || loginEmail, loginEmail, hash, name || 'System Administrator']
     )).rows[0];
-    return { id: row.id, name: name || username, email: loginEmail, role };
+    return { id: row.id, name: name || username, email: loginEmail, role, password_changed_at: row.password_changed_at };
   }
 
   if (role === 'student') {
@@ -99,27 +99,27 @@ export async function createAccount({ name, username, email, password, role, reg
       throw err;
     }
     const row = (await run(
-      `INSERT INTO students (full_name, email, password_hash, reg_number, course, university_id)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      `INSERT INTO students (full_name, email, password_hash, reg_number, course, university_id, password_changed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, password_changed_at`,
       [name, loginEmail, hash, regNumber, course, uniId]
     )).rows[0];
-    return { id: row.id, name, email: loginEmail, role };
+    return { id: row.id, name, email: loginEmail, role, password_changed_at: row.password_changed_at };
   }
 
   if (role === 'firm') {
     const firmName = (companyName || name || '').trim();
     const row = (await run(
-      `INSERT INTO firms (company_name, contact_email, password_hash, location, industry, contact_person)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      `INSERT INTO firms (company_name, contact_email, password_hash, location, industry, contact_person, password_changed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, password_changed_at`,
       [firmName, loginEmail, hash, location || 'Nairobi, KE', (industrySector || '').trim() || null, (contactPerson || '').trim() || null]
     )).rows[0];
-    return { id: row.id, name: firmName, email: loginEmail, role };
+    return { id: row.id, name: firmName, email: loginEmail, role, password_changed_at: row.password_changed_at };
   }
 
   if (role === 'university') {
     const row = (await run(
-      `INSERT INTO universities (name, location, contact_email, password_hash, staff_id, department)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      `INSERT INTO universities (name, location, contact_email, password_hash, staff_id, department, password_changed_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id, password_changed_at`,
       [
         name,
         location || 'Nairobi, KE',
@@ -129,7 +129,7 @@ export async function createAccount({ name, username, email, password, role, reg
         (department || '').trim() || null
       ]
     )).rows[0];
-    return { id: row.id, name, email: loginEmail, role };
+    return { id: row.id, name, email: loginEmail, role, password_changed_at: row.password_changed_at };
   }
 
   throw new Error(`Unknown role: ${role}`);
@@ -201,7 +201,7 @@ export async function resetPassword(role, id, newPassword) {
 
   const hash = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
   const row = (await query(
-    `UPDATE ${table} SET password_hash = $1 WHERE id = $2 RETURNING id`,
+    `UPDATE ${table} SET password_hash = $1, password_changed_at = NOW() WHERE id = $2 RETURNING id`,
     [hash, id]
   )).rows[0];
   return !!row;
