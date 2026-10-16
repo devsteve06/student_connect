@@ -30,7 +30,7 @@ export default function UniversityAuth() {
     setLoading(true);
     try {
       await login(formData.email, formData.password, 'university');
-      navigate('/university');
+      navigate('/universities');
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -52,11 +52,11 @@ export default function UniversityAuth() {
       footer={
         <p className="text-center text-xs text-ink-4">
           A student or firm?{' '}
-          <Link to="/login/student" className="font-semibold text-cyan-700 hover:text-cyan-800">
+          <Link to="/login/students" className="font-semibold text-cyan-700 hover:text-cyan-800">
             Student sign in
           </Link>
           {' · '}
-          <Link to="/login/firm" className="font-semibold text-cyan-700 hover:text-cyan-800">
+          <Link to="/login/firms" className="font-semibold text-cyan-700 hover:text-cyan-800">
             Firm sign in
           </Link>
         </p>

@@ -200,7 +200,7 @@ export default function StudentDashboard() {
         title="Logbook"
         eyebrow="Weekly attachment entries"
         action={
-          <Link to="/student/logbook" className="text-sm font-semibold text-brand-700 hover:text-brand-800">
+          <Link to="/students/logbook" className="text-sm font-semibold text-brand-700 hover:text-brand-800">
             Open logbook
           </Link>
         }

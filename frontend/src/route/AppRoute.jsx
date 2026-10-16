@@ -39,28 +39,28 @@ export default function AppRoutes() {
           <Route path="/" element={<Landing />} />
 
           {/* AUTH ARCHITECTURE ENTRIES (guests only; signed-in users bounce home) */}
-          <Route path="/login/student" element={<GuestRoute><StudentAuth /></GuestRoute>} />
-          <Route path="/login/firm" element={<GuestRoute><FirmAuth /></GuestRoute>} />
-          <Route path="/login/university" element={<GuestRoute><UniversityAuth /></GuestRoute>} />
-          <Route path="/login/admin" element={<GuestRoute><AdminAuth /></GuestRoute>} />
+          <Route path="/login/students" element={<GuestRoute><StudentAuth /></GuestRoute>} />
+          <Route path="/login/firms" element={<GuestRoute><FirmAuth /></GuestRoute>} />
+          <Route path="/login/universities" element={<GuestRoute><UniversityAuth /></GuestRoute>} />
+          <Route path="/login/admin" element={<GuestRoute><AdminAuth /></GuestRoute>} />
 
           {/* SELF-SERVE SIGNUP — /register picks a portal, /register/:role locks it */}
           <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-          <Route path="/register/:role" element={<GuestRoute><Register /></GuestRoute>} />
+          <Route path="/register/:role" element={<GuestRoute><Register /></GuestRoute>} />
 
           {/* MOUNTED STUDENT HUB INTERFACE (student role required) */}
-          <Route path="/student" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentDashboard /></DashboardLayout></ProtectedRoute>} />
-          <Route path="/student/marketplace" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentMarketplace /></DashboardLayout></ProtectedRoute>} />
-          <Route path="/student/logbook" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentLogbook /></DashboardLayout></ProtectedRoute>} /> {/* <-- LINK COMPONENT */}
-          <Route path="/student/profile" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentProfile /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/students" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentDashboard /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/students/marketplace" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentMarketplace /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/students/logbook" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentLogbook /></DashboardLayout></ProtectedRoute>} /> {/* <-- LINK COMPONENT */}
+          <Route path="/students/profile" element={<ProtectedRoute role="student"><DashboardLayout role="student"><StudentProfile /></DashboardLayout></ProtectedRoute>} />
 
           {/* MOUNTED CORPORATE WORKSPACE (firm role required) */}
-          <Route path="/firm" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmDashboard /></DashboardLayout></ProtectedRoute>} />
-          <Route path="/firm/applicants" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmApplicants /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/firms" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmDashboard /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/firms/applicants" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmApplicants /></DashboardLayout></ProtectedRoute>} />
 
           {/* MOUNTED UNIVERSITY REGISTRY (university role required) */}
-          <Route path="/university" element={<ProtectedRoute role="university"><DashboardLayout role="university"><UniversityDashboard /></DashboardLayout></ProtectedRoute>} />
-          <Route path="/university/audits" element={<ProtectedRoute role="university"><DashboardLayout role="university"><UniversityAudits /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/universities" element={<ProtectedRoute role="university"><DashboardLayout role="university"><UniversityDashboard /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/universities/audits" element={<ProtectedRoute role="university"><DashboardLayout role="university"><UniversityAudits /></DashboardLayout></ProtectedRoute>} />
 
           {/* MOUNTED ADMIN CONTROL PLANE (admin role required) */}
           <Route path="/admin" element={<ProtectedRoute role="admin"><DashboardLayout role="admin"><AdminDashboard /></DashboardLayout></ProtectedRoute>} />

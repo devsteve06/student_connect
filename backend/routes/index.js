@@ -13,9 +13,9 @@ const router = Router();
 router.use('/auth', authRoutes);
 
 // Each portal is locked behind a valid JWT carrying the matching role.
-router.use('/student', protect, authorizeRoles('student'), studentRoutes);
-router.use('/firm', protect, authorizeRoles('firm'), firmRoutes);
-router.use('/university', protect, authorizeRoles('university'), universityRoutes);
+router.use('/students', protect, authorizeRoles('student'), studentRoutes);
+router.use('/firms', protect, authorizeRoles('firm'), firmRoutes);
+router.use('/universities', protect, authorizeRoles('university'), universityRoutes);
 
 // Admin surface — absolute access, locked behind a valid JWT with the admin role.
 router.use('/admin', protect, authorizeRoles('admin'), adminRoutes);

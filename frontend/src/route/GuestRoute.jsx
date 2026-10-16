@@ -5,9 +5,9 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
 const PORTAL_HOMES = {
-  student: '/student',
-  firm: '/firm',
-  university: '/university',
+  student: '/students',
+  firm: '/firms',
+  university: '/universities',
   admin: '/admin'
 };
 

@@ -47,7 +47,7 @@ export default function AdminAuth() {
       footer={
         <p className="text-center text-xs text-ink-4">
           Not an administrator?{' '}
-          <Link to="/login/student" className="font-semibold text-rose-700 hover:text-rose-800">
+          <Link to="/login/students" className="font-semibold text-rose-700 hover:text-rose-800">
             Return to portal sign in
           </Link>
         </p>

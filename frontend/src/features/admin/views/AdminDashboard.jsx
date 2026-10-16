@@ -27,9 +27,9 @@ const ROLE_META = {
 };
 
 const CROSS_PORTALS = [
-  { role: 'student', label: 'Student hub', href: '/student' },
-  { role: 'firm', label: 'Corporate gate', href: '/firm' },
-  { role: 'university', label: 'Faculty console', href: '/university' }
+  { role: 'student', label: 'Student hub', href: '/students' },
+  { role: 'firm', label: 'Corporate gate', href: '/firms' },
+  { role: 'university', label: 'Faculty console', href: '/universities' }
 ];
 
 export default function AdminDashboard() {

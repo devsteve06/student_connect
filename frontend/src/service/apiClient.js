@@ -36,9 +36,9 @@ apiClient.interceptors.response.use(
       sessionStore.clear();
       const path = window.location.pathname;
       if (!path.startsWith('/login')) {
-        const portal = path.startsWith('/firm')
+        const portal = path.startsWith('/firms')
           ? 'firm'
-          : path.startsWith('/university')
+          : path.startsWith('/universities')
             ? 'university'
             : path.startsWith('/admin')
               ? 'admin'

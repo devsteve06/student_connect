@@ -33,7 +33,7 @@ async function fetchProfile(id) {
   return row;
 }
 
-// GET /student/metrics — high-level dashboard counters for the logged-in student
+// GET /students/metrics — high-level dashboard counters for the logged-in student
 export const getMetrics = async (req, res, next) => {
   try {
     const apps = (await query('SELECT status FROM applications WHERE student_id = $1', [req.user.id])).rows;
@@ -50,7 +50,7 @@ export const getMetrics = async (req, res, next) => {
   }
 };
 
-// GET /student/applications — the logged-in student's submitted applications
+// GET /students/applications — the logged-in student's submitted applications
 export const getApplications = async (req, res, next) => {
   try {
     const rows = (await query(
@@ -74,7 +74,7 @@ export const getApplications = async (req, res, next) => {
   }
 };
 
-// POST /student/applications — submit a new attachment application
+// POST /students/applications — submit a new attachment application
 export const applyForPlacement = async (req, res, next) => {
   const { companyName, role, appliedDate, status } = req.body;
 
@@ -112,7 +112,7 @@ export const applyForPlacement = async (req, res, next) => {
   }
 };
 
-// GET /student/placements — available corporate vacancy postings
+// GET /students/placements — available corporate vacancy postings
 export const getPlacements = async (req, res, next) => {
   try {
     const rows = (await query(
@@ -137,7 +137,7 @@ export const getPlacements = async (req, res, next) => {
   }
 };
 
-// GET /student/profile — the logged-in student's own personal details
+// GET /students/profile — the logged-in student's own personal details
 export const getProfile = async (req, res, next) => {
   try {
     const profile = await fetchProfile(req.user.id);
@@ -159,7 +159,7 @@ export const getProfile = async (req, res, next) => {
   }
 };
 
-// PATCH /student/profile — edit personal details (name, phone, email)
+// PATCH /students/profile — edit personal details (name, phone, email)
 export const updateProfile = async (req, res, next) => {
   const { fullName, phone, email } = req.body || {};
 
@@ -223,7 +223,7 @@ export const updateProfile = async (req, res, next) => {
   }
 };
 
-// GET /student/logbooks — the logged-in student's own weekly logbook entries
+// GET /students/logbooks — the logged-in student's own weekly logbook entries
 export const getMyLogbooks = async (req, res, next) => {
   try {
     const rows = (await query(
@@ -241,7 +241,7 @@ export const getMyLogbooks = async (req, res, next) => {
   }
 };
 
-// PUT /student/logbooks — submit or update a weekly logbook entry.
+// PUT /students/logbooks — submit or update a weekly logbook entry.
 // Upserts on (student_id, week_number); submitting (re)sets firm_sign_off to
 // 'Pending Review'. Weeks already signed off by faculty are locked.
 export const upsertLogbook = async (req, res, next) => {

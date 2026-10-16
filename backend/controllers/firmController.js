@@ -20,7 +20,7 @@ const APPLICANT_SELECT = `
     JOIN students s     ON s.id = a.student_id
     JOIN universities u ON u.id = s.university_id`;
 
-// GET /firm/metrics — corporate dashboard counters for the logged-in firm
+// GET /firms/metrics — corporate dashboard counters for the logged-in firm
 export const getFirmMetrics = async (req, res, next) => {
   try {
     const apps = (await query('SELECT status FROM applications WHERE firm_id = $1', [req.user.id])).rows;
@@ -37,7 +37,7 @@ export const getFirmMetrics = async (req, res, next) => {
   }
 };
 
-// GET /firm/applicants — roster of students who applied to the logged-in firm
+// GET /firms/applicants — roster of students who applied to the logged-in firm
 export const getApplicants = async (req, res, next) => {
   try {
     const rows = (await query(
@@ -50,7 +50,7 @@ export const getApplicants = async (req, res, next) => {
   }
 };
 
-// PATCH /firm/applicants/:id — update an applicant's lifecycle status
+// PATCH /firms/applicants/:id — update an applicant's lifecycle status
 export const updateApplicantStatus = async (req, res, next) => {
   const id = parseInt(req.params.id, 10);
   const { status } = req.body || {};

@@ -7,16 +7,16 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
 const LOGIN_ROUTES = {
-  student: '/login/student',
-  firm: '/login/firm',
-  university: '/login/university',
+  student: '/login/students',
+  firm: '/login/firms',
+  university: '/login/universities',
   admin: '/login/admin'
 };
 
 const PORTAL_HOMES = {
-  student: '/student',
-  firm: '/firm',
-  university: '/university',
+  student: '/students',
+  firm: '/firms',
+  university: '/universities',
   admin: '/admin'
 };
 
@@ -25,7 +25,7 @@ export default function ProtectedRoute({ role, children }) {
   const location = useLocation();
 
   if (!isAuthenticated || !user) {
-    const loginPath = LOGIN_ROUTES[role] || '/login/student';
+    const loginPath = LOGIN_ROUTES[role] || '/login/students';
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 

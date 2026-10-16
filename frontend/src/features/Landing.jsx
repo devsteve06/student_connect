@@ -21,9 +21,9 @@ import registrationRoles from '../config/registration';
 import { useAuth } from '../context/useAuth';
 
 const PORTAL_HOMES = {
-  student: '/student',
-  firm: '/firm',
-  university: '/university',
+  student: '/students',
+  firm: '/firms',
+  university: '/universities',
   admin: '/admin',
 };
 
@@ -37,7 +37,7 @@ const PORTALS = [
       'Browse placement vacancies, submit weekly logbook entries, and track every application.',
     demo: 'alex.kamau@students.strathmore.edu',
     password: 'password123',
-    loginPath: '/login/student',
+    loginPath: '/login/students',
   },
   {
     role: 'firm',
@@ -47,7 +47,7 @@ const PORTALS = [
       'Post openings, review the candidate roster, and move applicants from review to hired.',
     demo: 'careers@nexuslabs.io',
     password: 'password123',
-    loginPath: '/login/firm',
+    loginPath: '/login/firms',
   },
   {
     role: 'university',
@@ -57,7 +57,7 @@ const PORTALS = [
       'Verify submitted logbooks, run pending audits, and issue faculty sign-off online.',
     demo: 'registrar@jkuat.ac.ke',
     password: 'password123',
-    loginPath: '/login/university',
+    loginPath: '/login/universities',
   },
   {
     role: 'admin',
@@ -200,7 +200,7 @@ export default function Landing() {
                   variant="secondary"
                   size="sm"
                   className="max-md:h-8 max-md:px-2.5 max-md:text-xs"
-                  onClick={() => navigate('/login/student')}
+                  onClick={() => navigate('/login/students')}
                 >
                   Sign in
                 </Button>
@@ -271,7 +271,7 @@ export default function Landing() {
               <Button
                 size="lg"
                 variant="secondary"
-                className="border-slate-700 bg-slate-900/60 text-white hover:bg-slate-800 hover:text-white"
+                className="border-slate-700 bg-slate-900/60 hover:bg-slate-800"
                 onClick={() => scrollToId('how')}
               >
                 How it works

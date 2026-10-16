@@ -16,9 +16,9 @@ export default function Sidebar({ role = 'student', mobileOpen = false, onClose 
   const background = getRoleBackground(role);
 
   const LOGIN_ROUTES = {
-    student: '/login/student',
-    firm: '/login/firm',
-    university: '/login/university',
+    student: '/login/students',
+    firm: '/login/firms',
+    university: '/login/universities',
     admin: '/login/admin'
   };
 
@@ -35,7 +35,7 @@ export default function Sidebar({ role = 'student', mobileOpen = false, onClose 
 
   const handleLogout = () => {
     logout();
-    navigate(LOGIN_ROUTES[role] || '/login/student');
+    navigate(LOGIN_ROUTES[role] || '/login/students');
   };
 
   const NavContent = (

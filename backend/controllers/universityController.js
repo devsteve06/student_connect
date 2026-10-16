@@ -22,7 +22,7 @@ const PENDING_SELECT = `
     JOIN students s ON s.id = l.student_id
     LEFT JOIN firms f ON f.id = l.firm_id`;
 
-// GET /university/metrics — institutional placement analytics, scoped to the
+// GET /universities/metrics — institutional placement analytics, scoped to the
 // logged-in university's enrolled students
 export const getCoordinatorMetrics = async (req, res, next) => {
   try {
@@ -57,7 +57,7 @@ export const getCoordinatorMetrics = async (req, res, next) => {
   }
 };
 
-// GET /university/logbooks/pending — this university's logbooks awaiting faculty sign-off
+// GET /universities/logbooks/pending — this university's logbooks awaiting faculty sign-off
 export const getPendingLogbooks = async (req, res, next) => {
   try {
     const rows = (await query(
@@ -70,7 +70,7 @@ export const getPendingLogbooks = async (req, res, next) => {
   }
 };
 
-// PATCH /university/logbooks/:id — authorize a logbook week with faculty sign-off
+// PATCH /universities/logbooks/:id — authorize a logbook week with faculty sign-off
 export const signOffLogbook = async (req, res, next) => {
   const id = parseInt(req.params.id, 10);
   const { facultySignOff } = req.body || {};
@@ -117,7 +117,7 @@ const auditShape = (r) => ({
   submittedAt: formatDate(r.created_at)
 });
 
-// GET /university/audits — compliance ledger: every logbook entry belonging to
+// GET /universities/audits — compliance ledger: every logbook entry belonging to
 // this university's students, newest first
 export const getAuditLog = async (req, res, next) => {
   try {

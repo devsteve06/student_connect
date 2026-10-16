@@ -30,7 +30,7 @@ export default function FirmAuth() {
     setLoading(true);
     try {
       await login(formData.email, formData.password, 'firm');
-      navigate('/firm');
+      navigate('/firms');
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -52,11 +52,11 @@ export default function FirmAuth() {
       footer={
         <p className="text-center text-xs text-ink-4">
           A student or institution?{' '}
-          <Link to="/login/student" className="font-semibold text-amber-700 hover:text-amber-800">
+          <Link to="/login/students" className="font-semibold text-amber-700 hover:text-amber-800">
             Student sign in
           </Link>
           {' · '}
-          <Link to="/login/university" className="font-semibold text-amber-700 hover:text-amber-800">
+          <Link to="/login/universities" className="font-semibold text-amber-700 hover:text-amber-800">
             Faculty sign in
           </Link>
         </p>
