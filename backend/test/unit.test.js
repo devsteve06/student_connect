@@ -806,3 +806,89 @@ test('login: verified account succeeds', async () => {
   await query('DELETE FROM students WHERE email = $1', ['verify5@test.co.ke']);
 });
 
+// --- auth: remaining validation / integrity tests ----------------------------
+
+test('register: concurrent duplicate email creates exactly one account (no 500)', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+
+  // Fire 5 concurrent registrations with the same email.
+  const results = await Promise.all(
+    Array.from({ length: 5 }, () =>
+      register({
+        name: 'Concurrent User',
+        regNumber: 'CONC/0001/2026',
+        course: 'BSc. Test',
+        universityId: uniRow.id,
+        email: 'concurrent@test.co.ke',
+        password: 'Passw0rd!',
+        role: 'student'
+      })
+    )
+  );
+
+  // Exactly one should succeed with 201; the rest should get 400 (no 500s).
+  const successes = results.filter((r) => r.statusCode === 201);
+  const conflicts = results.filter((r) => r.statusCode === 400);
+  const errors = results.filter((r) => r.statusCode === 500);
+  assert.equal(successes.length, 1, 'exactly one registration should succeed');
+  assert.equal(conflicts.length, 4, 'the other 4 should be rejected as duplicates');
+  assert.equal(errors.length, 0, 'no registration should return 500');
+
+  // Verify exactly one row exists in the database.
+  const rows = (
+    await query('SELECT id FROM students WHERE email = $1', ['concurrent@test.co.ke'])
+  ).rows;
+  assert.equal(rows.length, 1, 'exactly one student row should exist');
+
+  await query('DELETE FROM students WHERE email = $1', ['concurrent@test.co.ke']);
+});
+
+test('register: rejects weak passwords', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+
+  const weakPasswords = ['password', 'Password', 'password1', 'Password1', '12345678', 'Pass1234'];
+  for (const pw of weakPasswords) {
+    const res = await register({
+      name: 'Weak User',
+      regNumber: `WEAK/${Math.floor(Math.random() * 100000)}/2026`,
+      course: 'BSc. Test',
+      universityId: uniRow.id,
+      email: `weak${Math.floor(Math.random() * 1000000)}@test.co.ke`,
+      password: pw,
+      role: 'student'
+    });
+    assert.equal(res.statusCode, 400, `password "${pw}" should be rejected`);
+    assert.match(res.body.message, /Password must be/);
+  }
+});
+
+test('register: rejects invalid email addresses', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+
+  const invalidEmails = [
+    'not-an-email',
+    '@example.com',
+    'user@',
+    'user@example',
+    'user @example.com',
+    '',
+    '   '
+  ];
+  for (const email of invalidEmails) {
+    const res = await register({
+      name: 'Invalid Email User',
+      regNumber: `INV/${Math.floor(Math.random() * 100000)}/2026`,
+      course: 'BSc. Test',
+      universityId: uniRow.id,
+      email,
+      password: 'Passw0rd!',
+      role: 'student'
+    });
+    assert.equal(res.statusCode, 400, `email "${email}" should be rejected`);
+  }
+});
+
+
