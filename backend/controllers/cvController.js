@@ -3,6 +3,7 @@
 // The guided wizard itself (Phase 2) only ever calls these handlers; the
 // job analyzer is Phase 4 and lives in cvAnalyzer.
 import { query } from '../data/db.js';
+import PDFDocument from 'pdfkit';
 
 // Maps a student_cvs row to the camelCase shape the API responds with.
 const cvShape = (r) => ({
@@ -214,6 +215,163 @@ export const setPrimaryCv = async (req, res, next) => {
       )
     ).rows[0];
     res.json(cvShape(row));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Phase 3 — server-side PDF export. Renders the saved CV as a simple, branded
+// document and streams it back as an attachment. Kept intentionally plain:
+// it is a print-friendly summary, not a full layout engine.
+const FORMAT_VALUE_LIMIT = 200;
+
+function formatValue(value) {
+  if (value === null || value === undefined) return null;
+  if (Array.isArray(value)) {
+    const flat = value.flatMap((item) =>
+      Array.isArray(item) ? item : [item]
+    );
+    const text = flat
+      .map((item) => {
+        if (item && typeof item === 'object') {
+          return Object.values(item).join(' ');
+        }
+        return String(item);
+      })
+      .filter((line) => line.trim().length > 0)
+      .join(', ');
+    return text.length > FORMAT_VALUE_LIMIT ? text.slice(0, FORMAT_VALUE_LIMIT) + '…' : text;
+  }
+  const text = String(value);
+  return text.length > FORMAT_VALUE_LIMIT ? text.slice(0, FORMAT_VALUE_LIMIT) + '…' : text;
+}
+
+// One labelled line per entry, e.g. "School: Strathmore University".
+function addEntries(doc, heading, entries) {
+  doc.font('Helvetica-Bold').fontSize(13).text(heading, { bold: true });
+  let added = false;
+  for (const entry of entries) {
+    const value = formatValue(entry.value);
+    if (value === null) continue;
+    if (added) doc.moveDown(0.4);
+    doc.font('Helvetica').fontSize(11).text(`${entry.label}: ${value}`);
+    added = true;
+  }
+  doc.moveDown(0.5);
+}
+
+function addHeading(doc, text) {
+  doc.font('Helvetica-Bold').fontSize(15).text(text, { bold: true });
+}
+
+function buildPdf(doc, cv) {
+  // ---- header ----------------------------------------------------------
+  addHeading(doc, cv.title || 'Untitled CV');
+  doc.font('Helvetica').fontSize(11).text(
+    `Generated for ${cv.personalInfo?.name ?? 'a student'} on ${todayStamp()}`
+  );
+  doc.moveDown(1);
+
+  // ---- personal details -----------------------------------------------
+  const personalEntries = [
+    ['Name', cv.personalInfo?.name],
+    ['Email', cv.personalInfo?.email],
+    ['Phone', cv.personalInfo?.phone],
+    ['Location', cv.personalInfo?.location],
+    ['Website / LinkedIn', cv.personalInfo?.links]
+  ].filter(([, value]) => value);
+  if (personalEntries.length > 0) {
+    addEntries(doc, 'Personal details', personalEntries);
+  }
+
+  // ---- professional summary -------------------------------------------
+  if (cv.professionalSummary) {
+    addHeading(doc, 'Professional summary');
+    doc.font('Helvetica').fontSize(11).text(cv.professionalSummary);
+  }
+
+  // ---- education ------------------------------------------------------
+  addEntries(doc, 'Education', (cv.education ?? []).map((entry) => ({
+    label: entry.school ?? 'Qualification',
+    value: entry.degree ?? entry.year ?? null
+  })));
+
+  // ---- experience ----------------------------------------------------
+  addEntries(doc, 'Experience', (cv.experience ?? []).map((entry) => ({
+    label: entry.company ?? 'Experience',
+    value: [
+      entry.role,
+      entry.start && entry.start !== entry.end
+        ? `${entry.start} – ${entry.end}`
+        : entry.start
+    ]
+      .filter(Boolean)
+      .join(' — ')
+  })));
+
+  // ---- skills --------------------------------------------------------
+  addEntries(doc, 'Skills', (cv.skills ?? []).map((entry) => ({
+    label: entry.category,
+    value: entry.items
+  })));
+
+  // ---- projects ------------------------------------------------------
+  addEntries(doc, 'Projects', (cv.projects ?? []).map((entry) => ({
+    label: entry.name ?? 'Project',
+    value: entry.link ?? entry.description
+  })));
+
+  // ---- certifications ------------------------------------------------
+  addEntries(doc, 'Certifications', (cv.certifications ?? []).map((entry) => ({
+    label: entry.title ?? 'Certification',
+    value: entry.issuer ?? entry.year ?? null
+  })));
+
+  doc.moveDown(2);
+  doc.font('Helvetica').fontSize(9).text('End of CV.');
+}
+
+function todayStamp() {
+  const now = new Date();
+  const day = String(now.getDate()).padStart(2, '0');
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year = now.getFullYear();
+  return `${year}-${month}-${day}`;
+}
+
+// GET /student/cv/:id/export — stream the CV as a PDF attachment (Phase 3).
+export const exportCv = async (req, res, next) => {
+  try {
+    const cv = (
+      await query(
+        'SELECT * FROM student_cvs WHERE id = $1 AND student_id = $2',
+        [req.params.id, studentIdOf(req)]
+      )
+    ).rows[0];
+    if (!cv) {
+      return res.status(404).json({ message: 'No CV found for this student.' });
+    }
+
+    const doc = new PDFDocument({ margin: 48, size: 'A4' });
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+
+    buildPdf(doc, cv);
+    doc.end();
+
+    await new Promise((resolve, reject) => {
+      doc.once('end', resolve);
+      doc.once('error', reject);
+    });
+
+    const pdf = Buffer.concat(chunks);
+    const safeName = (cv.title || 'cv')
+      .replace(/[^\w]+/g, '-')
+      .replace(/\.pdf$/i, '')
+      .replace(/^-+|-+$/g, '') || 'cv';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.pdf"`);
+    res.status(200).send(pdf);
   } catch (error) {
     next(error);
   }

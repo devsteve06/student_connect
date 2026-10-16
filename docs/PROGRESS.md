@@ -9,6 +9,13 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-16 (CV builder Phase 3 — export + preview)
+- **Export + read-only preview landed (Phase 3)** — the last two Phase 1–3 feature items.
+  - **Backend**: `GET /api/v1/students/cv/:id/export` (`exportCv` in `cvController.js`) renders the saved CV through `pdfkit` (added to `backend/package.json`) into a simple branded A4 PDF (personal details, summary, education, experience, skills, projects, certifications) and streams it back as `application/pdf` with an attachment filename derived from the CV title. 404 for a CV the student does not own. Verified with a live handler probe (200, PDF magic bytes OK, correct content-type).
+  - **Frontend**: `CvPreview` view renders the saved CV read-only (personal details + summary + section lists) and its Export button fetches the PDF blob via the axios instance (`responseType: 'blob'`) and saves it through a temporary anchor. Back-navigation returns to `/students/cv-builder`.
+  - **Routing**: `/students/cv/:cvId/view` mounted behind the student guard in `AppRoute.jsx`.
+  - **Phase 3 is feature-complete**: wizard (Phase 2) + save + preview + export + backend CRUD (Phase 1) all wired. The remaining plan item is Phase 5's dashboard card + the Phase 4 analyzer + real tests.
+
 ### 2026-10-16 (CV builder Phase 2 — guided wizard UI)
 - **Guided wizard UI landed (Phase 2)** — the multi-step form the plan describes, plus its API client and routes. Backend Phase 1 endpoints were already in place and are called as-is; no backend file was touched.
   - **New `frontend/src/service/cvService.js`** — `listCvs`/`createCv`/`getCv`/`updateCv`/`deleteCv`/`setPrimaryCv` against `/api/v1/students/cv`, following the full-prefix + `response.data` conventions of the other service modules.
