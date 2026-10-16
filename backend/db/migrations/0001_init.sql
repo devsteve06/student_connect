@@ -127,3 +127,20 @@ ALTER TABLE admins ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
 ALTER TABLE students ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
 ALTER TABLE firms ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
 ALTER TABLE universities ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ;
+
+-- Email verification for self-service signup
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS email_verified       BOOLEAN      NOT NULL DEFAULT false;
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS verification_token   VARCHAR(255);
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ;
+
+ALTER TABLE students ADD COLUMN IF NOT EXISTS email_verified       BOOLEAN      NOT NULL DEFAULT false;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS verification_token   VARCHAR(255);
+ALTER TABLE students ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ;
+
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS email_verified       BOOLEAN      NOT NULL DEFAULT false;
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS verification_token   VARCHAR(255);
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ;
+
+ALTER TABLE universities ADD COLUMN IF NOT EXISTS email_verified       BOOLEAN      NOT NULL DEFAULT false;
+ALTER TABLE universities ADD COLUMN IF NOT EXISTS verification_token   VARCHAR(255);
+ALTER TABLE universities ADD COLUMN IF NOT EXISTS verification_expires_at TIMESTAMPTZ;

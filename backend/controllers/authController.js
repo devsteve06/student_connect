@@ -1,7 +1,16 @@
 // controllers/authController.js
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { findAccountByEmail, createAccount, isAccountLocked, recordFailedLogin, recordSuccessfulLogin } from '../data/accounts.js';
+import {
+  findAccountByEmail,
+  createAccount,
+  isAccountLocked,
+  recordFailedLogin,
+  recordSuccessfulLogin,
+  isAccountVerified,
+  createVerificationToken,
+  verifyEmailToken
+} from '../data/accounts.js';
 import { query, transaction } from '../data/db.js';
 
 const generateToken = (id, role, passwordChangedAt) =>
@@ -38,7 +47,10 @@ const normalizeEmail = (email) => String(email).trim().toLowerCase();
 const passwordPolicyMessage =
   'Password must be at least 8 characters and include uppercase, lowercase, a number and a symbol.';
 
-// POST /auth/register — create a student, firm, or university account
+// POST /auth/register — create a student, firm, or university account.
+// Self-serve registrations start unverified; a verification token is issued
+// instead of a full JWT. The account must be verified via POST /auth/verify-email
+// before it can log in.
 export const registerUser = async (req, res, next) => {
   const { email, password, role } = req.body || {};
 
@@ -100,12 +112,18 @@ export const registerUser = async (req, res, next) => {
       return createAccount(normalized, client);
     });
 
+    // Issue an email verification token instead of a full JWT. The account
+    // cannot log in until the email is verified.
+    const verificationToken = await createVerificationToken(account.role, account.id);
+
     res.status(201).json({
       _id: account.id,
       name: account.name,
       email: account.email,
       role: account.role,
-      token: generateToken(account.id, account.role, account.password_changed_at)
+      email_verified: account.email_verified,
+      verification_token: verificationToken,
+      message: 'Account created. Please verify your email before logging in.'
     });
   } catch (error) {
     // Postgres unique_violation — a concurrent registration won the email.
@@ -116,7 +134,44 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
-// POST /auth/login — authenticate against any role table and issue a JWT
+// POST /auth/verify-email — verify an account using the token issued at signup.
+// body: { role, email, token }
+export const verifyEmail = async (req, res, next) => {
+  const { role, email, token } = req.body || {};
+
+  if (!role || !email || !token) {
+    return res.status(400).json({ message: 'role, email and token are required.' });
+  }
+  if (!SELF_SERVE_ROLES.includes(role)) {
+    return res.status(400).json({ message: `Unsupported role: ${role}` });
+  }
+
+  try {
+    const account = await findAccountByEmail(email);
+    if (!account) {
+      // Don't reveal whether the email exists.
+      return res.status(400).json({ message: 'Invalid verification request.' });
+    }
+
+    const ok = await verifyEmailToken(account.role, account.id, token);
+    if (!ok) {
+      return res.status(400).json({ message: 'Invalid or expired verification token.' });
+    }
+
+    res.json({
+      message: 'Email verified. You can now log in.',
+      _id: account.id,
+      email: account.email,
+      role: account.role,
+      email_verified: true
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /auth/login — authenticate against any role table and issue a JWT.
+// Unverified accounts are rejected.
 export const loginUser = async (req, res, next) => {
   const { email, password } = req.body || {};
 
@@ -131,6 +186,13 @@ export const loginUser = async (req, res, next) => {
     // whether the lockout or the password caused the rejection.
     if (account && await isAccountLocked(account.role, account.id)) {
       return res.status(401).json({ message: 'Invalid credentials provided.' });
+    }
+
+    // Unverified accounts cannot log in.
+    if (account && !account.email_verified) {
+      return res.status(403).json({
+        message: 'Email not verified. Please verify your email before logging in.'
+      });
     }
 
     if (account && (await bcrypt.compare(password || '', account.password_hash))) {

@@ -20,6 +20,11 @@ export const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Authorization rejected: account no longer exists.' });
     }
 
+    // Unverified accounts cannot access protected routes.
+    if (!account.email_verified) {
+      return res.status(403).json({ message: 'Email not verified. Please verify your email before accessing this resource.' });
+    }
+
     // Token binding: if the account's password was changed after this token was
     // issued, the token is invalidated. Clients always see a generic 401; the
     // specific reason is logged server-side for admin diagnosis.
