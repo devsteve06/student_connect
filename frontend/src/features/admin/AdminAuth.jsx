@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import AuthShell, { DemoHint } from '../auth/AuthShell';
+import AuthShell, { DemoHint, PortalSignInLinks } from '../auth/AuthShell';
 import { useAuth } from '../../context/useAuth';
 
 export default function AdminAuth() {
@@ -44,14 +44,7 @@ export default function AdminAuth() {
       tagline="Create accounts, reset passwords, and monitor all student, firm, and university users."
       quote="A single control room for the whole placement ecosystem."
       quoteSource="Privileged access · Audited"
-      footer={
-        <p className="text-center text-xs text-ink-4">
-          Not an administrator?{' '}
-          <Link to="/login/student" className="font-semibold text-rose-700 hover:text-rose-800">
-            Return to portal sign in
-          </Link>
-        </p>
-      }
+      footer={<PortalSignInLinks currentRole="admin" />}
     >
       <div className="mb-8 space-y-2">
         <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lifted">

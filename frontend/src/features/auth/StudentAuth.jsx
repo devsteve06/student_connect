@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, KeyRound, Mail } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import AuthShell, { FormHeader, DemoHint } from './AuthShell';
+import AuthShell, { FormHeader, DemoHint, PortalSignInLinks } from './AuthShell';
 import { useAuth } from '../../context/useAuth';
 import registrationRoles from '../../config/registration';
 
@@ -49,22 +49,7 @@ export default function StudentAuth() {
       tagline="Find placements, submit weekly logbook entries, and track your progress in one place."
       quote="Student Connect connected me with a placement that matched exactly what I wanted to learn this year."
       quoteSource="Class of 2026 · Placement story"
-      footer={
-        <p className="text-center text-xs text-ink-4">
-          Work at a firm or a university?{' '}
-          <Link to="/login/firm" className="font-semibold text-brand-700 hover:text-brand-800">
-            Firm sign in
-          </Link>
-          {' · '}
-          <Link to="/login/university" className="font-semibold text-brand-700 hover:text-brand-800">
-            Faculty sign in
-          </Link>
-          {' · '}
-          <Link to="/login/admin" className="font-semibold text-brand-700 hover:text-brand-800">
-            Admin
-          </Link>
-        </p>
-      }
+      footer={<PortalSignInLinks currentRole="student" />}
     >
       <FormHeader title="Welcome back" subtitle="Sign in to continue to your student hub." />
 

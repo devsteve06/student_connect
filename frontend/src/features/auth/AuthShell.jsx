@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom';
 import BackgroundImage from '../../components/common/BackgroundImage';
 import roleTheme from '../../config/roleTheme';
 import { publicBackgrounds } from '../../config/backgrounds';
+import signInPortals from '../../config/signInPortals';
 import ThemeToggle from '../../components/common/ThemeToggle';
 
 export default function AuthShell({
@@ -109,5 +111,27 @@ export function DemoHint({ email, username, password }) {
         Password: {password}
       </p>
     </div>
+  );
+}
+
+// Cross-links every other portal's sign-in page, admin included, using the
+// shared portal names from signInPortals. Rendered at the bottom of all four
+// sign-in screens so the wording and destinations never drift apart.
+export function PortalSignInLinks({ currentRole = 'student' }) {
+  const theme = roleTheme[currentRole] || roleTheme.student;
+  const others = signInPortals.filter((portal) => portal.role !== currentRole);
+
+  return (
+    <p className="text-center text-xs text-ink-4">
+      Sign in to a different portal:{' '}
+      {others.map((portal, index) => (
+        <span key={portal.role}>
+          {index > 0 && <span className="text-ink-5"> · </span>}
+          <Link to={portal.loginPath} className={`font-semibold ${theme.text} hover:underline`}>
+            {portal.name}
+          </Link>
+        </span>
+      ))}
+    </p>
   );
 }

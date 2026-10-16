@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import AuthShell, { FormHeader, DemoHint } from './AuthShell';
+import AuthShell, { FormHeader, DemoHint, PortalSignInLinks } from './AuthShell';
 import { useAuth } from '../../context/useAuth';
 import registrationRoles from '../../config/registration';
 
@@ -49,18 +49,7 @@ export default function UniversityAuth() {
       tagline="Track student attachments, verify logbooks, and monitor placement progress across your institution."
       quote="The audit queue gives us a clear view of every pending logbook before the semester closes."
       quoteSource="Strathmore Administrative Registry"
-      footer={
-        <p className="text-center text-xs text-ink-4">
-          A student or firm?{' '}
-          <Link to="/login/student" className="font-semibold text-cyan-700 hover:text-cyan-800">
-            Student sign in
-          </Link>
-          {' · '}
-          <Link to="/login/firm" className="font-semibold text-cyan-700 hover:text-cyan-800">
-            Firm sign in
-          </Link>
-        </p>
-      }
+      footer={<PortalSignInLinks currentRole="university" />}
     >
       <FormHeader title="Welcome back" subtitle="Sign in to manage attachments and audits." />
 
