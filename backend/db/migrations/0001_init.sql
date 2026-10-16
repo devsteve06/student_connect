@@ -103,4 +103,11 @@ CREATE INDEX IF NOT EXISTS idx_applications_student ON applications(student_id);
 CREATE INDEX IF NOT EXISTS idx_applications_firm    ON applications(firm_id);
 CREATE INDEX IF NOT EXISTS idx_logbooks_student     ON logbooks(student_id);
 
+-- Note: the CV builder tables (student_cvs, cv_analyses) are deliberately NOT
+-- created here. This file runs before 0006_cv_builder.sql, and pg-mem — the
+-- in-memory database used for local development and tests — cannot execute
+-- `CREATE TABLE IF NOT EXISTS` for a table that already exists, which would
+-- make every test boot fail. The tables are created by schema.sql (dev seed)
+-- and by 0006_cv_builder.sql instead.
+
 ALTER TABLE students ADD COLUMN IF NOT EXISTS phone VARCHAR(20);

@@ -314,6 +314,14 @@ test('migrations: signup-only columns exist on firms and universities', async ()
 
 // --- auth: self-service registration ---------------------------------------
 import { registerUser, loginUser } from '../controllers/authController.js';
+import {
+  getCvs,
+  createCv,
+  getCv,
+  updateCv,
+  deleteCv,
+  setPrimaryCv
+} from '../controllers/cvController.js';
 
 async function register(payload) {
   const res = mockRes();
@@ -463,4 +471,191 @@ test('login: works immediately after registering, and finds the email case-insen
   assert.ok(res.body.token);
 
   await query('DELETE FROM firms WHERE contact_email = $1', ['peter@tidewater.co.ke']);
+});
+
+// --- CV builder (Phase 1 — backend CRUD) -------------------------------------
+// The endpoints sit behind the student guard; req.user is injected by the
+// middleware, so the tests pass the student id straight through it.
+
+async function studentCvId(res) {
+  return res.body.id;
+}
+
+// student_cvs references students(id), so the tests insert under a real,
+// seeded student — any other id would violate the foreign key.
+let ACTIVE_STUDENT_ID;
+async function ensureStudentId() {
+  if (!ACTIVE_STUDENT_ID) {
+    ACTIVE_STUDENT_ID = (
+      await query('SELECT id FROM students ORDER BY id LIMIT 1')
+    ).rows[0].id;
+  }
+  return ACTIVE_STUDENT_ID;
+}
+
+test('cv: create lists a new CV as the primary and returns its shape', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+  assert.ok(uniRow, 'seed university exists');
+  const res = mockRes();
+  await createCv(
+    {
+      user: { id: STUDENT_ID },
+      body: {
+        title: 'BSc. Computer Science CV',
+        professionalSummary: 'A motivated student.',
+        skills: { category: 'Languages' },
+        education: { school: 'Strathmore University' }
+      }
+    },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.studentId, STUDENT_ID);
+  assert.equal(res.body.title, 'BSc. Computer Science CV');
+  assert.equal(res.body.isPrimary, true, 'first CV becomes the primary');
+  assert.deepEqual(res.body.skills, { category: 'Languages' });
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+test('cv: create a second CV demotes the previous primary', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+  assert.ok(uniRow, 'seed university exists');
+
+  // Seed the student's first CV directly, exactly as createCv would.
+  await query(
+    `INSERT INTO student_cvs (student_id, title, is_primary)
+     VALUES ($1, 'First CV', $2)`,
+    [STUDENT_ID, true]
+  );
+
+  const res = mockRes();
+  await createCv(
+    {
+      user: { id: STUDENT_ID },
+      body: { title: 'Second CV' }
+    },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.isPrimary, false, 'new CV is not primary');
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+test('cv: get returns one CV scoped to the student', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+  assert.ok(uniRow, 'seed university exists');
+  const inserted = (
+    await query(
+      `INSERT INTO student_cvs (student_id, title, is_primary, professional_summary)
+       VALUES ($1, 'Scoped CV', $2, 'Summary.') RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at`,
+      [STUDENT_ID, true]
+    )
+  ).rows[0];
+
+  const found = mockRes();
+  await getCv({ params: { id: String(inserted.id) }, user: { id: STUDENT_ID } }, found, () => {});
+  assert.equal(found.statusCode, 200);
+  assert.equal(found.body.id, inserted.id);
+  assert.equal(found.body.professionalSummary, 'Summary.');
+
+  const foreign = mockRes();
+  await getCv({ params: { id: String(inserted.id) }, user: { id: 9999 } }, foreign, () => {});
+  assert.equal(foreign.statusCode, 404);
+
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+test('cv: update patches the stored CV', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+  const inserted = (
+    await query(
+      `INSERT INTO student_cvs (student_id, title, is_primary, skills)
+       VALUES ($1, 'To be updated', $2, $3) RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at`,
+      [STUDENT_ID, false, { category: 'Languages' }]
+    )
+  ).rows[0];
+
+  const res = mockRes();
+  await updateCv(
+    {
+      params: { id: String(inserted.id) },
+      body: { skills: { category: 'Cloud' }, professionalSummary: 'Rewritten.' },
+      user: { id: STUDENT_ID }
+    },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.title, 'To be updated');
+  assert.equal(res.body.professionalSummary, 'Rewritten.');
+  assert.deepEqual(res.body.skills, { category: 'Cloud' });
+
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+test('cv: delete removes the CV', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+  const inserted = (
+    await query('INSERT INTO student_cvs (student_id, title) VALUES ($1, $2) RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at', [
+      STUDENT_ID,
+      'Deletable'
+    ])
+  ).rows[0];
+
+  const res = mockRes();
+  await deleteCv({ params: { id: String(inserted.id) }, user: { id: STUDENT_ID } }, res, () => {});
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.message, 'CV deleted.');
+
+  const gone = mockRes();
+  await deleteCv({ params: { id: String(inserted.id) }, user: { id: STUDENT_ID } }, gone, () => {});
+  assert.equal(gone.statusCode, 404);
+
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
+});
+
+test('cv: set primary demotes the current primary and promotes the target', async () => {
+  await ensureDb();
+  const STUDENT_ID = await ensureStudentId();
+  const first = (
+    await query(
+      'INSERT INTO student_cvs (student_id, title, is_primary) VALUES ($1, $2, $3) RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at',
+      [STUDENT_ID, 'First CV', true]
+    )
+  ).rows[0];
+  const second = (
+    await query(
+      'INSERT INTO student_cvs (student_id, title, is_primary) VALUES ($1, $2, $3) RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at',
+      [STUDENT_ID, 'Second CV', false]
+    )
+  ).rows[0];
+
+  const res = mockRes();
+  await setPrimaryCv(
+    { params: { id: String(second.id) }, user: { id: STUDENT_ID } },
+    res,
+    () => { throw new Error('next should not be called'); }
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.isPrimary, true);
+  assert.equal(res.body.id, second.id);
+
+  const current = (
+    await query('SELECT is_primary FROM student_cvs WHERE id = $1', [first.id])
+  ).rows[0];
+  assert.equal(current.is_primary, false, 'previous primary is demoted');
+
+  // Only one primary may exist; promoting again onto itself is fine, but the
+  // controller must never end up with two primary CVs.
+  await query('DELETE FROM student_cvs WHERE student_id = $1', [STUDENT_ID]);
 });

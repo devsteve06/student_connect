@@ -17,6 +17,8 @@ DROP TABLE IF EXISTS students       CASCADE;
 DROP TABLE IF EXISTS firms          CASCADE;
 DROP TABLE IF EXISTS universities   CASCADE;
 DROP TABLE IF EXISTS admins         CASCADE;
+DROP TABLE IF EXISTS student_cvs   CASCADE;
+DROP TABLE IF EXISTS cv_analyses   CASCADE;
 
 -- -----------------------------------------------------------------------------
 -- admins — system administrators with absolute access across the platform
@@ -136,3 +138,40 @@ CREATE INDEX idx_placements_firm     ON placements(firm_id);
 CREATE INDEX idx_applications_student ON applications(student_id);
 CREATE INDEX idx_applications_firm    ON applications(firm_id);
 CREATE INDEX idx_logbooks_student     ON logbooks(student_id);
+
+-- -----------------------------------------------------------------------------
+-- CV builder (Phase 1) — versioned CVs and job-analyzer runs
+-- -----------------------------------------------------------------------------
+CREATE TABLE student_cvs (
+    id                SERIAL PRIMARY KEY,
+    student_id        INTEGER     NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    title             VARCHAR(150) NOT NULL DEFAULT '',
+    is_primary        BOOLEAN     NOT NULL DEFAULT false,
+    personal_info     JSONB,
+    professional_summary TEXT,
+    education         JSONB,
+    experience        JSONB,
+    skills            JSONB,
+    projects          JSONB,
+    certifications    JSONB,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_student_cvs_student ON student_cvs(student_id);
+
+CREATE TABLE cv_analyses (
+    id                SERIAL PRIMARY KEY,
+    student_id        INTEGER     NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    cv_id             INTEGER          NULL REFERENCES student_cvs(id) ON DELETE SET NULL,
+    placement_id      INTEGER          NULL REFERENCES placements(id) ON DELETE SET NULL,
+    job_title         VARCHAR(150),
+    job_description   TEXT,
+    match_score       INTEGER,
+    keyword_match     JSONB,
+    gap_analysis      TEXT,
+    section_scores    JSONB,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_cv_analyses_student ON cv_analyses(student_id);

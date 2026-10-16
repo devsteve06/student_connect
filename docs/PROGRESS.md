@@ -1,13 +1,32 @@
 # Student Connect - Project Progress
 
 ## Current Status
-- **Date**: 2026-10-15
-- **Phase**: Phases 1–3 complete; Phase 4 (deploy) configured, not yet executed
+- **Date**: 2026-10-16
+- **Phase**: CV builder Phase 1 (schema + backend CRUD) is implemented; Phases 1–3 platform work complete; Phase 4 (deploy) configured, not yet executed
 - **Overall Progress**: ~90% — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-16 (CV builder Phase 1 — schema + backend CRUD)
+- **CV builder backend landed (Phase 1 of `CV_BUILDER_PLAN.md`)** — the plan's first phase is now real, with no frontend files touched (the wizard UI arrives in Phase 2).
+  - **New migration** `backend/db/migrations/0006_cv_builder.sql` — adds `student_cvs` (versioned CVs: title, `is_primary`, and JSONB section columns `personal_info` / `professional_summary` / `education` / `experience` / `skills` / `projects` / `certifications`) and `cv_analyses` (Phase 4 stub: job placement, job title/description, match score, keyword/gap/section JSONB). Both are idempotent; `cv_analyses` is written but unused until the analyzer lands.
+  - **New controller + routes** — `controllers/cvController.js` (`getCvs`, `createCv`, `getCv`, `updateCv`, `deleteCv`, `setPrimaryCv`) and `routes/cvRoutes.js`, mounted at `/api/v1/students/cv` behind the existing student guard (the student portal mount is plural, matching `studentRoutes`). Create makes the first CV primary; `setPrimary` demotes the current primary; every query is scoped by `student_id`. snake_case → camelCase mapping matches the rest of the controllers.
+  - **Three-place schema rule** — the tables are mirrored into `sql/schema.sql` (the pg-mem dev seed). They are deliberately **not** in `0001_init.sql`: that file runs before this migration and pg-mem cannot execute `CREATE TABLE IF NOT EXISTS` for a table that already exists (it builds the PK constraint even on the no-op path — verified with a probe), so a duplicate definition there broke every pg-mem boot. `0001_init.sql` carries a comment explaining the omission.
+  - **Tests** — six new pg-mem-backed tests: create makes the first CV primary, a second create demotes the previous primary, get is scoped to the student (404 for another student), update patches, delete removes (404 on repeat), and set-primary swaps correctly. JSONB round-trips are asserted with objects, because pg-mem collapses array-valued JSONB parameters (a known pg-mem limitation, irrelevant against real PostgreSQL).
+  - Verified: `backend npm test` 35/35 (six new); frontend `npm run lint` clean + `npm run build` green (no frontend files were touched).
+
+### 2026-10-16 (admin login fix)
+- **Admin login always failed — email-verification leftover removed** — the admin sign-in endpoint itself was reachable (`POST /api/v1/auth/login` reached the right handler), but every attempt failed with `403 Email not verified. Please verify your email…`. The `email_verified` column (added by the now-deleted email-verification migrations) had leaked into the pg-mem dev schema and into the sysadmin seed, and `findAccountByEmail`'s admins query selected it, while `loginUser` rejected any account whose `email_verified` flag was false — so the seeded sysadmin could never authenticate. The rest of `authController.js`/`accounts.js` had already been reverted to the pre-verification implementation, so the column was the last surviving reference. Per the in-flight decision, the email-verification feature is dropped for now: the column and its dependencies are removed rather than deleted outright, and the code that used it is commented out rather than unlinked.
+  - **Fix**: removed `email_verified` (and the `verification_token` / `verification_expires_at` set the feature introduced) from `sql/schema.sql` and the sysadmin seed in `sql/seed.sql` + `sql/migrate_admins.sql`; in `data/accounts.js` the admins lookup no longer selects `email_verified` and the unverified-account branch in `loginUser` is commented out (the surrounding lockout/verification imports it needs stay, so the file still parses and the active tests keep running).
+  - Verified live against the running API: `POST /api/v1/auth/login` with `{ email: 'sysadmin', password: 'theadmin' }` previously returned 403 and now returns `200` with a JWT; `backend npm test` still passes 29/29.
+  - Verified: `backend/npm test` 29/29; live check against `node server.js` (pg-mem) — admin login succeeds.
+
+### 2026-10-16
+- **Landing "How it works" button text colour in light mode** — the hero secondary CTA (`Landing.jsx`, the button that scrolls to the `#how` section) hardcoded `text-white` (and `hover:text-white`) on its `className`, overriding the `Button` component's own `text-ink-2` from the `secondary` variant. The label therefore rendered white even in light mode, where the button's translucent dark background washes out — a violation of the project rule to use the semantic `--sc-*` tokens rather than literal utilities.
+  - **Fix**: dropped `text-white` / `hover:text-white` from that `className`; the button now inherits the semantic ink colour and follows the System/Light/Dark toggle like every other button. The `hover:bg-slate-800` background hover and the intentional dark hero-panel styling were left intact — only the text colour was wrong. Verified in a real browser (light mode) that the label computes to `rgb(51, 65, 85)` (`--sc-ink-2`).
+  - Verified: frontend `npm run lint` clean + `npm run build` green (production bundle emitted).
 
 ### 2026-10-15
 - **Background imagery across the UI** — added decorative, role-aware background photos to the landing hero, the auth brand panel, every role dashboard header, and the sidebar.
@@ -259,7 +278,7 @@ backend/
 ## Next Steps
 1. **Frontend**: (done) visual redesign, responsive shell, de-jargoned copy — see Data Source Status for API wiring
 2. **API wiring**: (done) no mock views remain — every portal reads the real API
-3. **Testing**: (done for now) 29 backend integration tests; no frontend test runner
+3. **Testing**: (done for now) 35 backend integration tests; no frontend test runner
 4. **Deployment**: (config written but **uncommitted**) run the live deploy in `DEPLOYMENT.md` — provision Supabase, create the Render blueprint, import into Vercel with `VITE_API_BASE_URL`
 5. **Open PRs**: `feat/registration-flow` is pushed but has no PR; Phase 4's files are still only in the working tree, so **CI is not running**
 6. **Documentation**: (done) `README.md` + `AGENTS.md` + `DEPLOYMENT.md` + this log
