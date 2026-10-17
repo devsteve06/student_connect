@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------------
 import bcrypt from 'bcryptjs';
 import { query } from './db.js';
+import { generateRegNumber } from '../utils/regNumber.js';
 
 // Maps a role to its table. Used for admin password resets / deletes. Values are
 // a fixed whitelist, never user input, so they are safe to interpolate.
@@ -84,9 +85,9 @@ export async function createAccount({ name, username, email, password, role, reg
     const row = (await run(
       `INSERT INTO admins (username, email, password_hash, full_name)
        VALUES ($1, $2, $3, $4) RETURNING id`,
-      [username || loginEmail, loginEmail, hash, name || 'System Administrator']
+      [username || loginEmail, email ? loginEmail : null, hash, name || 'System Administrator']
     )).rows[0];
-    return { id: row.id, name: name || username, email: loginEmail, role };
+    return { id: row.id, name: name || username, email: email ? loginEmail : null, role };
   }
 
   if (role === 'student') {
@@ -98,20 +99,39 @@ export async function createAccount({ name, username, email, password, role, reg
       err.status = 400;
       throw err;
     }
+    if (!String(course || '').trim()) {
+      const err = new Error('A course is required to register a student account.');
+      err.status = 400;
+      throw err;
+    }
+    // Admission numbers are assigned by the server (see utils/regNumber.js).
+    // A client-supplied number is still honoured so admin-created accounts can
+    // copy an existing institutional record.
+    const assignedRegNumber =
+      String(regNumber || '').trim() ||
+      (await generateRegNumber(run, { universityId: uniId, course }));
     const row = (await run(
       `INSERT INTO students (full_name, email, password_hash, reg_number, course, university_id)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [name, loginEmail, hash, regNumber, course, uniId]
+      [name, loginEmail, hash, assignedRegNumber, course, uniId]
     )).rows[0];
-    return { id: row.id, name, email: loginEmail, role };
+    return { id: row.id, name, email: loginEmail, role, regNumber: assignedRegNumber };
   }
 
   if (role === 'firm') {
     const firmName = (companyName || name || '').trim();
     const row = (await run(
-      `INSERT INTO firms (company_name, contact_email, password_hash, location, industry, contact_person)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-      [firmName, loginEmail, hash, location || 'Nairobi, KE', (industrySector || '').trim() || null, (contactPerson || '').trim() || null]
+      `INSERT INTO firms (company_name, contact_email, password_hash, location, industry, contact_person, university_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [
+        firmName,
+        loginEmail,
+        hash,
+        location || 'Nairobi, KE',
+        (industrySector || '').trim() || null,
+        (contactPerson || '').trim() || null,
+        universityId ?? null
+      ]
     )).rows[0];
     return { id: row.id, name: firmName, email: loginEmail, role };
   }

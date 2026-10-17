@@ -21,13 +21,17 @@ export const authService = {
   },
 
   // Create a student / firm / university account, then sign in with the
-  // token the backend returns on registration.
+  // token the backend returns on registration. The email is NOT sent — the API
+  // derives it from the display name + institution (see config/identity.js).
   register: async (payload) => {
-    const { data } = await apiClient.post('/api/v1/auth/register', {
-      ...payload,
-      email: payload.email?.trim().toLowerCase()
-    });
+    const { data } = await apiClient.post('/api/v1/auth/register', payload);
     sessionStore.save(data);
+    return data;
+  },
+
+  // Institution list backing the signup dropdowns. Public endpoint (no token).
+  listUniversities: async () => {
+    const { data } = await apiClient.get('/api/v1/auth/universities');
     return data;
   },
 

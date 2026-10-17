@@ -7,6 +7,14 @@ import assert from 'node:assert/strict';
 process.env.JWT_SECRET ||= 'test-only-secret';
 
 import { formatDate, todayISO } from '../utils/format.js';
+import {
+  slugifyName,
+  normalizeDomain,
+  isValidDomain,
+  institutionDomainFromEmail,
+  buildAccountEmail
+} from '../utils/identity.js';
+import { courseCode, formatRegNumber } from '../utils/regNumber.js';
 import { authorizeRoles } from '../middleware/authMiddleware.js';
 import { errorHandler, notFound } from '../middleware/errorMiddleware.js';
 
@@ -42,6 +50,69 @@ test('formatDate returns null for null/undefined', () => {
 
 test('todayISO returns a YYYY-MM-DD string', () => {
   assert.match(todayISO(), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+// --- utils/identity --------------------------------------------------------
+test('slugifyName folds a display name into a deterministic local part', () => {
+  assert.equal(slugifyName('Alex Kamau'), 'alex.kamau');
+  assert.equal(slugifyName('  Prof. Achieng Otieno '), 'prof.achieng.otieno');
+  assert.equal(slugifyName('TechCorp   Solutions!!'), 'techcorp.solutions');
+  assert.equal(slugifyName(''), 'user');
+});
+
+test('normalizeDomain tidies a pasted domain', () => {
+  assert.equal(normalizeDomain(' https://Strathmore.EDU/ '), 'strathmore.edu');
+  assert.equal(normalizeDomain('@jkuat.ac.ke'), 'jkuat.ac.ke');
+  assert.equal(normalizeDomain('strathmore.edu.'), 'strathmore.edu');
+});
+
+test('isValidDomain rejects malformed domains', () => {
+  assert.equal(isValidDomain('strathmore.edu'), true);
+  assert.equal(isValidDomain('not-a-domain'), false);
+  assert.equal(isValidDomain(''), false);
+});
+
+test('institutionDomainFromEmail recovers the domain from any role address', () => {
+  assert.equal(institutionDomainFromEmail('registrar@strathmore.edu'), 'strathmore.edu');
+  assert.equal(institutionDomainFromEmail('someone@registrar.strathmore.edu'), 'strathmore.edu');
+  assert.equal(institutionDomainFromEmail('alex@students.strathmore.edu'), 'strathmore.edu');
+});
+
+test('buildAccountEmail applies the per-role subdomain', () => {
+  const domain = 'strathmore.edu';
+  assert.equal(
+    buildAccountEmail({ role: 'student', name: 'Alex Kamau', domain }),
+    'alex.kamau@students.strathmore.edu'
+  );
+  assert.equal(
+    buildAccountEmail({ role: 'firm', name: 'Lumen Analytics', domain }),
+    'lumen.analytics@hr.strathmore.edu'
+  );
+  assert.equal(
+    buildAccountEmail({ role: 'university', name: 'Prof. Achieng Otieno', domain }),
+    'prof.achieng.otieno@registrar.strathmore.edu'
+  );
+  assert.throws(() => buildAccountEmail({ role: 'admin', name: 'X', domain }), /No email identity rule/);
+  assert.throws(() => buildAccountEmail({ role: 'student', name: 'X', domain: 'nope' }), /Invalid institution domain/);
+});
+
+// --- utils/regNumber --------------------------------------------------------
+test('courseCode reduces a course title to uppercase initials', () => {
+  // Degree prefixes and conjunctions are dropped so the seeded-style codes
+  // come out regardless of how the course is titled.
+  assert.equal(courseCode('BSc. in Computer Science'), 'CS');
+  assert.equal(courseCode('B. in Business Information Technology'), 'BIT');
+  assert.equal(courseCode('BSc. in Informatics and Computer Systems'), 'ICS');
+  assert.equal(courseCode('Data Science'), 'DS');
+  assert.equal(courseCode('Information Technology'), 'IT');
+  // Nothing but fillers falls back to the full title's initials.
+  assert.equal(courseCode('BSc'), 'B');
+  assert.equal(courseCode(''), 'STU');
+});
+
+test('formatRegNumber pads the sequence to four digits', () => {
+  assert.equal(formatRegNumber({ code: 'CS', seq: 1, year: 2026 }), 'CS/0001/2026');
+  assert.equal(formatRegNumber({ code: 'BIT', seq: 4901, year: 2023 }), 'BIT/4901/2023');
 });
 
 // --- authorizeRoles --------------------------------------------------------
@@ -304,6 +375,7 @@ test('migrations: signup-only columns exist on firms and universities', async ()
   const firmCols = await columnsFor('firms');
   assert.ok(firmCols.includes('contact_person'), 'firms.contact_person exists after migration');
   assert.ok(firmCols.includes('industry'), 'firms.industry exists after migration');
+  assert.ok(firmCols.includes('university_id'), 'firms.university_id exists after migration');
 
   const uniCols = await columnsFor('universities');
   assert.ok(uniCols.includes('staff_id'), 'universities.staff_id exists after migration');
@@ -313,7 +385,7 @@ test('migrations: signup-only columns exist on firms and universities', async ()
 });
 
 // --- auth: self-service registration ---------------------------------------
-import { registerUser, loginUser } from '../controllers/authController.js';
+import { registerUser, loginUser, listUniversities } from '../controllers/authController.js';
 import {
   getCvs,
   createCv,
@@ -333,81 +405,190 @@ async function register(payload) {
   return res;
 }
 
-test('register: a firm account persists the contact person and industry', async () => {
+test('auth: the public institution list exposes id, name and a derived domain', async () => {
   await ensureDb();
+  const res = mockRes();
+  await listUniversities({}, res, () => {
+    throw new Error('next should not be called');
+  });
+  assert.ok(Array.isArray(res.body));
+  assert.ok(res.body.length >= 5, 'seed universities are listed');
+  for (const uni of res.body) {
+    assert.ok(Number.isInteger(uni.id));
+    assert.ok(uni.name);
+    // The registrar address strathmore.edu-style domain is extracted, and never
+    // leaks the role subdomain.
+    assert.match(uni.domain, /^[a-z0-9.-]+\.[a-z]+$/);
+    assert.doesNotMatch(uni.domain, /^(registrar|students|hr)\./);
+  }
+  const strathmore = res.body.find((u) => u.domain === 'strathmore.edu');
+  assert.ok(strathmore, 'Strathmore is present with its bare domain');
+});
+
+test('register: a firm account persists the contact person, industry and university', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id, contact_email FROM universities ORDER BY id LIMIT 1')).rows[0];
+  assert.ok(uniRow, 'seed university exists');
+  const domain = uniRow.contact_email.split('@')[1];
+  const expectedEmail = `lumen.analytics@hr.${domain}`;
+
   const res = await register({
     companyName: 'Lumen Analytics',
     contactPerson: 'Grace Wanjiru',
     industrySector: 'Banking & financial services',
-    email: 'Grace@Lumen-Analytics.co.ke',
+    universityId: uniRow.id,
     password: 'Passw0rd!',
     role: 'firm'
   });
   assert.equal(res.statusCode, 201);
   assert.equal(res.body.role, 'firm');
+  assert.equal(res.body.email, expectedEmail, 'email is derived from the name + university domain');
 
   // The form used to collect these two values and the API dropped them.
   const row = (
-    await query('SELECT contact_person, industry FROM firms WHERE contact_email = $1', [
-      'grace@lumen-analytics.co.ke'
+    await query('SELECT contact_person, industry, university_id FROM firms WHERE contact_email = $1', [
+      expectedEmail
     ])
   ).rows[0];
-  assert.ok(row, 'firm row exists under the normalised email');
+  assert.ok(row, 'firm row exists under the derived email');
   assert.equal(row.contact_person, 'Grace Wanjiru');
   assert.equal(row.industry, 'Banking & financial services');
+  assert.equal(row.university_id, uniRow.id, 'firm is affiliated with the chosen university');
 
-  await query('DELETE FROM firms WHERE contact_email = $1', ['grace@lumen-analytics.co.ke']);
+  await query('DELETE FROM firms WHERE contact_email = $1', [expectedEmail]);
 });
 
-test('register: a university account persists the staff id and department', async () => {
+test('register: a university account represents the institution, not a staff member', async () => {
   await ensureDb();
   const res = await register({
-    name: 'Prof. Achieng Otieno',
-    staffId: 'ST-7781',
-    department: 'School of Engineering',
-    email: 'a.otieno@tuk.ac.ke',
+    name: 'Nairobi Institute of Technology',
+    domain: 'tuk.ac.ke',
     password: 'Passw0rd!',
     role: 'university'
   });
   assert.equal(res.statusCode, 201);
+  // The institution name drives both the row and the derived registrar address.
+  assert.equal(res.body.email, 'nairobi.institute.of.technology@registrar.tuk.ac.ke');
 
   const row = (
-    await query('SELECT staff_id, department FROM universities WHERE contact_email = $1', [
-      'a.otieno@tuk.ac.ke'
+    await query('SELECT name, staff_id, department FROM universities WHERE contact_email = $1', [
+      'nairobi.institute.of.technology@registrar.tuk.ac.ke'
     ])
   ).rows[0];
   assert.ok(row);
-  assert.equal(row.staff_id, 'ST-7781');
-  assert.equal(row.department, 'School of Engineering');
+  assert.equal(row.name, 'Nairobi Institute of Technology');
+  // No staff identity is stored on the institution account.
+  assert.equal(row.staff_id, null);
+  assert.equal(row.department, null);
 
-  await query('DELETE FROM universities WHERE contact_email = $1', ['a.otieno@tuk.ac.ke']);
+  await query('DELETE FROM universities WHERE contact_email = $1', [
+    'nairobi.institute.of.technology@registrar.tuk.ac.ke'
+  ]);
 });
 
-test('register: a student account persists the reg number and course', async () => {
+test('register: exactly one university account per institution domain', async () => {
   await ensureDb();
-  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+  const first = await register({
+    name: 'University of Eldoret',
+    domain: 'uoe.ac.ke',
+    password: 'Passw0rd!',
+    role: 'university'
+  });
+  assert.equal(first.statusCode, 201);
+
+  // A differently-named signup on the same domain is refused: students belong
+  // to one university, so the institution gets a single row.
+  const second = await register({
+    name: 'Eldoret Technical University',
+    domain: 'uoe.ac.ke',
+    password: 'Passw0rd!',
+    role: 'university'
+  });
+  assert.equal(second.statusCode, 409);
+  assert.match(second.body.message, /already registered for uoe\.ac\.ke/);
+
+  // A role label pasted in front of the domain counts as the same domain.
+  const third = await register({
+    name: 'UoE Postgrad School',
+    domain: 'registrar.uoe.ac.ke',
+    password: 'Passw0rd!',
+    role: 'university'
+  });
+  assert.equal(third.statusCode, 409);
+
+  await query('DELETE FROM universities WHERE contact_email = $1', [
+    'university.of.eldoret@registrar.uoe.ac.ke'
+  ]);
+});
+
+test('register: rejects a university account without a domain', async () => {
+  await ensureDb();
+  const res = await register({
+    name: 'Prof. No Domain',
+    staffId: 'ST-0001',
+    password: 'Passw0rd!',
+    role: 'university'
+  });
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.message, /domain/i);
+});
+
+test('register: a student account derives its email and persists the reg number and course', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id, contact_email FROM universities ORDER BY id LIMIT 1')).rows[0];
   assert.ok(uniRow, 'seed university exists');
+  const expectedEmail = 'brian.mutua@students.strathmore.edu';
+
   const res = await register({
     name: 'Brian Mutua',
     regNumber: 'BBIT/9001/2026',
     course: 'BSc. in Computer Science',
     universityId: uniRow.id,
-    email: 'brian.mutua@students.strathmore.edu',
     password: 'Passw0rd!',
     role: 'student'
   });
   assert.equal(res.statusCode, 201);
+  assert.equal(res.body.email, expectedEmail);
 
   const row = (
-    await query('SELECT reg_number, course FROM students WHERE email = $1', [
-      'brian.mutua@students.strathmore.edu'
-    ])
+    await query('SELECT reg_number, course FROM students WHERE email = $1', [expectedEmail])
   ).rows[0];
   assert.ok(row);
   assert.equal(row.reg_number, 'BBIT/9001/2026');
   assert.equal(row.course, 'BSc. in Computer Science');
 
-  await query('DELETE FROM students WHERE email = $1', ['brian.mutua@students.strathmore.edu']);
+  await query('DELETE FROM students WHERE email = $1', [expectedEmail]);
+});
+
+test('register: a student must choose a university', async () => {
+  await ensureDb();
+  const res = await register({
+    name: 'Unattached Student',
+    regNumber: 'BBIT/0000/2026',
+    course: 'BSc. in Computer Science',
+    password: 'Passw0rd!',
+    role: 'student'
+  });
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.message, /university/i);
+});
+
+test('register: ignores a client-supplied email and uses the institutional one', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id, contact_email FROM universities ORDER BY id LIMIT 1')).rows[0];
+  const res = await register({
+    name: 'Sneaky Student',
+    regNumber: 'BBIT/7777/2026',
+    course: 'BSc. in Computer Science',
+    universityId: uniRow.id,
+    // A caller cannot smuggle in an arbitrary address — it is overwritten.
+    email: 'sneaky@evil.example.com',
+    password: 'Passw0rd!',
+    role: 'student'
+  });
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.email, 'sneaky.student@students.strathmore.edu');
+  await query('DELETE FROM students WHERE email = $1', ['sneaky.student@students.strathmore.edu']);
 });
 
 test('register: rejects an admin self-signup', async () => {
@@ -439,15 +620,16 @@ test('register: rejects a firm that omits its contact person', async () => {
   assert.equal(row, undefined, 'nothing is written when validation fails');
 });
 
-test('register: rejects a duplicate email regardless of casing', async () => {
+test('register: rejects a duplicate derived email', async () => {
   await ensureDb();
-  const uniRow = (await query('SELECT id FROM universities LIMIT 1')).rows[0];
+  const uniRow = (await query('SELECT id FROM universities ORDER BY id LIMIT 1')).rows[0];
   assert.ok(uniRow, 'seed university exists');
+  // "Alex Kamau" at Strathmore derives the same address as the seeded student.
   const res = await register({
     name: 'Alex Kamau',
     regNumber: 'BBIT/1111/2020',
+    course: 'BSc. in Computer Science',
     universityId: uniRow.id,
-    email: 'ALEX.KAMAU@students.strathmore.edu',
     password: 'Passw0rd!',
     role: 'student'
   });
@@ -455,24 +637,84 @@ test('register: rejects a duplicate email regardless of casing', async () => {
   assert.match(res.body.message, /already exists/);
 });
 
+test('register: a student without a reg number gets one assigned by the server', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id, contact_email FROM universities ORDER BY id LIMIT 1')).rows[0];
+  assert.ok(uniRow, 'seed university exists');
+
+  const first = await register({
+    name: 'Amina Hassan',
+    course: 'BSc. in Computer Science',
+    universityId: uniRow.id,
+    password: 'Passw0rd!',
+    role: 'student'
+  });
+  assert.equal(first.statusCode, 201);
+  // Course code drops the degree words, then a 4-digit sequence and the year.
+  assert.match(first.body.regNumber, /^CS\/\d{4}\/\d{4}$/, 'signup response carries the assigned number');
+  assert.equal(first.body.email, 'amina.hassan@students.strathmore.edu');
+
+  const row = (
+    await query('SELECT reg_number, course FROM students WHERE email = $1', [
+      'amina.hassan@students.strathmore.edu'
+    ])
+  ).rows[0];
+  assert.equal(row.reg_number, first.body.regNumber);
+  assert.equal(row.course, 'BSc. in Computer Science');
+
+  // The next student on the same course, university and year increments the
+  // sequence rather than colliding.
+  const second = await register({
+    name: 'Brian Kiprotich',
+    course: 'BSc. in Computer Science',
+    universityId: uniRow.id,
+    password: 'Passw0rd!',
+    role: 'student'
+  });
+  assert.equal(second.statusCode, 201);
+  const seqOf = (regNumber) => Number.parseInt(String(regNumber).split('/')[1], 10);
+  assert.equal(seqOf(second.body.regNumber), seqOf(first.body.regNumber) + 1);
+
+  await query('DELETE FROM students WHERE email IN ($1, $2)', [
+    'amina.hassan@students.strathmore.edu',
+    'brian.kiprotich@students.strathmore.edu'
+  ]);
+});
+
+test('register: a student signup requires a course', async () => {
+  await ensureDb();
+  const uniRow = (await query('SELECT id FROM universities ORDER BY id LIMIT 1')).rows[0];
+  const res = await register({
+    name: 'Courseless Student',
+    universityId: uniRow.id,
+    password: 'Passw0rd!',
+    role: 'student'
+  });
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.message, /course/);
+});
+
 test('login: works immediately after registering, and finds the email case-insensitively', async () => {
   await ensureDb();
+  const uniRow = (await query('SELECT id, contact_email FROM universities ORDER BY id LIMIT 1')).rows[0];
+  const domain = uniRow.contact_email.split('@')[1];
+  const email = `tidewater.labs@hr.${domain}`;
   await register({
     companyName: 'Tidewater Labs',
     contactPerson: 'Peter Muriuki',
     industrySector: 'Technology & software',
-    email: 'peter@tidewater.co.ke',
+    universityId: uniRow.id,
     password: 'Passw0rd!',
     role: 'firm'
   });
 
   const res = mockRes();
-  await loginUser({ body: { email: 'PETER@Tidewater.co.ke', password: 'Passw0rd!' } }, res, () => {});
+  await loginUser({ body: { email: email.toUpperCase(), password: 'Passw0rd!' } }, res, () => {});
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.role, 'firm');
   assert.ok(res.body.token);
 
-  await query('DELETE FROM firms WHERE contact_email = $1', ['peter@tidewater.co.ke']);
+  await query('DELETE FROM firms WHERE contact_email = $1', [email]);
 });
 
 // --- CV builder (Phase 1 — backend CRUD) -------------------------------------

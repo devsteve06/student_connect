@@ -1,7 +1,7 @@
 // routes/authRoutes.js
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { registerUser, loginUser } from '../controllers/authController.js';
+import { registerUser, loginUser, listUniversities } from '../controllers/authController.js';
 
 const router = Router();
 
@@ -30,6 +30,10 @@ const registerLimiter = rateLimit({
     res.status(429).json({ message: 'Too many accounts created from this network. Please try again later.' });
   }
 });
+
+// Public institution list for the signup dropdowns (no auth — the signup
+// forms run before any session exists).
+router.get('/universities', listUniversities);
 
 router.post('/register', registerLimiter, registerUser);
 router.post('/login', loginLimiter, loginUser);

@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS firms (
     location          VARCHAR(120) NOT NULL,
     industry          VARCHAR(120),
     contact_person    VARCHAR(120),
+    university_id     INTEGER      NULL REFERENCES universities(id) ON DELETE SET NULL,
     active_interns    INTEGER      NOT NULL DEFAULT 0,
     created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS logbooks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_students_university  ON students(university_id);
+CREATE INDEX IF NOT EXISTS idx_firms_university      ON firms(university_id);
 CREATE INDEX IF NOT EXISTS idx_placements_firm      ON placements(firm_id);
 CREATE INDEX IF NOT EXISTS idx_applications_student ON applications(student_id);
 CREATE INDEX IF NOT EXISTS idx_applications_firm    ON applications(firm_id);

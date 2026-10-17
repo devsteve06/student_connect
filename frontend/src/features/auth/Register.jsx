@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Building2,
@@ -13,8 +13,15 @@ import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import AuthShell, { FormHeader } from './AuthShell';
 import { useAuth } from '../../context/useAuth';
+import { authService } from '../../service/authService';
 import roleTheme from '../../config/roleTheme';
 import registrationRoles, { isRegistrableRole } from '../../config/registration';
+import {
+  institutionDomainFromEmail,
+  isValidDomain,
+  previewAccountEmail,
+} from '../../config/identity';
+import { previewRegNumber } from '../../config/regNumber';
 
 const ROLE_ICONS = { student: GraduationCap, firm: Building2, university: Landmark };
 
@@ -34,63 +41,60 @@ const COURSES = [
   'BSc. in Software Engineering',
 ];
 
-const DEPARTMENTS = [
-  'Faculty of IT (FIT)',
-  'Strathmore Business School (SBS)',
-  'School of Engineering',
-  'Faculty of Education',
-];
-
 // One flat state object; each role renders the slice it needs. Keeping every
 // field in a single object means switching roles never leaves stale values
 // behind in the payload.
 const EMPTY_FORM = {
   fullName: '',
-  regNumber: '',
   course: COURSES[0],
+  universityId: '',
   companyName: '',
   contactPerson: '',
   industrySector: INDUSTRIES[0],
-  facultyName: '',
-  staffId: '',
-  department: DEPARTMENTS[0],
+  firmUniversityId: '',
+  // Universities only: the institution's own name. One account per
+  // institution, so no staff identity or department is collected.
+  universityName: '',
+  // Universities only: the address typed into the "Institutional email" field.
+  // The API derives the final registrar address from it, so we send the bare
+  // domain, never the email itself.
   email: '',
   password: '',
   confirmPassword: '',
 };
 
-// Maps the form onto exactly what the API persists for each role. Anything the
-// form collects MUST appear here — the previous in-page toggle silently dropped
-// industrySector / contactPerson / staffId / department.
 function buildPayload(role, form) {
   if (role === 'student') {
+    const universityId = Number.parseInt(form.universityId, 10);
     return {
       name: form.fullName.trim(),
-      email: form.email,
       password: form.password,
       role,
-      regNumber: form.regNumber.trim(),
       course: form.course,
+      universityId: Number.isInteger(universityId) ? universityId : undefined,
     };
   }
   if (role === 'firm') {
+    const universityId = Number.parseInt(form.firmUniversityId, 10);
     return {
       name: form.companyName.trim(),
       companyName: form.companyName.trim(),
       contactPerson: form.contactPerson.trim(),
       industrySector: form.industrySector,
-      email: form.email,
       password: form.password,
       role,
+      universityId: Number.isInteger(universityId) ? universityId : undefined,
     };
   }
+  // Universities only: the institution's name + the typed registrar address.
+  // The API derives the registrar address itself (e.g.
+  // university.of.eldoret@registrar.uoe.ac.ke) and enforces one account per
+  // institution domain, so we send the bare domain, never the email.
   return {
-    name: form.facultyName.trim(),
-    email: form.email,
+    name: form.universityName.trim(),
     password: form.password,
     role,
-    staffId: form.staffId.trim(),
-    department: form.department,
+    domain: institutionDomainFromEmail(form.email),
   };
 }
 
@@ -105,9 +109,34 @@ export default function Register() {
   const role = isRegistrableRole(routeRole) ? routeRole : null;
 
   const [form, setForm] = useState(EMPTY_FORM);
+  const [universities, setUniversities] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!role) return;
+    authService
+      .listUniversities()
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setUniversities(list);
+        if (role === 'student' && !form.universityId && list[0]?.id) {
+          setForm((prev) => ({ ...prev, universityId: String(list[0].id) }));
+        }
+        if (role === 'firm' && !form.firmUniversityId && list[0]?.id) {
+          setForm((prev) => ({ ...prev, firmUniversityId: String(list[0].id) }));
+        }
+      })
+      .catch((err) => {
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            'Could not load universities. Please reload the page.'
+        );
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -124,6 +153,25 @@ export default function Register() {
     }
     if (form.password.length < 8) {
       setError('Use a password of at least 8 characters.');
+      return;
+    }
+    // Students and firms pick a university (pre-selected to the first in the
+    // list); their email is derived from it server-side.
+    if (role === 'student' && !Number.isInteger(Number.parseInt(form.universityId, 10))) {
+      setError('Choose the university you are enrolled at.');
+      return;
+    }
+    if (role === 'firm' && !Number.isInteger(Number.parseInt(form.firmUniversityId, 10))) {
+      setError('Choose the university your company partners with.');
+      return;
+    }
+    // University signups send the institution domain, recovered from the typed
+    // address. Catch an unusable address here for a friendlier message than the
+    // API's 400.
+    if (role === 'university' && !isValidDomain(institutionDomainFromEmail(form.email))) {
+      setError(
+        'Enter a valid institutional email so we can derive your university domain (e.g. registrar@uoe.ac.ke).'
+      );
       return;
     }
 
@@ -201,6 +249,43 @@ export default function Register() {
   }
 
   const config = registrationRoles[role];
+  // Students: the API assigns the admission number and derives the address from
+  // the chosen university, so both are previews, not inputs.
+  const selectedUniversity = universities.find(
+    (u) => String(u.id) === String(form.universityId)
+  );
+  // Firms: the API derives the recruitment address from the company name plus
+  // the affiliated university's domain, so it is a preview, not an input.
+  const selectedFirmUniversity = universities.find(
+    (u) => String(u.id) === String(form.firmUniversityId)
+  );
+  const derivedFirmEmail =
+    role === 'firm'
+      ? previewAccountEmail({
+          role,
+          name: form.companyName,
+          domain: selectedFirmUniversity?.domain,
+        })
+      : '';
+  const derivedStudentEmail =
+    role === 'student'
+      ? previewAccountEmail({
+          role,
+          name: form.fullName,
+          domain: selectedUniversity?.domain,
+        })
+      : '';
+  const regNumberPreview = role === 'student' ? previewRegNumber(form.course) : '';
+  // Universities: show the read-only address the API will derive once both the
+  // institution name and a registrar email have been typed.
+  const derivedUniversityEmail =
+    role === 'university'
+      ? previewAccountEmail({
+          role,
+          name: form.universityName,
+          domain: institutionDomainFromEmail(form.email),
+        })
+      : '';
 
   return (
     <AuthShell
@@ -242,14 +327,19 @@ export default function Register() {
               onChange={handleInputChange}
               required
             />
-            <Input
-              label="Admission / registration number"
-              name="regNumber"
-              placeholder="e.g. BBIT/4901/2023"
-              value={form.regNumber}
+            <Select
+              label="University"
+              name="universityId"
+              value={form.universityId}
               onChange={handleInputChange}
               required
-            />
+            >
+              {universities.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </Select>
             <Select
               label="Course"
               name="course"
@@ -296,60 +386,83 @@ export default function Register() {
                 </option>
               ))}
             </Select>
-          </>
-        )}
-
-        {role === 'university' && (
-          <>
-            <Input
-              label="Full name / title"
-              name="facultyName"
-              autoComplete="name"
-              placeholder="e.g. Prof. Evans Kiprop"
-              value={form.facultyName}
-              onChange={handleInputChange}
-              required
-            />
-            <Input
-              label="Staff ID"
-              name="staffId"
-              placeholder="e.g. ST-1042"
-              value={form.staffId}
-              onChange={handleInputChange}
-              required
-            />
             <Select
-              label="Department"
-              name="department"
-              value={form.department}
+              label="Partner university"
+              name="firmUniversityId"
+              value={form.firmUniversityId}
               onChange={handleInputChange}
+              required
             >
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+              {universities.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
                 </option>
               ))}
             </Select>
           </>
         )}
 
-        <Input
-          label={role === 'student' ? 'Student email' : role === 'firm' ? 'Work email' : 'Institutional email'}
-          name="email"
-          type="email"
-          icon={Mail}
-          autoComplete="email"
-          placeholder={
-            role === 'student'
-              ? 'alex.kamau@students.strathmore.edu'
-              : role === 'firm'
-                ? 'recruitment@company.com'
-                : 'registrar@strathmore.edu'
-          }
-          value={form.email}
-          onChange={handleInputChange}
-          required
-        />
+        {role === 'university' && (
+          <Input
+            label="University"
+            name="universityName"
+            icon={Landmark}
+            autoComplete="organization"
+            placeholder="e.g. University of Eldoret"
+            value={form.universityName}
+            onChange={handleInputChange}
+            required
+          />
+        )}
+
+        {role === 'university' && (
+          <Input
+            label="Institutional email"
+            name="email"
+            type="email"
+            icon={Mail}
+            autoComplete="email"
+            placeholder="registrar@strathmore.edu"
+            value={form.email}
+            onChange={handleInputChange}
+            required
+          />
+        )}
+
+        {role === 'student' && (derivedStudentEmail || regNumberPreview) && (
+          <div className="space-y-1 rounded-xl border border-line bg-surface px-4 py-3 text-xs text-ink-4">
+            <p>
+              Student email{' '}
+              {derivedStudentEmail ? (
+                <span className="font-semibold text-ink-2">{derivedStudentEmail}</span>
+              ) : (
+                '— pick your university to preview it'
+              )}
+            </p>
+            <p>
+              Admission number is assigned at signup, e.g.{' '}
+              <span className="font-semibold text-ink-2">{regNumberPreview}</span>
+            </p>
+          </div>
+        )}
+
+        {role === 'firm' && (
+          <p className="rounded-xl border border-line bg-surface px-4 py-3 text-xs text-ink-4">
+            Your recruitment email will be the read-only address{' '}
+            {derivedFirmEmail ? (
+              <span className="font-semibold text-ink-2">{derivedFirmEmail}</span>
+            ) : (
+              '— enter your company name to preview it'
+            )}
+          </p>
+        )}
+
+        {role === 'university' && derivedUniversityEmail && (
+          <p className="rounded-xl border border-line bg-surface px-4 py-3 text-xs text-ink-4">
+            Your account will be created with the read-only address{' '}
+            <span className="font-semibold text-ink-2">{derivedUniversityEmail}</span>
+          </p>
+        )}
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
