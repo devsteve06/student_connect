@@ -340,8 +340,8 @@ test('migrations: build the full schema from scratch on an empty database', asyn
   ).rows
     .map((r) => r.table_name)
     .filter((t) => !t.startsWith('schema_migrations'));
-  for (const t of ['admins', 'universities', 'firms', 'students', 'placements', 'applications', 'logbooks']) {
-    assert.ok(tables.includes(t), `${t} created by 0001_init.sql`);
+  for (const t of ['admins', 'universities', 'firms', 'students', 'placements', 'applications', 'logbooks', 'notifications']) {
+    assert.ok(tables.includes(t), `${t} created by the migration chain`);
   }
 
   const cols = (
@@ -382,6 +382,64 @@ test('migrations: signup-only columns exist on firms and universities', async ()
   assert.ok(uniCols.includes('department'), 'universities.department exists after migration');
 
   await pool.end();
+});
+
+// --- job postings + notifications (JOB_POSTING_PLAN.md Phase 1) ------------
+
+test('migrations: placements carry the open/closed lifecycle and notifications exist', async () => {
+  const pool = await bootMigrationPool();
+  await runMigrations(pool);
+
+  const placementCols = (
+    await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'placements'")
+  ).rows.map((r) => r.column_name);
+  assert.ok(placementCols.includes('status'), 'placements.status exists after migration');
+  assert.ok(placementCols.includes('closed_at'), 'placements.closed_at exists after migration');
+
+  const notifCols = (
+    await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'notifications'")
+  ).rows.map((r) => r.column_name);
+  for (const c of ['student_id', 'firm_id', 'type', 'title', 'body', 'link', 'is_read', 'created_at']) {
+    assert.ok(notifCols.includes(c), `notifications.${c} exists after migration`);
+  }
+
+  await pool.end();
+});
+
+test('notifications: default to unread and require exactly one recipient', async () => {
+  await ensureDb();
+  const student = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const firm = (await query('SELECT id FROM firms LIMIT 1')).rows[0].id;
+
+  // Pre-existing placements read as 'Open' via the column default.
+  const openCount = (await query("SELECT COUNT(*)::int AS c FROM placements WHERE status = 'Open'")).rows[0].c;
+  const totalCount = (await query('SELECT COUNT(*)::int AS c FROM placements')).rows[0].c;
+  assert.equal(openCount, totalCount, 'every pre-existing placement defaults to Open');
+
+  // A valid row is unread until touched.
+  const inserted = (
+    await query(
+      `INSERT INTO notifications (student_id, type, title)
+       VALUES ($1, 'new_posting', 'New placement') RETURNING is_read`,
+      [student]
+    )
+  ).rows[0];
+  assert.equal(inserted.is_read, false, 'notifications are unread by default');
+
+  const rejected = /check constraint|violates|null/i;
+  await assert.rejects(
+    query(`INSERT INTO notifications (type, title) VALUES ('new_posting', 'No recipient')`),
+    rejected,
+    'a notification with no recipient is rejected'
+  );
+  await assert.rejects(
+    query(
+      `INSERT INTO notifications (student_id, firm_id, type, title) VALUES ($1, $2, 'new_posting', 'Two recipients')`,
+      [student, firm]
+    ),
+    rejected,
+    'a notification addressed to both a student and a firm is rejected'
+  );
 });
 
 // --- auth: self-service registration ---------------------------------------

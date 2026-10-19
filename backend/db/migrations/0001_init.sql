@@ -64,6 +64,10 @@ CREATE TABLE IF NOT EXISTS placements (
     duration      VARCHAR(40)  NOT NULL,
     slots         INTEGER      NOT NULL DEFAULT 1 CHECK (slots >= 0),
     description   TEXT         NOT NULL,
+    -- lifecycle: a firm closes its own posting, or it auto-closes when a
+    -- candidate is Approved (see 0008_job_posting_lifecycle.sql)
+    status        VARCHAR(20)  NOT NULL DEFAULT 'Open' CHECK (status IN ('Open','Closed')),
+    closed_at     TIMESTAMPTZ,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 

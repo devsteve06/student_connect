@@ -90,6 +90,10 @@ CREATE TABLE placements (
     duration      VARCHAR(40)  NOT NULL,
     slots         INTEGER      NOT NULL DEFAULT 1 CHECK (slots >= 0),
     description   TEXT         NOT NULL,
+    -- lifecycle: a firm closes its own posting, or it auto-closes when a
+    -- candidate is Approved (see 0008_job_posting_lifecycle.sql)
+    status        VARCHAR(20)  NOT NULL DEFAULT 'Open' CHECK (status IN ('Open','Closed')),
+    closed_at     TIMESTAMPTZ,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
@@ -182,3 +186,29 @@ CREATE TABLE cv_analyses (
 );
 
 CREATE INDEX idx_cv_analyses_student ON cv_analyses(student_id);
+
+-- -----------------------------------------------------------------------------
+-- Job postings + notifications (JOB_POSTING_PLAN.md Phase 1)
+--   placements gains status/closed_at near its definition above; this is the
+--   in-app notification feed behind the dashboard badges. The recipient is two
+--   nullable FK columns with a CHECK that exactly one is set; `type` is
+--   unconstrained so new event kinds need no migration (known values:
+--   'new_posting', 'application_received', 'application_update').
+-- -----------------------------------------------------------------------------
+CREATE TABLE notifications (
+    id          SERIAL PRIMARY KEY,
+    student_id  INTEGER      NULL REFERENCES students(id) ON DELETE CASCADE,
+    firm_id     INTEGER      NULL REFERENCES firms(id)    ON DELETE CASCADE,
+    type        VARCHAR(40)  NOT NULL,
+    title       VARCHAR(200) NOT NULL,
+    body        TEXT,
+    link        VARCHAR(200),
+    is_read     BOOLEAN      NOT NULL DEFAULT false,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CHECK ((student_id IS NOT NULL AND firm_id IS NULL)
+        OR (student_id IS NULL AND firm_id IS NOT NULL))
+);
+
+CREATE INDEX idx_notifications_student ON notifications(student_id, is_read);
+CREATE INDEX idx_notifications_firm    ON notifications(firm_id, is_read);
+CREATE INDEX idx_placements_status     ON placements(firm_id, status);

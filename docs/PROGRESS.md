@@ -2,12 +2,20 @@
 
 ## Current Status
 - **Date**: 2026-10-19
-- **Phase**: CV builder Phases 1–6 all implemented (upload landed); Phase 4 (deploy) configured, not yet executed
+- **Phase**: CV builder Phases 1–6 all implemented (upload landed); job postings Phase 1 (schema) landed on `feat/job-postings`; deploy Phase 4 configured, not yet executed
 - **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-19 (Job postings Phase 1 — schema + notifications table)
+- **Job-posting lifecycle schema landed (Phase 1 of `JOB_POSTING_PLAN.md`)** on branch `feat/job-postings` — schema only, no endpoints or UI yet.
+  - **Migration** (`0008_job_posting_lifecycle.sql`): `placements` gains `status VARCHAR(20) NOT NULL DEFAULT 'Open' CHECK (status IN ('Open','Closed'))` and `closed_at TIMESTAMPTZ` (a firm closes its own posting; it also auto-closes when a candidate is Approved in a later phase). New `notifications` table powers the dashboard badges: `student_id`/`firm_id` are two nullable FKs (CASCADE) with a CHECK that exactly one is set — chosen over a polymorphic `user_role`+`user_id` pair for referential integrity — plus `type` (unconstrained for extensibility; known values `new_posting`, `application_received`, `application_update`), `title`, `body`, `link`, `is_read`, `created_at`. Indexes: `idx_notifications_student (student_id, is_read)`, `idx_notifications_firm (firm_id, is_read)`, `idx_placements_status (firm_id, status)`.
+  - **Three-place rule**: mirrored into `sql/schema.sql` (placements columns + notifications table + indexes, so pg-mem seeds include them) and `0001_init.sql` (placements columns only — new tables live in their own migration, matching the CV-builder precedent).
+  - **Tests** (`unit.test.js`, 55 → 57): the canonical table-list assertion now expects `notifications`; new migration test asserts the placements lifecycle columns and the notifications columns; new behavior test asserts seeded placements default to `Open`, fresh notifications are unread, and rows with zero or two recipients are rejected by the CHECK. All pg-mem compatible (plain ADD COLUMN IF NOT EXISTS / CREATE TABLE IF NOT EXISTS only).
+  - Verified: `backend npm test` 57/57; no frontend file touched.
+  - Next: Phase 2 — notification endpoints + `notificationService.js` + a live Navbar badge.
 
 ### 2026-10-19 (CV builder Phase 6 — upload an existing CV)
 - **CV upload landed (Phase 6 of `CV_BUILDER_PLAN.md`)** — students can import an existing PDF/text CV and have it parsed into an editable draft instead of starting from scratch.
