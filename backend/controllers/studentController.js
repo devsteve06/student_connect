@@ -102,6 +102,23 @@ export const applyForPlacement = async (req, res, next) => {
       });
     }
 
+    // One application per student per internship — a repeat click used to
+    // insert a second row and inflate the firm's counters. The firm + role
+    // pair identifies the internship here because it is exactly how this
+    // endpoint resolves a placement above, and it also catches applications
+    // whose posting has since been deleted (placement_id is NULL by then).
+    // Migration 0009 backs this up with a unique index against double-submits.
+    const alreadyApplied = (await query(
+      'SELECT id FROM applications WHERE student_id = $1 AND firm_id = $2 AND role = $3 LIMIT 1',
+      [req.user.id, firm.id, role]
+    )).rows[0];
+
+    if (alreadyApplied) {
+      return res.status(409).json({
+        message: `You have already applied for "${role}" at ${companyName}.`
+      });
+    }
+
     // The status is server-owned: a submission always lands as 'Pending
     // Review' and only the firm's PATCH may move it on. Honouring a
     // client-supplied status let a student self-approve, and any value
@@ -145,11 +162,20 @@ export const applyForPlacement = async (req, res, next) => {
 export const getPlacements = async (req, res, next) => {
   try {
     const rows = (await query(
-      `SELECT p.id, f.company_name AS company, p.role, p.location, p.duration, p.slots, p.description, p.status
+      `SELECT p.id, p.firm_id, f.company_name AS company, p.role, p.location, p.duration, p.slots, p.description, p.status
          FROM placements p
          JOIN firms f ON f.id = p.firm_id
         ORDER BY p.id`
     )).rows;
+
+    // Flag the internships this student already applied to so the marketplace
+    // can show "Applied" instead of an Apply button. Keyed on the firm + role
+    // pair, the same identity applyForPlacement enforces.
+    const applications = (await query(
+      'SELECT firm_id, role FROM applications WHERE student_id = $1',
+      [req.user.id]
+    )).rows;
+    const appliedKeys = new Set(applications.map((a) => `${a.firm_id}::${a.role}`));
 
     res.json(rows.map((r) => ({
       id: r.id,
@@ -160,7 +186,8 @@ export const getPlacements = async (req, res, next) => {
       duration: r.duration,
       slots: r.slots,
       description: r.description,
-      status: r.status
+      status: r.status,
+      applied: appliedKeys.has(`${r.firm_id}::${r.role}`)
     })));
   } catch (error) {
     next(error);

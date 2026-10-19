@@ -143,6 +143,8 @@ CREATE INDEX idx_firms_university    ON firms(university_id);
 CREATE INDEX idx_placements_firm     ON placements(firm_id);
 CREATE INDEX idx_applications_student ON applications(student_id);
 CREATE INDEX idx_applications_firm    ON applications(firm_id);
+-- One application per student per internship (firm + role); see 0009.
+CREATE UNIQUE INDEX idx_applications_unique_posting ON applications(student_id, firm_id, role);
 CREATE INDEX idx_logbooks_student     ON logbooks(student_id);
 
 -- -----------------------------------------------------------------------------

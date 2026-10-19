@@ -713,7 +713,9 @@ test('posting fan-out: publishing notifies every student at the firm\'s universi
 test('application events: applying notifies the firm, and a closed posting rejects with 409', async () => {
   await ensureDb();
   const firm = (await query("SELECT id FROM firms WHERE company_name = 'Nexus Labs'")).rows[0];
-  const student = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  // Mary has no seeded applications, so this is a first-time application for
+  // the pair (the seed gives Alex this very internship).
+  const student = await studentIdByEmail('mary.wanjiru@students.mu.ac.ke');
   const placement = (await query(
     "SELECT id FROM placements WHERE firm_id = $1 AND role = 'Full-Stack Developer Intern'",
     [firm.id]
@@ -771,12 +773,67 @@ test('application events: applying notifies the firm, and a closed posting rejec
 
   // Restore for any later tests.
   await query("UPDATE placements SET status = 'Open', closed_at = NULL WHERE id = $1", [placement.id]);
+  await query('DELETE FROM applications WHERE student_id = $1 AND firm_id = $2 AND role = $3', [
+    student,
+    firm.id,
+    'Full-Stack Developer Intern'
+  ]);
+});
+
+test('applications: a student cannot apply for the same internship twice', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'Nexus Labs'")).rows[0];
+  const student = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const role = 'Full-Stack Developer Intern';
+  const countPairs = async () =>
+    (
+      await query(
+        'SELECT count(*)::int AS c FROM applications WHERE student_id = $1 AND firm_id = $2 AND role = $3',
+        [student, firm.id, role]
+      )
+    ).rows[0].c;
+
+  // The seed already gives Alex this internship, so this is a real repeat.
+  assert.equal(await countPairs(), 1, 'the seed has exactly one application for this pair');
+  const firmBefore = await unreadCountFor(firm.id, 'firm');
+
+  const res = mockRes();
+  await applyForPlacement(
+    { user: { id: student, role: 'student' }, body: { companyName: 'Nexus Labs', role } },
+    res,
+    noNext
+  );
+
+  assert.equal(res.statusCode, 409, 'a repeat application is refused');
+  assert.match(res.body.message, /already applied/i, 'the message explains why');
+  assert.equal(await countPairs(), 1, 'no duplicate row was inserted');
+  assert.equal(await unreadCountFor(firm.id, 'firm'), firmBefore, 'the firm was not notified again');
+
+  // The marketplace marks it so the UI can hide the Apply button.
+  const listRes = mockRes();
+  await getPlacements({ user: { id: student, role: 'student' } }, listRes, noNext);
+  const listed = listRes.body.find((p) => p.role === role && p.companyName === 'Nexus Labs');
+  assert.equal(listed.applied, true, 'an already-applied posting is flagged');
+  assert.ok(listRes.body.some((p) => p.applied === false), 'untouched postings are not flagged');
+
+  // And the database refuses a duplicate even if the controller were bypassed.
+  await assert.rejects(
+    query(
+      `INSERT INTO applications (student_id, firm_id, role, status)
+       VALUES ($1, $2, $3, 'Pending Review')`,
+      [student, firm.id, role]
+    ),
+    /duplicate|unique/i,
+    'the unique index is the last line of defence'
+  );
 });
 
 test('applications: the server owns the status, so a client-supplied value is ignored', async () => {
   await ensureDb();
   const firm = (await query("SELECT id FROM firms WHERE company_name = 'Apex Cloud Labs'")).rows[0];
-  const student = await studentIdByEmail('brian.otieno@students.tukenya.ac.ke');
+  // Mary has no seeded application here (the seed gives this internship to
+  // Brian), so each loop iteration is a legitimate first application.
+  const student = await studentIdByEmail('mary.wanjiru@students.mu.ac.ke');
 
   // 'Pending review' (lowercase r) is exactly what the marketplace used to
   // send: it violated the column CHECK and 500'd on real Postgres, while

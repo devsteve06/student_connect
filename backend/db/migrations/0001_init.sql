@@ -107,6 +107,8 @@ CREATE INDEX IF NOT EXISTS idx_firms_university      ON firms(university_id);
 CREATE INDEX IF NOT EXISTS idx_placements_firm      ON placements(firm_id);
 CREATE INDEX IF NOT EXISTS idx_applications_student ON applications(student_id);
 CREATE INDEX IF NOT EXISTS idx_applications_firm    ON applications(firm_id);
+-- One application per student per internship (firm + role); see 0009.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_applications_unique_posting ON applications(student_id, firm_id, role);
 CREATE INDEX IF NOT EXISTS idx_logbooks_student     ON logbooks(student_id);
 
 -- Note: the CV builder tables (student_cvs, cv_analyses) are deliberately NOT

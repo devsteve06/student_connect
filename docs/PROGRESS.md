@@ -9,6 +9,17 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-19 (Fix: one application per internship — no repeat applications)
+- **Requirement:** "a student should not apply for the same internships twice." A repeat click previously inserted a second row, so the firm's pipeline showed the same student twice and its counters inflated.
+- **The internship identity is the firm + role pair** — exactly how `applyForPlacement` already resolves a posting. Keying on that pair (not `placement_id`) also covers applications whose posting was later deleted, since `placement_id` is `ON DELETE SET NULL`.
+- **Server guard:** `applyForPlacement` now checks for an existing row *before* inserting (after the closed-posting check) and answers **409** with `You have already applied for "<role>" at <firm>.` No INSERT, so no firm notification either.
+- **Database invariant (defense in depth):** new migration `0009_one_application_per_posting.sql` adds `UNIQUE INDEX idx_applications_unique_posting ON applications(student_id, firm_id, role)`, mirrored into `sql/schema.sql` and `db/migrations/0001_init.sql` (three-place rule). The migration first dedupes any pre-existing duplicates (keeping the earliest row per group) so it cannot fail half-way on a live database. The dedupe uses the derived-table shape because that is the one variant both PostgreSQL **and pg-mem** parse — pg-mem rejects `NOT IN (SELECT MIN(...) GROUP BY ...)`, correlated deletes, `DELETE ... USING`, and window functions, all of which were probed first.
+- **Marketplace payload:** `getPlacements` now returns an `applied` boolean per posting (merged in JS from the student's applications — no correlated subquery, which pg-mem cannot do).
+- **UI:** an already-applied card shows a green **Applied ✓** chip instead of the Apply button, and the chip flips locally right after a successful submission (keyed on firm + role) so the card is locked without a reload.
+- **Tests (68 → 69):** new `applications: a student cannot apply for the same internship twice` asserts 409 + `/already applied/i`, that no row is added, that the firm is **not** re-notified, that `applied: true` is flagged for that posting and `false` elsewhere, and that a raw INSERT bypassing the controller is rejected by the unique index (`/duplicate|unique/i`).
+- **Two existing tests had been quietly inserting duplicates of seed rows** (the seed gives Alex the Nexus Full-Stack internship and Brian the Apex Backend one) — with a real constraint they would now fail. Both were repointed at Mary (the one seeded student with no applications) and the first now cleans up after itself.
+- Verified: `backend npm test` 69/69 (the migration test runs 0009 against pg-mem); `frontend npx eslint src` 0 problems; `vite build` green.
+
 ### 2026-10-19 (Fix: applying to a posting 500'd — server now owns application status; expandable marketplace cards)
 - **Bug (reported):** applying for any position failed with `new row for relation "applications" violates check constraint` (the "NEW ROW …" error). Root cause was a two-sided bug:
   - `StudentMarketplace.handleApply` sent `status: 'Pending review'` (**lowercase "r"**), but `applications.status` has `CHECK (status IN ('Pending Review','Interviewing','Approved','Hired','Rejected'))` → Postgres rejected the row → 500.

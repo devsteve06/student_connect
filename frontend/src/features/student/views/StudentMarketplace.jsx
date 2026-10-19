@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Clock, ArrowUpRight, Lock, ChevronDown } from 'lucide-react';
+import { MapPin, Clock, ArrowUpRight, Lock, ChevronDown, Check } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import PageBanner from '../../../components/common/PageBanner';
@@ -48,6 +48,10 @@ export default function StudentMarketplace() {
       setNotice({ type: 'error', text: 'This posting has been closed and is no longer accepting applications.' });
       return;
     }
+    if (placement.applied) {
+      setNotice({ type: 'error', text: `You have already applied for "${placement.role}".` });
+      return;
+    }
     setSubmittingId(placement.id);
     setNotice(null);
     // No status here: the application always lands as 'Pending Review' and
@@ -59,6 +63,13 @@ export default function StudentMarketplace() {
     };
     try {
       await studentService.applyForPlacement(payload);
+      // Lock the card so it cannot be applied to twice without a reload. Keyed
+      // on the firm + role pair, matching how the server flags `applied`.
+      setPlacements((prev) =>
+        prev.map((p) =>
+          p.companyName === placement.companyName && p.role === placement.role ? { ...p, applied: true } : p
+        )
+      );
       setNotice({ type: 'success', text: `Applied to ${placement.role} at ${placement.companyName || 'the firm'}.` });
     } catch (err) {
       setNotice({ type: 'error', text: err?.response?.data?.message || 'Could not submit your application. Please try again.' });
@@ -246,6 +257,11 @@ export default function StudentMarketplace() {
                     <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-5">
                       <Lock className="h-3.5 w-3.5" />
                       Closed
+                    </span>
+                  ) : job.applied ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+                      <Check className="h-3.5 w-3.5" />
+                      Applied
                     </span>
                   ) : (
                     <Button
