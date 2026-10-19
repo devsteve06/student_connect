@@ -1,6 +1,6 @@
 // controllers/studentController.js
 import { query } from '../data/db.js';
-import { formatDate, todayISO } from '../utils/format.js';
+import { formatDate, todayISO, toDateOnly } from '../utils/format.js';
 import { notifyQuietly } from '../utils/notify.js';
 
 const PHONE_RE = /^(\+?254|0)[17]\d{8}$/;
@@ -39,11 +39,21 @@ export const getMetrics = async (req, res, next) => {
     const apps = (await query('SELECT status FROM applications WHERE student_id = $1', [req.user.id])).rows;
     const profile = (await query('SELECT profile_completion FROM students WHERE id = $1', [req.user.id])).rows[0];
 
+    // "Active" means still in play: a rejection ends the application, so it must
+    // not be counted as active (it used to be, and the card drifted from the
+    // status pill on the same row). Approved/Hired stay active because the
+    // placement is live — they are counted separately as well.
+    const active = apps.filter((a) => a.status !== 'Rejected');
+    const offered = apps.filter((a) => a.status === 'Approved' || a.status === 'Hired');
+
     res.json({
       profileCompletion: profile?.profile_completion ?? '50%',
       totalApplications: apps.length,
+      activeApplications: active.length,
       interviewsScheduled: apps.filter((a) => a.status === 'Interviewing').length,
-      pendingReview: apps.filter((a) => a.status === 'Pending Review').length
+      pendingReview: apps.filter((a) => a.status === 'Pending Review').length,
+      approvedApplications: offered.length,
+      rejectedApplications: apps.filter((a) => a.status === 'Rejected').length
     });
   } catch (error) {
     next(error);
@@ -54,7 +64,7 @@ export const getMetrics = async (req, res, next) => {
 export const getApplications = async (req, res, next) => {
   try {
     const rows = (await query(
-      `SELECT a.id, f.company_name AS company, a.role, a.applied_date, a.status
+      `SELECT a.id, f.company_name AS company, a.role, a.applied_date, a.status, a.interview_date
          FROM applications a
          JOIN firms f ON f.id = a.firm_id
         WHERE a.student_id = $1
@@ -66,8 +76,9 @@ export const getApplications = async (req, res, next) => {
       id: r.id,
       companyName: r.company,
       role: r.role,
-      appliedDate: formatDate(r.applied_date),
-      status: r.status
+      appliedDate: formatDate(toDateOnly(r.applied_date)),
+      status: r.status,
+      interviewDate: formatDate(toDateOnly(r.interview_date))
     })));
   } catch (error) {
     next(error);

@@ -42,7 +42,8 @@ export const getCoordinatorMetrics = async (req, res, next) => {
       `SELECT COUNT(*)::int AS n
          FROM logbooks l
          JOIN students s ON s.id = l.student_id
-        WHERE s.university_id = $1 AND l.faculty_sign_off <> 'Approved'`,
+        WHERE s.university_id = $1 AND l.faculty_sign_off <> 'Approved'
+          AND s.id IN (SELECT a.student_id FROM applications a WHERE a.status IN ('Approved','Hired'))`,
       [universityId]
     )).rows[0].n;
 
@@ -58,10 +59,16 @@ export const getCoordinatorMetrics = async (req, res, next) => {
 };
 
 // GET /universities/logbooks/pending — this university's logbooks awaiting faculty sign-off
+// Only logbooks from students who are actually placed count: the queue follows
+// the application status, so a rejected/pending application's entries never
+// surface as work for the faculty.
 export const getPendingLogbooks = async (req, res, next) => {
   try {
     const rows = (await query(
-      `${PENDING_SELECT} WHERE s.university_id = $1 AND l.faculty_sign_off <> 'Approved' ORDER BY l.id`,
+      `${PENDING_SELECT}
+        WHERE s.university_id = $1 AND l.faculty_sign_off <> 'Approved'
+          AND s.id IN (SELECT a.student_id FROM applications a WHERE a.status IN ('Approved','Hired'))
+        ORDER BY l.id`,
       [req.user.id]
     )).rows;
     res.json(rows.map(logbookShape));

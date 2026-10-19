@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 // CI has no .env to load. Set it before any test body runs.
 process.env.JWT_SECRET ||= 'test-only-secret';
 
-import { formatDate, todayISO } from '../utils/format.js';
+import { formatDate, todayISO, isoInDays, toDateOnly } from '../utils/format.js';
 import {
   slugifyName,
   normalizeDomain,
@@ -41,6 +41,14 @@ test('formatDate handles YYYY-MM-DD strings tz-safely', () => {
 
 test('formatDate handles Date objects', () => {
   assert.equal(formatDate(new Date(Date.UTC(2026, 0, 5))), 'Jan 05, 2026');
+});
+
+test('toDateOnly reads a DATE-at-local-midnight without slipping a day', () => {
+  // node-postgres parses a DATE column into local midnight; its UTC parts can
+  // still be the previous day east of UTC.
+  assert.equal(toDateOnly(new Date(2026, 9, 27)), '2026-10-27');
+  assert.equal(toDateOnly('2026-10-27'), '2026-10-27');
+  assert.equal(toDateOnly(null), null);
 });
 
 test('formatDate returns null for null/undefined', () => {
@@ -175,7 +183,7 @@ test('notFound responds with 404', () => {
 
 // --- student logbook endpoints (pg-mem integration) ------------------------
 import { initDb, query } from '../data/db.js';
-import { getMyLogbooks, upsertLogbook } from '../controllers/studentController.js';
+import { getMyLogbooks, upsertLogbook, getMetrics } from '../controllers/studentController.js';
 import { getPendingLogbooks, signOffLogbook } from '../controllers/universityController.js';
 
 // Boots the in-memory Postgres once, forcing pg-mem mode even if DATABASE_URL
@@ -378,6 +386,15 @@ test('logbook: student submit -> coordinator pending -> faculty approval round-t
   const studentId = await studentIdByEmail('jane.doe@students.jkuat.ac.ke');
   const universityId = (await query('SELECT university_id FROM students WHERE id = $1', [studentId])).rows[0].university_id;
 
+  // The faculty pending queue follows the application status — only logbooks
+  // from placed students are work for the coordinator — so put Jane on
+  // attachment for the round-trip and restore her rows afterwards.
+  const seededStatuses = (await query(
+    'SELECT id, status FROM applications WHERE student_id = $1',
+    [studentId]
+  )).rows;
+  await query("UPDATE applications SET status = 'Approved' WHERE student_id = $1", [studentId]);
+
   let res = mockRes();
   await upsertLogbook(
     { user: { id: studentId }, body: { weekNumber: 2, wednesday: 'Demo the green path.', weeklyReflection: 'End-to-end verified.' } },
@@ -402,6 +419,9 @@ test('logbook: student submit -> coordinator pending -> faculty approval round-t
   assert.equal(res.body.facultySignOff, 'Approved');
 
   await query('DELETE FROM logbooks WHERE id = $1', [newId]);
+  for (const app of seededStatuses) {
+    await query('UPDATE applications SET status = $1 WHERE id = $2', [app.status, app.id]);
+  }
 });
 
 // --- Phase 3: request tracing + migration runner ---------------------------
@@ -495,6 +515,11 @@ test('migrations: placements carry the open/closed lifecycle and notifications e
   for (const c of ['student_id', 'firm_id', 'type', 'title', 'body', 'link', 'is_read', 'created_at']) {
     assert.ok(notifCols.includes(c), `notifications.${c} exists after migration`);
   }
+
+  const appCols = (
+    await pool.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'applications'")
+  ).rows.map((r) => r.column_name);
+  assert.ok(appCols.includes('interview_date'), 'applications.interview_date exists after migration');
 
   await pool.end();
 });
@@ -639,7 +664,9 @@ import {
   listPlacements,
   createPlacement,
   updatePlacement,
-  closePlacement
+  closePlacement,
+  reopenPlacement,
+  getFirmMetrics
 } from '../controllers/firmController.js';
 
 test('placements: a firm creates, lists, edits and closes its own postings', async () => {
@@ -735,6 +762,161 @@ test('placements: a firm creates, lists, edits and closes its own postings', asy
   const missingClose = mockRes();
   await closePlacement({ ...asUser(other), params: { id: String(placementId) } }, missingClose, noNext);
   assert.equal(missingClose.statusCode, 404, "another firm cannot close my posting");
+
+  // Reopen — back on the market with closed_at cleared, and editable again.
+  const reopened = mockRes();
+  await reopenPlacement({ ...asUser(mine), params: { id: String(placementId) } }, reopened, noNext);
+  assert.equal(reopened.statusCode, 200);
+  assert.equal(reopened.body.status, 'Open', 'the posting accepts applications again');
+  assert.equal(reopened.body.closedAt, null, 'closed_at is cleared on reopen');
+
+  const reopenAgain = mockRes();
+  await reopenPlacement({ ...asUser(mine), params: { id: String(placementId) } }, reopenAgain, noNext);
+  assert.equal(reopenAgain.statusCode, 200, 'reopening an Open posting is idempotent');
+  assert.equal(reopenAgain.body.status, 'Open');
+
+  const editedAfterReopen = mockRes();
+  await updatePlacement(
+    { ...asUser(mine), params: { id: String(placementId) }, body: { location: 'Mombasa' } },
+    editedAfterReopen,
+    noNext
+  );
+  assert.equal(editedAfterReopen.statusCode, 200, 'a reopened posting is editable again');
+
+  const foreignReopen = mockRes();
+  await reopenPlacement({ ...asUser(other), params: { id: String(placementId) } }, foreignReopen, noNext);
+  assert.equal(foreignReopen.statusCode, 404, "another firm cannot reopen my posting");
+});
+
+test('interview: moving an application to Interviewing books a slot a week out', async () => {
+  await ensureDb();
+  const application = (await query(
+    'SELECT id, student_id, firm_id FROM applications ORDER BY id LIMIT 1'
+  )).rows[0];
+
+  // A known starting state — earlier tests in this file move statuses around.
+  await query(
+    "UPDATE applications SET status = 'Pending Review', interview_date = NULL WHERE id = $1",
+    [application.id]
+  );
+  const before = await unreadCountFor(application.student_id, 'student');
+  const expected = formatDate(isoInDays(7));
+
+  const res = mockRes();
+  await updateApplicantStatus(
+    {
+      user: { id: application.firm_id, role: 'firm' },
+      params: { id: String(application.id) },
+      body: { status: 'Interviewing' }
+    },
+    res,
+    noNext
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.status, 'Interviewing');
+  assert.equal(res.body.interviewDate, expected, 'the firm sees the interview slot a week out');
+
+  const stored = (await query('SELECT interview_date FROM applications WHERE id = $1', [application.id])).rows[0];
+  assert.equal(
+    formatDate(toDateOnly(stored.interview_date)),
+    expected,
+    'the slot is persisted on the application'
+  );
+
+  // The applicant is told the date, not just the status.
+  assert.equal(await unreadCountFor(application.student_id, 'student'), before + 1);
+  const note = (await query(
+    'SELECT type, title, body FROM notifications WHERE student_id = $1 ORDER BY id DESC LIMIT 1',
+    [application.student_id]
+  )).rows[0];
+  assert.equal(note.type, 'application_update');
+  assert.match(String(note.title), /Interview scheduled/i);
+  assert.ok(String(note.body).includes(expected), 'the notification body carries the interview date');
+
+  // Cleanup: restore the seeded row so later tests see their fixtures.
+  await query(
+    "UPDATE applications SET status = 'Pending Review', interview_date = NULL WHERE id = $1",
+    [application.id]
+  );
+  await query('DELETE FROM notifications WHERE student_id = $1', [application.student_id]);
+});
+
+test('student metrics: a rejected application stops counting as active', async () => {
+  await ensureDb();
+  const student = await studentIdByEmail('mary.wanjiru@students.mu.ac.ke');
+  const firm = (await query('SELECT id FROM firms ORDER BY id LIMIT 1')).rows[0];
+
+  // Mary has no seeded applications; start from a known slate.
+  await query('DELETE FROM applications WHERE student_id = $1', [student]);
+  for (const [role, status] of [
+    ['Metrics Pending', 'Pending Review'],
+    ['Metrics Interview', 'Interviewing'],
+    ['Metrics Approved', 'Approved'],
+    ['Metrics Rejected', 'Rejected']
+  ]) {
+    await query(
+      'INSERT INTO applications (student_id, firm_id, role, status) VALUES ($1, $2, $3, $4)',
+      [student, firm.id, role, status]
+    );
+  }
+
+  const res = mockRes();
+  await getMetrics({ user: { id: student, role: 'student' } }, res, noNext);
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.totalApplications, 4, 'the total still includes the rejection');
+  assert.equal(res.body.activeApplications, 3, 'the rejected application is not active');
+  assert.equal(res.body.interviewsScheduled, 1);
+  assert.equal(res.body.pendingReview, 1);
+  assert.equal(res.body.approvedApplications, 1);
+  assert.equal(res.body.rejectedApplications, 1);
+
+  await query('DELETE FROM applications WHERE student_id = $1', [student]);
+});
+
+test('firm metrics: logbooks to verify follow the application status', async () => {
+  await ensureDb();
+  const student = await studentIdByEmail('mary.wanjiru@students.mu.ac.ke');
+  const firm = (await query('SELECT id FROM firms ORDER BY id LIMIT 1')).rows[0];
+
+  await query('DELETE FROM logbooks WHERE student_id = $1', [student]);
+  await query('DELETE FROM applications WHERE student_id = $1', [student]);
+
+  const metricsFor = async () => {
+    const res = mockRes();
+    await getFirmMetrics({ user: { id: firm.id, role: 'firm' } }, res, noNext);
+    return res.body;
+  };
+  const before = (await metricsFor()).unverifiedLogbooks;
+
+  const application = (await query(
+    `INSERT INTO applications (student_id, firm_id, role, status)
+     VALUES ($1, $2, 'Logbook Scoping Role', 'Pending Review') RETURNING id`,
+    [student, firm.id]
+  )).rows[0];
+  await query(
+    `INSERT INTO logbooks (student_id, firm_id, week_number, monday, weekly_reflection)
+     VALUES ($1, $2, 1, 'Shadowed the platform team.', 'Good week.')`,
+    [student, firm.id]
+  );
+
+  assert.equal(
+    (await metricsFor()).unverifiedLogbooks,
+    before,
+    "a pending applicant's logbook is not the firm's work"
+  );
+
+  await query("UPDATE applications SET status = 'Approved' WHERE id = $1", [application.id]);
+  assert.equal(
+    (await metricsFor()).unverifiedLogbooks,
+    before + 1,
+    "the placed intern's logbook now counts as awaiting verification"
+  );
+
+  // Cleanup.
+  await query('DELETE FROM logbooks WHERE student_id = $1', [student]);
+  await query('DELETE FROM applications WHERE student_id = $1', [student]);
 });
 
 // --- posting/application events (JOB_POSTING_PLAN.md Phase 4) ---------------

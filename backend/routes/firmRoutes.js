@@ -7,7 +7,8 @@ import {
   listPlacements,
   createPlacement,
   updatePlacement,
-  closePlacement
+  closePlacement,
+  reopenPlacement
 } from '../controllers/firmController.js';
 import {
   listNotifications,
@@ -27,6 +28,7 @@ router.patch('/applicants/:id', updateApplicantStatus);
 router.get('/placements', listPlacements);
 router.post('/placements', createPlacement);
 router.patch('/placements/:id/close', closePlacement);
+router.patch('/placements/:id/reopen', reopenPlacement);
 router.patch('/placements/:id', updatePlacement);
 
 // Notifications (JOB_POSTING_PLAN.md Phase 2) — feed + badge counters.

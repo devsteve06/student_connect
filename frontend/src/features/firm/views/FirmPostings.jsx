@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   ShieldAlert,
   Users,
   XCircle
@@ -163,6 +164,22 @@ export default function FirmPostings() {
     }
   };
 
+  // Reopening a closed posting puts it back in the marketplace: students at the
+  // firm's university are notified, and editing/close become available again.
+  const handleReopen = async (placement) => {
+    setSubmitting(true);
+    setSaveError('');
+    try {
+      await firmService.reopenPlacement(placement.id);
+      setNotice(`"${placement.role}" is open again — students can apply.`);
+      setReloadKey((key) => key + 1);
+    } catch (err) {
+      setSaveError(err?.response?.data?.message || 'The posting could not be reopened.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const eyebrow = roleChip('firm');
 
   if (loading) {
@@ -279,7 +296,17 @@ export default function FirmPostings() {
                     </Button>
                   </div>
                 ) : (
-                  <span className="text-xs text-ink-5">Closed — no longer accepting applications</span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-ink-5">Closed — no longer accepting applications</span>
+                    <Button
+                      size="sm"
+                      icon={RotateCcw}
+                      disabled={submitting}
+                      onClick={() => handleReopen(placement)}
+                    >
+                      Reopen posting
+                    </Button>
+                  </div>
                 )}
               </div>
             </article>
@@ -354,7 +381,7 @@ export default function FirmPostings() {
         isOpen={Boolean(closing)}
         onClose={() => setClosing(null)}
         title="Close this posting?"
-        subtitle="This cannot be undone."
+        subtitle="You can reopen it at any time."
         size="sm"
         footer={
           <>
@@ -369,7 +396,7 @@ export default function FirmPostings() {
       >
         <p className="text-sm text-ink-3">
           <span className="font-bold text-ink">{closing?.role}</span> will stop accepting applications, and students
-          will see it as closed in the marketplace. You can no longer edit it afterwards.
+          will see it as closed in the marketplace. Reopen it later from the Postings page if you change your mind.
         </p>
       </Modal>
     </div>

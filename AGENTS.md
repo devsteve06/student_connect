@@ -30,6 +30,10 @@ Updates to **AGENTS.md** (Institutional identity + email derivation, Affiliation
 - `db/migrations/0001_init.sql`: includes `firms.university_id` and `idx_firms_university` for fresh builds.
 - `sql/schema.sql`: includes `firms.university_id` and `idx_firms_university`; mirrors migration state.
 - Backfill not applied to existing real rows by SQL (runtime derivation used where needed). Pre-existing firms with `university_id` NULL remain valid (nullable). 
+- New migration `0010_interview_date.sql`: `ALTER TABLE applications ADD COLUMN IF NOT EXISTS interview_date DATE;` (also in `0001_init.sql` + `sql/schema.sql`). Stamped `today + 7` when a firm moves an application to `Interviewing`; the date rides in the applicant's notification.
+- **DATE vs TIMESTAMPTZ**: node-postgres parses `DATE` as *local* midnight, so `formatDate()`'s UTC getters can slip a day east of UTC. Use `toDateOnly()` (`backend/utils/format.js`) for `DATE` columns (`appliedDate`, `interviewDate`); `todayISO()` / `isoInDays()` are local-calendar.
+- **Status-driven counters**: student `activeApplications` = all applications except `Rejected`; firm "interviews pending" = `Interviewing`; firm "logbooks to verify" and university `actionRequiredLogs` / pending-logbook list only include students whose application is `Approved`/`Hired` at that firm/university.
+- **Reopen**: `PATCH /api/v1/firms/placements/:id/reopen` (`reopenPlacement`) sets `status='Open'`, clears `closed_at`, is idempotent, 404s for other firms, and notifies the firm's university students (`posting_reopened`).
 
 ### Tests
 

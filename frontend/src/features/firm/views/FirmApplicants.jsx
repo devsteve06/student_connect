@@ -152,6 +152,11 @@ export default function FirmApplicants() {
                         {cand.university} · <span className="font-semibold text-ink-2">{cand.role}</span>
                       </p>
                       <p className="mt-0.5 text-xs text-ink-5">Applied {cand.appliedDate}</p>
+                      {cand.status === 'Interviewing' && cand.interviewDate && (
+                        <p className="mt-0.5 text-xs font-semibold text-cyan-700">
+                          Interview on {cand.interviewDate}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 sm:justify-end">

@@ -100,7 +100,8 @@ CREATE TABLE placements (
 -- -----------------------------------------------------------------------------
 -- applications — a student's application to a firm/placement
 --   status mirrors the backend enums (Pending Review / Interviewing /
---   Approved / Hired / Rejected)
+--   Approved / Hired / Rejected); interview_date is stamped a week out when the
+--   application moves to Interviewing
 -- -----------------------------------------------------------------------------
 CREATE TABLE applications (
     id            SERIAL PRIMARY KEY,
@@ -111,6 +112,7 @@ CREATE TABLE applications (
     applied_date  DATE         NOT NULL DEFAULT CURRENT_DATE,
     status        VARCHAR(20)  NOT NULL DEFAULT 'Pending Review'
                   CHECK (status IN ('Pending Review','Interviewing','Approved','Hired','Rejected')),
+    interview_date DATE            NULL,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 

@@ -1,6 +1,6 @@
 // controllers/firmController.js
 import { query } from '../data/db.js';
-import { formatDate } from '../utils/format.js';
+import { formatDate, isoInDays, toDateOnly } from '../utils/format.js';
 import { notifyUniversityStudents, notifyQuietly } from '../utils/notify.js';
 
 // Allowed application lifecycle states (mirrors the applications.status CHECK constraint).
@@ -8,18 +8,22 @@ const APPLICATION_STATUSES = ['Pending Review', 'Interviewing', 'Approved', 'Hir
 // Either of these means the firm picked someone — the posting is filled, so
 // both trigger the auto-close (the dashboard's "Place" button sends 'Hired').
 const CLOSING_STATUSES = ['Approved', 'Hired'];
+// An interview is scheduled a week out, giving the applicant notice.
+const INTERVIEW_NOTICE_DAYS = 7;
 
 const applicantShape = (r) => ({
   id: r.id,
   studentName: r.student_name,
   university: r.university,
   role: r.role,
-  appliedDate: formatDate(r.applied_date),
-  status: r.status
+  appliedDate: formatDate(toDateOnly(r.applied_date)),
+  status: r.status,
+  interviewDate: formatDate(toDateOnly(r.interview_date))
 });
 
 const APPLICANT_SELECT = `
-  SELECT a.id, s.full_name AS student_name, u.name AS university, a.role, a.applied_date, a.status
+  SELECT a.id, s.full_name AS student_name, u.name AS university, a.role,
+         a.applied_date, a.status, a.interview_date
     FROM applications a
     JOIN students s     ON s.id = a.student_id
     JOIN universities u ON u.id = s.university_id`;
@@ -28,10 +32,20 @@ const APPLICANT_SELECT = `
 export const getFirmMetrics = async (req, res, next) => {
   try {
     const apps = (await query('SELECT status FROM applications WHERE firm_id = $1', [req.user.id])).rows;
-    const logs = (await query('SELECT faculty_sign_off FROM logbooks WHERE firm_id = $1', [req.user.id])).rows;
+    // "Logbooks to verify" only covers interns who actually landed here: a
+    // rejected/pending applicant's logbook is not this firm's work, so the
+    // counter follows the application status rather than every logbook row.
+    const logs = (await query(
+      `SELECT DISTINCT l.id, l.faculty_sign_off
+         FROM logbooks l
+         JOIN applications a ON a.student_id = l.student_id AND a.firm_id = $1
+        WHERE l.firm_id = $1 AND a.status IN ('Approved','Hired')`,
+      [req.user.id]
+    )).rows;
 
     res.json({
       newApplications: apps.filter((a) => a.status === 'Pending Review').length,
+      // Pending interviews are the applications still sitting at Interviewing.
       interviewsPending: apps.filter((a) => a.status === 'Interviewing').length,
       activeInterns: apps.filter((a) => a.status === 'Approved' || a.status === 'Hired').length,
       unverifiedLogbooks: logs.filter((l) => l.faculty_sign_off !== 'Approved').length
@@ -76,12 +90,18 @@ export const updateApplicantStatus = async (req, res, next) => {
     let postingClosed = false;
 
     if (status) {
+      // Interviewing books the interview slot a week from today; the date rides
+      // in the applicant's notification and back on their application row. Other
+      // transitions leave an existing slot untouched (it is history by then).
+      const interviewDate = status === 'Interviewing' ? isoInDays(INTERVIEW_NOTICE_DAYS) : null;
+
       // Scope the update to this firm's applicants so one firm cannot mutate another's.
       const updated = (await query(
-        `UPDATE applications SET status = $1
+        `UPDATE applications
+            SET status = $1${interviewDate ? ', interview_date = $4' : ''}
           WHERE id = $2 AND firm_id = $3
-          RETURNING id, student_id, placement_id, role`,
-        [status, id, req.user.id]
+          RETURNING id, student_id, placement_id, role, interview_date`,
+        interviewDate ? [status, id, req.user.id, interviewDate] : [status, id, req.user.id]
       )).rows[0];
       if (!updated) {
         return res.status(404).json({ message: `Applicant [${id}] not found in the hiring pipeline.` });
@@ -95,8 +115,12 @@ export const updateApplicantStatus = async (req, res, next) => {
           {
             studentId: updated.student_id,
             type: 'application_update',
-            title: `Application update: ${updated.role}`,
-            body: `${firm.company_name} moved your application to ${status}.`,
+            title: interviewDate
+              ? `Interview scheduled: ${updated.role}`
+              : `Application update: ${updated.role}`,
+            body: interviewDate
+              ? `${firm.company_name} has invited you to an interview on ${formatDate(updated.interview_date)}.`
+              : `${firm.company_name} moved your application to ${status}.`,
             link: '/students'
           }
         ],
@@ -352,6 +376,48 @@ export const closePlacement = async (req, res, next) => {
     if (!result) {
       return res.status(404).json({ message: `Placement [${id}] not found.` });
     }
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// PATCH /firms/placements/:id/reopen — put a closed posting back on the market.
+// Idempotent like close: reopening an Open posting returns its current state.
+// The university's students hear about it (best-effort), and the posting becomes
+// editable again because updatePlacement only touches 'Open' rows.
+export const reopenPlacement = async (req, res, next) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ message: 'A numeric placement id is required.' });
+  }
+
+  try {
+    const reopened = (await query(
+      `UPDATE placements
+          SET status = 'Open', closed_at = NULL
+        WHERE id = $1 AND firm_id = $2 AND status = 'Closed'
+        RETURNING id, role`,
+      [id, req.user.id]
+    )).rows[0];
+
+    const result = await placementWithCount(id, req.user.id);
+    if (!result) {
+      return res.status(404).json({ message: `Placement [${id}] not found.` });
+    }
+
+    if (reopened) {
+      await notifyUniversityStudents({
+        firmId: req.user.id,
+        buildRow: (firm) => ({
+          type: 'posting_reopened',
+          title: `Posting reopened: ${result.role}`,
+          body: `${firm.company_name} is taking applications again for ${result.role} in ${result.location}.`,
+          link: '/students/marketplace'
+        })
+      });
+    }
+
     res.json(result);
   } catch (error) {
     next(error);

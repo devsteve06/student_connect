@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS applications (
     applied_date  DATE         NOT NULL DEFAULT CURRENT_DATE,
     status        VARCHAR(20)  NOT NULL DEFAULT 'Pending Review'
                   CHECK (status IN ('Pending Review','Interviewing','Approved','Hired','Rejected')),
+    interview_date DATE            NULL,
     created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 

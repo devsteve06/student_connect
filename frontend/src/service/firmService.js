@@ -44,5 +44,11 @@ export const firmService = {
   closePlacement: async (id) => {
     const response = await apiClient.patch(`/api/v1/firms/placements/${id}/close`);
     return response.data;
+  },
+
+  // Puts a closed posting back on the market, accepting applications again
+  reopenPlacement: async (id) => {
+    const response = await apiClient.patch(`/api/v1/firms/placements/${id}/reopen`);
+    return response.data;
   }
 };

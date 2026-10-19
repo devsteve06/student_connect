@@ -58,8 +58,11 @@ export default function StudentDashboard() {
   const summaryMetrics = useMemo(
     () => ({
       totalApplications: metrics?.totalApplications ?? 0,
+      activeApplications: metrics?.activeApplications ?? 0,
       interviewsScheduled: metrics?.interviewsScheduled ?? 0,
       pendingReview: metrics?.pendingReview ?? 0,
+      approvedApplications: metrics?.approvedApplications ?? 0,
+      rejectedApplications: metrics?.rejectedApplications ?? 0,
       profileCompletion: metrics?.profileCompletion ?? '50%'
     }),
     [metrics]
@@ -109,7 +112,7 @@ export default function StudentDashboard() {
   }
 
   const metricCards = [
-    { title: 'Active applications', value: summaryMetrics.totalApplications, unit: 'placements', icon: FileText, tone: 'brand' },
+    { title: 'Active applications', value: summaryMetrics.activeApplications, unit: 'in progress', icon: FileText, tone: 'brand' },
     { title: 'Interviews scheduled', value: summaryMetrics.interviewsScheduled, unit: 'scheduled', icon: CalendarCheck, tone: 'warning' },
     { title: 'Pending review', value: summaryMetrics.pendingReview, unit: 'applications', icon: Clock, tone: 'neutral' },
     { title: 'Profile completed', value: summaryMetrics.profileCompletion, unit: '', icon: Target, tone: 'success' }
@@ -169,6 +172,9 @@ export default function StudentDashboard() {
                       <span className="mx-1.5 text-ink-5">·</span>
                       {app.appliedDate}
                     </p>
+                    {app.status === 'Interviewing' && app.interviewDate && (
+                      <p className="text-xs font-semibold text-cyan-700">Interview on {app.interviewDate}</p>
+                    )}
                   </div>
                 </li>
               ))}
