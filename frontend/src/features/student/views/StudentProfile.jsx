@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, GraduationCap, Hash, Phone, Save, User } from 'lucide-react';
+import { Building2, GraduationCap, Hash, Lock, Phone, Save, User } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import Input from '../../../components/common/Input';
@@ -11,7 +11,6 @@ import sessionStore from '../../../service/sessionStore';
 import { useAuth } from '../../../context/useAuth';
 
 const PHONE_RE = /^(\+?254|0)[17]\d{8}$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function StudentProfile() {
   const { refreshUser } = useAuth();
@@ -56,7 +55,6 @@ export default function StudentProfile() {
     if (form.phone.trim() && !PHONE_RE.test(form.phone.trim())) {
       next.phone = 'Use a valid Kenyan number, e.g. 0712345678 or +254712345678.';
     }
-    if (!EMAIL_RE.test(form.email.trim())) next.email = 'Enter a valid email address.';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -68,10 +66,11 @@ export default function StudentProfile() {
     setSaving(true);
     setNotice(null);
     try {
+      // No email here: the institutional address is issued with the account and
+      // is read-only afterwards (the API refuses a change too).
       const updated = await studentService.updateProfile({
         fullName: form.fullName,
-        phone: form.phone,
-        email: form.email
+        phone: form.phone
       });
       setProfile(updated);
       setNotice({ type: 'success', text: 'Profile saved successfully.' });
@@ -177,10 +176,11 @@ export default function StudentProfile() {
               </div>
               <Input
                 label="Email address"
+                icon={Lock}
                 value={form.email}
-                onChange={(e) => setField('email')(e.target.value)}
-                placeholder="you@example.com"
-                error={errors.email}
+                readOnly
+                aria-readonly="true"
+                hint="Issued with your student account — contact the registry to change it."
               />
 
               {notice && (

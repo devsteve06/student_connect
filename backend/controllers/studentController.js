@@ -4,7 +4,6 @@ import { formatDate, todayISO } from '../utils/format.js';
 import { notifyQuietly } from '../utils/notify.js';
 
 const PHONE_RE = /^(\+?254|0)[17]\d{8}$/;
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const logbookShape = (r) => ({
   id: r.id,
@@ -216,7 +215,13 @@ export const getProfile = async (req, res, next) => {
   }
 };
 
-// PATCH /students/profile — edit personal details (name, phone, email)
+// PATCH /students/profile — edit personal details (name, phone)
+//
+// The email is deliberately NOT updatable: it is derived from the student's
+// name + institution when the account is created (utils/identity.js) and is
+// read-only afterwards, matching the profile form and the signup flow. A
+// client that echoes the unchanged address back (the old form did) is still
+// accepted; an attempt to change it is refused.
 export const updateProfile = async (req, res, next) => {
   const { fullName, phone, email } = req.body || {};
 
@@ -234,31 +239,38 @@ export const updateProfile = async (req, res, next) => {
     }
     updates.phone = trimmed || null;
   }
-  if (email !== undefined) {
-    const trimmed = email.trim().toLowerCase();
-    if (!EMAIL_RE.test(trimmed)) {
-      return res.status(400).json({ message: 'Enter a valid email address.' });
-    }
-    updates.email = trimmed;
-  }
 
-  if (Object.keys(updates).length === 0) {
-    return res.status(400).json({ message: 'Nothing to update — provide fullName, phone, or email.' });
+  if (Object.keys(updates).length === 0 && email === undefined) {
+    return res.status(400).json({ message: 'Nothing to update — provide fullName or phone.' });
   }
 
   try {
-    const setClause = Object.keys(updates)
-      .map((key, i) => `${key} = $${i + 1}`)
-      .join(', ');
-    const values = [...Object.values(updates), req.user.id];
+    if (email !== undefined) {
+      const current = (await query('SELECT email FROM students WHERE id = $1', [req.user.id])).rows[0];
+      if (!current) {
+        return res.status(404).json({ message: 'Student profile not found.' });
+      }
+      if (String(email).trim().toLowerCase() !== String(current.email).toLowerCase()) {
+        return res.status(400).json({
+          message: 'Your institutional email is created with your account and cannot be changed.'
+        });
+      }
+    }
 
-    const row = (await query(
-      `UPDATE students SET ${setClause} WHERE id = $${values.length} RETURNING id`,
-      values
-    )).rows[0];
+    if (Object.keys(updates).length > 0) {
+      const setClause = Object.keys(updates)
+        .map((key, i) => `${key} = $${i + 1}`)
+        .join(', ');
+      const values = [...Object.values(updates), req.user.id];
 
-    if (!row) {
-      return res.status(404).json({ message: 'Student profile not found.' });
+      const row = (await query(
+        `UPDATE students SET ${setClause} WHERE id = $${values.length} RETURNING id`,
+        values
+      )).rows[0];
+
+      if (!row) {
+        return res.status(404).json({ message: 'Student profile not found.' });
+      }
     }
 
     const profile = await fetchProfile(req.user.id);
@@ -273,9 +285,6 @@ export const updateProfile = async (req, res, next) => {
       profileCompletion: profile.profile_completion
     });
   } catch (error) {
-    if (error.code === '23505') {
-      return res.status(400).json({ message: 'That email address is already in use by another account.' });
-    }
     next(error);
   }
 };

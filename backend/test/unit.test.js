@@ -646,7 +646,7 @@ test('placements: a firm creates, lists, edits and closes its own postings', asy
 
 // --- posting/application events (JOB_POSTING_PLAN.md Phase 4) ---------------
 import { insertNotifications } from '../utils/notify.js';
-import { applyForPlacement, getPlacements } from '../controllers/studentController.js';
+import { applyForPlacement, getPlacements, updateProfile } from '../controllers/studentController.js';
 
 test('posting fan-out: publishing notifies every student at the firm\'s university', async () => {
   await ensureDb();
@@ -826,6 +826,57 @@ test('applications: a student cannot apply for the same internship twice', async
     /duplicate|unique/i,
     'the unique index is the last line of defence'
   );
+});
+
+test('profile: the institutional email is read-only, but name and phone still save', async () => {
+  await ensureDb();
+  const student = await studentIdByEmail('david.ochieng@students.uonbi.ac.ke');
+  const before = (await query('SELECT email, full_name, phone FROM students WHERE id = $1', [student])).rows[0];
+
+  // Changing the email is refused outright and writes nothing.
+  const rejected = mockRes();
+  await updateProfile(
+    { user: { id: student, role: 'student' }, body: { email: 'someone.else@students.uonbi.ac.ke' } },
+    rejected,
+    noNext
+  );
+  assert.equal(rejected.statusCode, 400, 'changing the institutional address is refused');
+  assert.match(rejected.body.message, /cannot be changed/i);
+  assert.equal(
+    (await query('SELECT email FROM students WHERE id = $1', [student])).rows[0].email,
+    before.email,
+    'the stored email is untouched'
+  );
+
+  // Echoing the same address back is still accepted — the old form always sent
+  // the field, and that must not start failing.
+  const echoed = mockRes();
+  await updateProfile(
+    { user: { id: student, role: 'student' }, body: { email: before.email } },
+    echoed,
+    noNext
+  );
+  assert.equal(echoed.statusCode, 200, 'an unchanged email in the payload is not an error');
+  assert.equal(echoed.body.email, before.email);
+
+  // Name and phone stay editable.
+  const saved = mockRes();
+  await updateProfile(
+    { user: { id: student, role: 'student' }, body: { fullName: 'David O. Ochieng', phone: '0722111222' } },
+    saved,
+    noNext
+  );
+  assert.equal(saved.statusCode, 200);
+  assert.equal(saved.body.fullName, 'David O. Ochieng');
+  assert.equal(saved.body.phone, '0722111222');
+  assert.equal(saved.body.email, before.email, 'the email still rides along in the response');
+
+  // Restore the seeded values for any later test.
+  await query('UPDATE students SET full_name = $1, phone = $2 WHERE id = $3', [
+    before.full_name,
+    before.phone,
+    student
+  ]);
 });
 
 test('applications: the server owns the status, so a client-supplied value is ignored', async () => {

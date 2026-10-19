@@ -14,6 +14,8 @@ import PageBanner from '../../../components/common/PageBanner';
 import {
   adminService
 } from '../../../service/adminService';
+import { authService } from '../../../service/authService';
+import { previewAccountEmail, normalizeDomain } from '../../../config/identity';
 import { useAuth } from '../../../context/useAuth';
 import { roleChip } from '../../../config/roleTheme';
 
@@ -438,11 +440,59 @@ function DeleteModal({ target, onClose, onDone, onError }) {
 // Create user
 // ---------------------------------------------------------------------------
 function CreateUserModal({ onClose, onDone, onError }) {
-  const [form, setForm] = useState({ role: 'student', name: '', email: '', username: '', password: '' });
+  const [form, setForm] = useState({
+    role: 'student',
+    name: '',
+    email: '',
+    username: '',
+    universityId: '',
+    domain: '',
+    course: '',
+    password: ''
+  });
+  const [universities, setUniversities] = useState([]);
   const [busy, setBusy] = useState(false);
 
   const set = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
   const isAdmin = form.role === 'admin';
+
+  // Students and firms are affiliated to an existing institution; a university
+  // supplies its own domain. Either way the admin never types the address — the
+  // API derives it, exactly like self-signup (config/identity.js mirrors the
+  // server's rules), and it is read-only from then on.
+  useEffect(() => {
+    if (isAdmin) return undefined;
+    let active = true;
+    authService
+      .listUniversities()
+      .then((data) => {
+        if (!active) return;
+        const list = Array.isArray(data) ? data : [];
+        setUniversities(list);
+        if (list[0]?.id) {
+          setForm((prev) => (prev.universityId ? prev : { ...prev, universityId: String(list[0].id) }));
+        }
+      })
+      .catch(() => {
+        if (active) setUniversities([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
+  const selectedUniversity = universities.find((u) => String(u.id) === String(form.universityId));
+  const domain = form.role === 'university' ? normalizeDomain(form.domain) : selectedUniversity?.domain;
+  const derivedEmail = previewAccountEmail({ role: form.role, name: form.name, domain });
+
+  const nameLabel =
+    form.role === 'firm' ? 'Company name' : form.role === 'university' ? 'Institution name' : 'Full name';
+  const namePlaceholder =
+    form.role === 'firm'
+      ? 'e.g. Nexus Labs'
+      : form.role === 'university'
+        ? 'e.g. University of Eldoret'
+        : 'e.g. Alex Kamau';
 
   const submit = async (e) => {
     e.preventDefault();
@@ -455,8 +505,13 @@ function CreateUserModal({ onClose, onDone, onError }) {
         if (form.email) payload.email = form.email;
       } else {
         payload.name = form.name;
-        payload.email = form.email;
-        if (form.role === 'firm') payload.companyName = form.name;
+        if (form.role === 'university') {
+          payload.domain = domain;
+        } else {
+          payload.universityId = form.universityId;
+          if (form.role === 'firm') payload.companyName = form.name;
+          if (form.role === 'student') payload.course = form.course;
+        }
       }
       const res = await adminService.createUser(payload);
       onDone(`${res.role} account "${res.name}" created.`);
@@ -490,32 +545,79 @@ function CreateUserModal({ onClose, onDone, onError }) {
           <option value="admin">Administrator</option>
         </Select>
 
+        <Input
+          label={nameLabel}
+          required
+          value={form.name}
+          onChange={(e) => set('name', e.target.value)}
+          placeholder={namePlaceholder}
+        />
+
         {isAdmin ? (
+          <>
+            <Input
+              label="Username"
+              required
+              value={form.username}
+              onChange={(e) => set('username', e.target.value)}
+              placeholder="e.g. ops-admin"
+            />
+            <Input
+              label="Email (optional)"
+              type="email"
+              value={form.email}
+              onChange={(e) => set('email', e.target.value)}
+              placeholder="name@example.com"
+            />
+          </>
+        ) : form.role === 'university' ? (
           <Input
-            label="Username"
+            label="Institution email domain"
             required
-            value={form.username}
-            onChange={(e) => set('username', e.target.value)}
-            placeholder="e.g. ops-admin"
+            value={form.domain}
+            onChange={(e) => set('domain', e.target.value)}
+            placeholder="strathmore.edu"
+            hint="The registrar address is derived from it and shown below."
           />
         ) : (
-          <Input
-            label={form.role === 'firm' ? 'Company name' : 'Full name'}
+          <Select
+            label="University"
             required
-            value={form.name}
-            onChange={(e) => set('name', e.target.value)}
-            placeholder={form.role === 'firm' ? 'e.g. Nexus Labs' : 'e.g. Alex Kamau'}
+            value={form.universityId}
+            onChange={(e) => set('universityId', e.target.value)}
+          >
+            {universities.length === 0 && <option value="">Loading universities…</option>}
+            {universities.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </Select>
+        )}
+
+        {form.role === 'student' && (
+          <Input
+            label="Course"
+            required
+            value={form.course}
+            onChange={(e) => set('course', e.target.value)}
+            placeholder="e.g. BBIT"
+            hint="Used to assign the admission number."
           />
         )}
 
-        <Input
-          label={`Email ${isAdmin ? '(optional)' : ''}`}
-          type="email"
-          required={!isAdmin}
-          value={form.email}
-          onChange={(e) => set('email', e.target.value)}
-          placeholder="name@example.com"
-        />
+        {!isAdmin && (
+          <p className="rounded-xl border border-line bg-surface px-4 py-3 text-xs text-ink-4">
+            {derivedEmail ? (
+              <>
+                The account is created with the read-only address{' '}
+                <span className="font-semibold text-ink-2">{derivedEmail}</span>.
+              </>
+            ) : (
+              'Complete the name and institution above to preview the address the API will assign.'
+            )}
+          </p>
+        )}
 
         <Input
           label="Temporary password"
