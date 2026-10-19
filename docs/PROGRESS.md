@@ -9,6 +9,10 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-20 (UI: drop the portal/role label under the account name in the navbar)
+- The top-right account chip showed the user's name with `theme.portal` ("Student Hub" / "Corporate Gate" / …) stacked beneath it. Removed that second line so only the name remains; the avatar keeps its role accent colours and the mobile breadcrumb still falls back to the portal name.
+- Verified: `npx eslint src/components/layouts/Navbar.jsx` 0 problems; `vite build` green.
+
 ### 2026-10-19 (Fix: one application per internship — no repeat applications)
 - **Requirement:** "a student should not apply for the same internships twice." A repeat click previously inserted a second row, so the firm's pipeline showed the same student twice and its counters inflated.
 - **The internship identity is the firm + role pair** — exactly how `applyForPlacement` already resolves a posting. Keying on that pair (not `placement_id`) also covers applications whose posting was later deleted, since `placement_id` is `ON DELETE SET NULL`.

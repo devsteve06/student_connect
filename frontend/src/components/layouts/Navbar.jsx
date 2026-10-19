@@ -48,10 +48,7 @@ export default function Navbar({ role = 'student', onOpenSidebar }) {
         <ThemeToggle />
 
         <div className="flex items-center gap-2.5">
-          <span className="hidden text-right sm:block">
-            <span className="block text-sm font-bold leading-tight text-ink">{displayName}</span>
-            <span className={`block text-xs font-semibold ${theme.text}`}>{theme.portal}</span>
-          </span>
+          <span className="hidden truncate text-sm font-bold text-ink sm:block">{displayName}</span>
           <span
             className={`flex h-9 w-9 items-center justify-center rounded-xl border ${theme.border} ${theme.softBg} ${theme.text}`}
           >
