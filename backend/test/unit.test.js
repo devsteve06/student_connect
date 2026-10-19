@@ -790,7 +790,7 @@ test('notify: insertNotifications batches many rows in one statement', async () 
   assert.equal(await insertNotifications([]), 0, 'an empty batch is a no-op');
 });
 
-// --- close lifecycle: approval auto-closes (JOB_POSTING_PLAN.md Phase 5) -----
+// --- close lifecycle: approval/placement auto-closes (Phases 5–6) -----------
 import { updateApplicantStatus } from '../controllers/firmController.js';
 
 const applicantCount = (placementId) =>
@@ -938,42 +938,97 @@ test('approval: re-approving a closed posting does not re-close or re-notify oth
 test('approval: a placement-less application approves without touching any posting', async () => {
   await ensureDb();
   const firm = (await query("SELECT id FROM firms WHERE company_name = 'Apex Cloud Labs'")).rows[0];
-  const application = (await query(
-    'SELECT id, student_id FROM applications WHERE firm_id = $1 AND placement_id IS NULL LIMIT 1',
-    [firm.id]
-  )).rows[0];
+  const student = await studentIdByEmail('mary.wanjiru@students.mu.ac.ke');
 
-  if (!application) {
-    // Create one: an application submitted against a firm with no matching role.
-    const student = await studentIdByEmail('mary.wanjiru@students.mu.ac.ke');
-    const created = (await query(
-      `INSERT INTO applications (student_id, firm_id, role, status)
-       VALUES ($1, $2, 'Ad-hoc Role', 'Pending Review') RETURNING id, student_id`,
-      [student, firm.id]
-    )).rows[0];
-    const res = mockRes();
-    await updateApplicantStatus(
-      { user: { id: firm.id, role: 'firm' }, params: { id: String(created.id) }, body: { status: 'Approved' } },
-      res,
-      noNext
-    );
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.body.postingClosed, false, 'no posting to close');
-    assert.equal(await unreadCountFor(student, 'student'), (await query(
-      'SELECT COUNT(*)::int AS c FROM notifications WHERE student_id = $1 AND type = $2',
-      [student, 'application_update']
-    )).rows[0].c, 'the applicant still got their status update');
-    return;
-  }
+  // An application with no matching placement (applyForPlacement stores NULL
+  // when the firm+role has no live posting) — nothing to auto-close.
+  const created = (await query(
+    `INSERT INTO applications (student_id, firm_id, role, status)
+     VALUES ($1, $2, 'Ad-hoc Role', 'Pending Review') RETURNING id, student_id`,
+    [student, firm.id]
+  )).rows[0];
 
   const res = mockRes();
   await updateApplicantStatus(
-    { user: { id: firm.id, role: 'firm' }, params: { id: String(application.id) }, body: { status: 'Approved' } },
+    { user: { id: firm.id, role: 'firm' }, params: { id: String(created.id) }, body: { status: 'Approved' } },
     res,
     noNext
   );
+
   assert.equal(res.statusCode, 200);
-  assert.equal(res.body.postingClosed, false, 'no posting to close');
+  assert.equal(res.body.status, 'Approved');
+  assert.equal(res.body.postingClosed, false, 'there is no posting to close');
+  assert.equal(
+    await unreadCountFor(student, 'student'),
+    (await query(
+      'SELECT COUNT(*)::int AS c FROM notifications WHERE student_id = $1 AND type = $2',
+      [student, 'application_update']
+    )).rows[0].c,
+    'the applicant still got their status update'
+  );
+
+  // Cleanup: this row and its notification did not exist before the test.
+  await query('DELETE FROM notifications WHERE student_id = $1', [student]);
+  await query('DELETE FROM applications WHERE id = $1', [created.id]);
+});
+
+test('placement: the dashboard\'s Place action (Hired) closes the posting too', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'TechCorp Solutions'")).rows[0];
+  const placement = (await query(
+    "SELECT id FROM placements WHERE firm_id = $1 AND role = 'Cloud Architecture Intern'",
+    [firm.id]
+  )).rows[0];
+  const application = (await query(
+    'SELECT id, student_id FROM applications WHERE placement_id = $1 ORDER BY id LIMIT 1',
+    [placement.id]
+  )).rows[0];
+
+  // Known-open starting state — earlier tests in this file may touch the row.
+  await query("UPDATE placements SET status = 'Open', closed_at = NULL WHERE id = $1", [placement.id]);
+  await query("UPDATE applications SET status = 'Interviewing' WHERE id = $1", [application.id]);
+  const applicantBefore = await unreadCountFor(application.student_id, 'student');
+
+  // This is exactly what FirmDashboard's "Place" button sends.
+  const res = mockRes();
+  await updateApplicantStatus(
+    { user: { id: firm.id, role: 'firm' }, params: { id: String(application.id) }, body: { status: 'Hired' } },
+    res,
+    noNext
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.status, 'Hired');
+  assert.equal(res.body.postingClosed, true, 'Hired counts as "a candidate was selected" and closes the posting');
+
+  const closed = (await query('SELECT status, closed_at FROM placements WHERE id = $1', [placement.id])).rows[0];
+  assert.equal(closed.status, 'Closed', 'the posting auto-closed on placement');
+  assert.ok(closed.closed_at, 'closed_at is stamped');
+
+  assert.equal(
+    await unreadCountFor(application.student_id, 'student'),
+    applicantBefore + 1,
+    'the placed student got their status echo'
+  );
+  const note = (await query(
+    "SELECT type FROM notifications WHERE student_id = $1 ORDER BY id DESC LIMIT 1",
+    [application.student_id]
+  )).rows[0];
+  assert.equal(note.type, 'application_update');
+
+  // A second placement cannot re-close it (postingClosed stays false).
+  const again = mockRes();
+  await updateApplicantStatus(
+    { user: { id: firm.id, role: 'firm' }, params: { id: String(application.id) }, body: { status: 'Hired' } },
+    again,
+    noNext
+  );
+  assert.equal(again.body.postingClosed, false, 'repeat placement does not report a fresh close');
+
+  // Cleanup: restore the seeded row for any later tests.
+  await query("UPDATE placements SET status = 'Open', closed_at = NULL WHERE id = $1", [placement.id]);
+  await query("UPDATE applications SET status = 'Approved' WHERE id = $1", [application.id]);
+  await query('DELETE FROM notifications WHERE student_id = $1', [application.student_id]);
 });
 
 // --- auth: self-service registration ---------------------------------------

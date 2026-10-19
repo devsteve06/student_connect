@@ -5,6 +5,9 @@ import { notifyUniversityStudents, notifyQuietly } from '../utils/notify.js';
 
 // Allowed application lifecycle states (mirrors the applications.status CHECK constraint).
 const APPLICATION_STATUSES = ['Pending Review', 'Interviewing', 'Approved', 'Hired', 'Rejected'];
+// Either of these means the firm picked someone — the posting is filled, so
+// both trigger the auto-close (the dashboard's "Place" button sends 'Hired').
+const CLOSING_STATUSES = ['Approved', 'Hired'];
 
 const applicantShape = (r) => ({
   id: r.id,
@@ -52,9 +55,10 @@ export const getApplicants = async (req, res, next) => {
 };
 
 // PATCH /firms/applicants/:id — update an applicant's lifecycle status.
-// Any change echoes an `application_update` to the applicant; an approval also
-// auto-closes the posting the student applied to (if it is still Open) and
-// tells the other candidates still on it (JOB_POSTING_PLAN.md Phase 5).
+// Any change echoes an `application_update` to the applicant; selecting a
+// candidate (Approved/Hired) also auto-closes the posting the student applied
+// to (if it is still Open) and tells the other candidates still on it
+// (JOB_POSTING_PLAN.md Phases 5–6).
 export const updateApplicantStatus = async (req, res, next) => {
   const id = parseInt(req.params.id, 10);
   const { status } = req.body || {};
@@ -99,9 +103,9 @@ export const updateApplicantStatus = async (req, res, next) => {
         `application_update:${id}`
       );
 
-      // Approval closes the posting itself — firm_id stays in the WHERE so a
-      // posting belonging to another firm can never be closed from here.
-      if (status === 'Approved' && updated.placement_id) {
+      // Approval (or placing) closes the posting itself — firm_id stays in the
+      // WHERE so another firm's posting can never be closed from here.
+      if (CLOSING_STATUSES.includes(status) && updated.placement_id) {
         const closed = (await query(
           `UPDATE placements SET status = 'Closed', closed_at = NOW()
             WHERE id = $1 AND firm_id = $2 AND status = 'Open'
@@ -122,7 +126,7 @@ export const updateApplicantStatus = async (req, res, next) => {
               studentId: o.student_id,
               type: 'posting_closed',
               title: `Posting closed: ${closed.role}`,
-              body: `${firm.company_name} has approved a candidate for this role.`,
+              body: `${firm.company_name} has selected a candidate for this role.`,
               link: '/students/marketplace'
             })),
             `posting_closed:${closed.id}`

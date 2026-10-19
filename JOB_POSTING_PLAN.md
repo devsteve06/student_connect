@@ -1,6 +1,6 @@
 # Plan: Job Postings + Notifications + Closing Lifecycle (Firm Dashboard)
 
-**Status: PLANNED — 0% implemented.** No branch, migration, controller, or UI work exists for this feature yet. See [Current Status](#current-status) at the bottom.
+**Status: COMPLETE — all 6 phases implemented, tested and pushed on `feat/job-postings`.** See [Current Status](#current-status) at the bottom.
 
 ## Decisions
 
@@ -11,7 +11,7 @@
 | Counter scope | Unread notification count per user, surfaced on the dashboard + bell in `Navbar.jsx` (replaces today's decorative hard-coded red dot) |
 | Auto-notify on posting | On firm create → insert one notification per **eligible student** (all students at the firm's affiliated university; batch insert in one statement) |
 | Notify on apply | On `POST /students/applications` → one notification to the posting's firm |
-| Close lifecycle | Two paths: (a) **manual** — firm closes its own posting; (b) **automatic** — when the firm sets any application on that posting to `Approved`, the posting closes (no further applications) |
+| Close lifecycle | Two paths: (a) **manual** — firm closes its own posting; (b) **automatic** — when the firm sets any application on that posting to `Approved` **or** `Hired` (the dashboard's "Place" button sends `Hired`), the posting closes (no further applications) |
 | Closed posting behavior | Students can still see it (marked "Closed"), but `applyForPlacement` rejects with 409; new notifications stop |
 
 ## Context (read from repo)
@@ -88,7 +88,7 @@ Indexes: `idx_notifications_user` on `(user_role, user_id, is_read)`, `idx_place
    - After successful insert: create `application_received` notification for the placement's firm (include student name + role).
 2. **`firmController.updateApplicantStatus`** —
    - After a status change: create `application_update` notification for the applicant student. *(done — Phase 5)*
-   - **If new status = `'Approved'`** and the application has a `placement_id`: auto-close that placement (`status='Closed'`, `closed_at=NOW()`) if still `Open`, and notify other applicants that the posting is closed with a `posting_closed` notification. *(done — Phase 5)*
+   - **If new status = `'Approved'` or `'Hired'`** (a "candidate was selected" signal) and the application has a `placement_id`: auto-close that placement (`status='Closed'`, `closed_at=NOW()`) if still `Open`, and notify other applicants that the posting is closed with a `posting_closed` notification. *(done — Phase 5; `Hired` added in Phase 6 because that is what the dashboard's "Place" button sends.)*
 3. **`studentController.getPlacements`** — return `status` so the marketplace can grey out closed postings.
 
 ### Eligibility for `new_posting` fan-out
@@ -107,12 +107,15 @@ All students whose `university_id` equals the firm's `university_id` (the affili
 
 ### Firm views
 - **New `features/firm/views/FirmPostings.jsx`** — table of the firm's postings: role, location, slots, applicants, status badge (Open/Closed), actions (Edit, **Close posting**), plus a **"New posting"** form/modal (role, location, duration, slots, description).
-- **`FirmDashboard.jsx`** — ✅ when the firm approves a candidate, a success banner reads *"Candidate approved — the \"<role>\" posting is now closed."* (driven by the `postingClosed` flag on the PATCH response). Still to do in Phase 6: "New posting" quick action; notification-driven highlight on the applications list.
+- **`FirmDashboard.jsx`** — ✅ when the firm approves a candidate, a success banner reads *"Candidate approved — the \"<role>\" posting is now closed."* (driven by the `postingClosed` flag on the PATCH response); ✅ **"New posting" quick action** in the banner navigates to Postings with the create dialog already open (`navigate('/firms/postings', { state: { openCreate: true } })`, consumed by a lazy `useState` initializer in `FirmPostings.jsx` — no effect, and a plain reload closes it). *Dropped as infeasible without schema change:* the "notification-driven highlight on the applications list" — notifications carry no `application_id`, so per-application highlighting would need a new FK; the unread counter + bell cover the same need.
 - **`navigationConfig.jsx`** — add "Postings" nav item for firm role.
+
+### Shared: new `components/common/NotificationCenter.jsx`
+The dashboard-side counter (Phase 6): an unread-count pill + "Mark all read" + a preview of the newest 5 notifications with deep links, empty state and a `reloadKey` retry. Polls every 60s like the bell (no realtime transport in this repo), scoped to `student`/`firm` roles. Rendered by both dashboards.
 
 ### Student views
 - **`StudentMarketplace.jsx`** — closed postings rendered disabled with "Closed" badge; `handleApply` surfaces the 409 message; applying triggers firm notification server-side.
-- **`StudentDashboard.jsx`** — notification counter widget reflecting unread `new_posting` / `application_update` items.
+- **`StudentDashboard.jsx`** — ✅ notification counter widget reflecting unread `new_posting` / `application_update` items (shared `NotificationCenter`, Phase 6).
 
 ---
 
@@ -143,7 +146,7 @@ All students whose `university_id` equals the firm's `university_id` (the affili
 
 ## Current Status
 
-**Status: IN PROGRESS — Phases 1–5 of 6 complete (schema + notification feed + firm posting CRUD + event wiring + close lifecycle); polish/docs pass remains.**
+**Status: ✅ COMPLETE — all 6 of 6 phases implemented and verified on `feat/job-postings` (backend `npm test` 67/67, frontend `eslint src` clean, `vite build` green).**
 
 Verified against the repo on branch `feat/job-postings`:
 
@@ -152,5 +155,5 @@ Verified against the repo on branch `feat/job-postings`:
 - ✅ Phase 3 (firm posting CRUD): `/firms/placements` endpoints (list with live counts, create, edit-while-open, idempotent close), `FirmPostings.jsx` view at `/firms/postings` + Postings nav entry, backend tests 60/60.
 - ✅ Phase 4 (event wiring): publish → `new_posting` fan-out to the firm's university students; apply → `application_received` to the firm; closed posting → 409 with no notification; `getPlacements` returns `status` and the marketplace greys out closures; `utils/notify.js` batch + best-effort helpers; backend tests 63/63.
 - ✅ Phase 5 (close lifecycle): every status change echoes `application_update` to the applicant; approving a candidate auto-closes the posting they applied to (`status='Closed'`, `closed_at` stamped) and sends `posting_closed` to the *other* candidates on it; `updateApplicantStatus` returns `postingClosed` and `FirmDashboard.jsx` shows a success banner; backend tests 66/66.
-- ❌ Phase 6: polish + docs pass (incl. the per-dashboard unread-counter widgets noted under Frontend → Student/Firm views).
-- ⚠️ No realtime transport and no polling infra beyond the bell — dashboards still fetch once on mount.
+- ✅ Phase 6 (polish + docs): shared `NotificationCenter.jsx` rendered on **both dashboards** (unread counter pill + preview feed + mark-all-read + empty/error states), "New posting" quick action on `FirmDashboard` that opens the create dialog on arrival, auto-close extended to `Hired` (the dashboard's real "Place" action sends `Hired`, not `Approved`, so Phase 5 as shipped would never have fired from the UI), placement-less test made self-cleaning; `docs/PROGRESS.md` entries; backend tests 67/67, `eslint src` 0 problems, build green.
+- ⚠️ No realtime transport — counters rely on 60s polling (bell) plus the dashboard `NotificationCenter` and refresh-on-navigation. The "per-application notification highlight" was dropped as infeasible without an `applications` FK on `notifications` (documented under Firm views).

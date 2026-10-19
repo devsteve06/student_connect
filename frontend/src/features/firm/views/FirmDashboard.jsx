@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Users, ClipboardList, Award, ClipboardCheck, Download, Search, ShieldAlert, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, ClipboardList, Award, ClipboardCheck, Download, Search, Plus, ShieldAlert, RefreshCw } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import PageBanner from '../../../components/common/PageBanner';
@@ -7,6 +8,7 @@ import MetricCard from '../../../components/data-display/MetricCard';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
 import Input from '../../../components/common/Input';
+import NotificationCenter from '../../../components/common/NotificationCenter';
 import Skeleton, { MetricSkeleton } from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { firmService } from '../../../service/firmService';
@@ -39,6 +41,7 @@ const PIPELINE_COLORS = {
 };
 
 export default function FirmDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [applicants, setApplicants] = useState([]);
@@ -201,6 +204,10 @@ export default function FirmDashboard() {
             <p className="mt-1 text-sm text-ink-4">A live view of your applicants and placement pipeline.</p>
           </div>
           <div className="flex items-center gap-3 self-start md:self-center">
+            {/* Quick action: lands on Postings with the create dialog open. */}
+            <Button variant="secondary" icon={Plus} onClick={() => navigate('/firms/postings', { state: { openCreate: true } })}>
+              New posting
+            </Button>
             <Button variant="secondary" icon={Download} onClick={exportCsv}>Export roster</Button>
           </div>
         </div>
@@ -228,6 +235,13 @@ export default function FirmDashboard() {
           <MetricCard key={card.title} {...card} />
         ))}
       </div>
+
+      {/* Dashboard notification counter (the spec's "the notification is
+          incremented in firm dashboard" when a student applies) */}
+      <NotificationCenter
+        role="firm"
+        emptyHint="Applications to your postings and status activity will appear here."
+      />
 
       {/* Recent + pipeline */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

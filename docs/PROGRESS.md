@@ -2,12 +2,23 @@
 
 ## Current Status
 - **Date**: 2026-10-19
-- **Phase**: job postings Phases 1–5 complete (schema + notification feed + firm posting CRUD + event wiring + close lifecycle) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
+- **Phase**: job postings Phases 1–6 complete (schema + notification feed + firm posting CRUD + event wiring + close lifecycle + polish) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
 - **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-19 (Job postings Phase 6 — polish: dashboard counters, quick action, close-on-Hired)
+- **Polish + docs pass landed (Phase 6 of `JOB_POSTING_PLAN.md`)** — feature is now complete end-to-end.
+  - **New `components/common/NotificationCenter.jsx`** — the dashboard-side counter the spec asked for ("increments the notification counter on the students dashboard" / "the notification is incremented in firm dashboard"). An unread-count pill + **Mark all read**, a preview of the newest 5 notifications (deep-linked, click = mark-read), plus empty state ("You're all caught up"), a loading skeleton and an error state with `reloadKey` retry. Polls every 60s like `NotificationBell` (no realtime transport in this repo) and is role-scoped through `notificationService` (student/firm only).
+  - **Both dashboards render it**: `StudentDashboard.jsx` (after the metric grid) and `FirmDashboard.jsx` — so a `new_posting` fan-out or an `application_received` echo is visible on the dashboard the user is actually looking at, not only in the header bell.
+  - **"New posting" quick action** on `FirmDashboard`: `navigate('/firms/postings', { state: { openCreate: true } })`. `FirmPostings.jsx` consumes it with a **lazy `useState` initializer** (`useState(() => Boolean(location.state?.openCreate))`) rather than an effect — the first eslint run rejected the effect version under the new `react-hooks/set-state-in-effect` rule; this form also means a plain reload lands on the normal page instead of reopening the dialog.
+  - **Bug fix: auto-close now fires for `Hired` too.** `firmController.CLOSING_STATUSES = ['Approved', 'Hired']` — the dashboard's only "select the candidate" button ("Place") sends `Hired`, so Phase 5's `status === 'Approved'` check would never have triggered the close through the real UI. `posting_closed` body text neutralised ("has selected a candidate for this role").
+  - **Tests** (`unit.test.js`, 66 → 67): new `'placement: the dashboard's Place action (Hired) closes the posting too'` — closes + stamps `closed_at`, applicant gets exactly one `application_update`, and a repeat `Hired` reports `postingClosed: false`. The placement-less test was rewritten to always create its own row and **clean it up** (it previously left an orphan application + notification behind).
+  - Verified: `backend npm test` 67/67; `frontend npx eslint src` → **0 problems across the whole tree**; `frontend npm run build` green.
+  - **Dropped (documented in the plan):** "notification-driven highlight on the applications list" — `notifications` has no `application_id`, so per-application highlighting needs a new FK; the counter + bell cover the need. No realtime transport, per the standing decision (60s polling).
+  - Docs: `JOB_POSTING_PLAN.md` → **COMPLETE** (status header, close-lifecycle decision row now names `Approved` **or** `Hired`, frontend section updated), `docs/PROGRESS.md` entries.
 
 ### 2026-10-19 (Job postings Phase 5 — close lifecycle: approval auto-closes the posting)
 - **Closing lifecycle landed (Phase 5 of `JOB_POSTING_PLAN.md`)** — the "closes once a candidate is approved" half of the original spec. All of it lives in `firmController.updateApplicantStatus`.

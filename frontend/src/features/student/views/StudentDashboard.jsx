@@ -7,6 +7,7 @@ import PageBanner from '../../../components/common/PageBanner';
 import MetricCard from '../../../components/data-display/MetricCard';
 import StatusPill from '../../../components/common/StatusPill';
 import EmptyState from '../../../components/common/EmptyState';
+import NotificationCenter from '../../../components/common/NotificationCenter';
 import Skeleton, { MetricSkeleton } from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { studentService } from '../../../service/studentService';
@@ -135,6 +136,13 @@ export default function StudentDashboard() {
           <MetricCard key={card.title} {...card} />
         ))}
       </div>
+
+      {/* Dashboard notification counter (the spec's "increments the
+          notification counter on the students dashboard") */}
+      <NotificationCenter
+        role="student"
+        emptyHint="New postings from firms at your university and updates on your applications will appear here."
+      />
 
       {/* Applications + pipeline */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

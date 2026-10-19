@@ -3,6 +3,7 @@
 // manually close placements. Applicants count is live; closed postings are
 // frozen (the API answers 409 on edit, and students can no longer apply).
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Briefcase,
   Clock,
@@ -41,8 +42,12 @@ export default function FirmPostings() {
   const [notice, setNotice] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Create/edit dialog
-  const [formOpen, setFormOpen] = useState(false);
+  // Create/edit dialog. The dashboard's "New posting" quick action navigates
+  // here with { state: { openCreate: true } } — seeding the initial state
+  // opens the dialog on mount without an effect, and a plain reload (which
+  // drops router state) simply lands on the normal page.
+  const location = useLocation();
+  const [formOpen, setFormOpen] = useState(() => Boolean(location.state?.openCreate));
   const [editing, setEditing] = useState(null); // null = create mode
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
