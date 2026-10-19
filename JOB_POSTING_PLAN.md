@@ -143,13 +143,14 @@ All students whose `university_id` equals the firm's `university_id` (the affili
 
 ## Current Status
 
-**Status: PLANNED — not started (0/6 phases complete).**
+**Status: IN PROGRESS — Phases 1–2 of 6 complete (schema + notification feed); no posting CRUD or event wiring yet.**
 
-Verified against the repo on branch `feat/gateway-naming`:
+Verified against the repo on branch `feat/job-postings`:
 
-- ✅ Plan document written (`JOB_POSTING_PLAN.md`) — this file.
-- ❌ No migration, no `notifications` table, no `status` column on `placements`.
-- ❌ No backend endpoints for posting CRUD or notifications (grep for `notif|posting|close` in backend controllers: zero relevant hits).
-- ❌ No `notificationService.js`, no firm "Postings" view, nav entry, or real badge (bell in `Navbar.jsx` is decorative with a hard-coded dot).
-- ❌ No realtime transport and no polling in place — counters will use on-mount + interval polling.
-- ⚠️ Note: there is unrelated uncommitted CV-builder work in the working tree; this feature should start on a **fresh branch** (e.g. `feat/job-postings`) after that work is committed/PR'd, to keep changes reviewable.
+- ✅ Phase 1 (schema): migration `0008_job_posting_lifecycle.sql` landed — `placements.status`/`closed_at`, `notifications` table, mirrored into `schema.sql` + `0001_init.sql`.
+- ✅ Phase 2 (notifications core): student/firm notification endpoints (list, unread-count, mark-read, read-all), `notificationService.js`, live `NotificationBell` in the Navbar (60s polling + refresh on navigation), backend tests 59/59.
+- ❌ Phase 3: no firm posting CRUD endpoints, no "Postings" view/nav entry.
+- ❌ Phase 4: no event wiring (fan-out on create, firm notify on apply, 409 on closed apply).
+- ❌ Phase 5: no close lifecycle (manual close + auto-close on `Approved`).
+- ❌ Phase 6: polish + docs pass.
+- ⚠️ No realtime transport and no polling infra beyond the bell — dashboards still fetch once on mount.

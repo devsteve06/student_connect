@@ -442,6 +442,105 @@ test('notifications: default to unread and require exactly one recipient', async
   );
 });
 
+// --- notification feed endpoints (JOB_POSTING_PLAN.md Phase 2) --------------
+import {
+  listNotifications,
+  getUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead
+} from '../controllers/notificationController.js';
+
+const asUser = (id, role) => ({ user: { id, role } });
+const noNext = () => { throw new Error('next should not be called'); };
+
+const notificationList = async (id, role) => {
+  const res = mockRes();
+  await listNotifications(asUser(id, role), res, noNext);
+  assert.equal(res.statusCode, 200);
+  return res.body;
+};
+
+const unreadCountFor = async (id, role) => {
+  const res = mockRes();
+  await getUnreadCount(asUser(id, role), res, noNext);
+  assert.equal(res.statusCode, 200);
+  return res.body.count;
+};
+
+const seedNotification = async (column, id, title, type = 'new_posting') =>
+  (await query(
+    `INSERT INTO notifications (${column}, type, title) VALUES ($1, $2, $3) RETURNING id`,
+    [id, type, title]
+  )).rows[0].id;
+
+test('notifications: list and unread-count are scoped to the caller, newest first', async () => {
+  await ensureDb();
+  const students = (await query('SELECT id FROM students ORDER BY id')).rows.map((r) => r.id);
+  const [me, stranger] = students;
+  const firmId = (await query('SELECT id FROM firms ORDER BY id')).rows[0].id;
+
+  const [meBefore, firmBefore] = [
+    await unreadCountFor(me, 'student'),
+    await unreadCountFor(firmId, 'firm')
+  ];
+
+  await seedNotification('student_id', me, 'First posting');
+  await seedNotification('student_id', me, 'Second posting');
+  await seedNotification('firm_id', firmId, 'Application received', 'application_received');
+
+  assert.equal(await unreadCountFor(me, 'student'), meBefore + 2, 'both of my rows count as unread');
+  assert.equal(await unreadCountFor(firmId, 'firm'), firmBefore + 1, 'the firm counts its own row');
+
+  const mine = await notificationList(me, 'student');
+  assert.equal(mine[0].title, 'Second posting', 'list is newest-first (later insert first)');
+  assert.ok(mine.some((n) => n.title === 'First posting'), 'list contains the older row');
+
+  const strangerList = await notificationList(stranger, 'student');
+  assert.ok(
+    !strangerList.some((n) => n.title === 'Second posting' || n.title === 'Application received'),
+    "another student's rows never appear in my list"
+  );
+
+  const firmList = await notificationList(firmId, 'firm');
+  assert.ok(
+    !firmList.some((n) => n.title === 'Second posting'),
+    "a firm never sees the students' rows"
+  );
+});
+
+test('notifications: markRead is scoped to the owner and markAllRead clears the badge', async () => {
+  await ensureDb();
+  const students = (await query('SELECT id FROM students ORDER BY id')).rows.map((r) => r.id);
+  const [me, stranger] = students;
+
+  const ownedId = await seedNotification('student_id', me, 'Owned row');
+
+  // A different student cannot flip my row.
+  const forbidden = mockRes();
+  await markNotificationRead({ user: { id: stranger, role: 'student' }, params: { id: String(ownedId) } }, forbidden, noNext);
+  assert.equal(forbidden.statusCode, 404, "someone else's notification reads as missing");
+
+  // A non-numeric id is a client error, not a 500.
+  const malformed = mockRes();
+  await markNotificationRead({ user: { id: me, role: 'student' }, params: { id: 'abc' } }, malformed, noNext);
+  assert.equal(malformed.statusCode, 400);
+
+  // The owner marks it read and the badge drops.
+  const before = await unreadCountFor(me, 'student');
+  const ok = mockRes();
+  await markNotificationRead({ user: { id: me, role: 'student' }, params: { id: String(ownedId) } }, ok, noNext);
+  assert.equal(ok.statusCode, 200);
+  assert.equal(ok.body.isRead, true, 'response reports the row as read');
+  assert.equal(await unreadCountFor(me, 'student'), before - 1, 'unread count dropped by one');
+
+  // Read-all zeroes whatever is left, reporting how many rows changed.
+  const res = mockRes();
+  await markAllNotificationsRead(asUser(me, 'student'), res, noNext);
+  assert.equal(res.statusCode, 200);
+  assert.ok(res.body.updated >= 1, 'read-all reports at least the row it just changed');
+  assert.equal(await unreadCountFor(me, 'student'), 0, 'badge is clear after read-all');
+});
+
 // --- auth: self-service registration ---------------------------------------
 import { registerUser, loginUser, listUniversities } from '../controllers/authController.js';
 import {

@@ -2,12 +2,20 @@
 
 ## Current Status
 - **Date**: 2026-10-19
-- **Phase**: CV builder Phases 1–6 all implemented (upload landed); job postings Phase 1 (schema) landed on `feat/job-postings`; deploy Phase 4 configured, not yet executed
+- **Phase**: job postings Phases 1–2 complete (schema + notification feed) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
 - **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-19 (Job postings Phase 2 — notification feed + live Navbar badge)
+- **Notification core landed (Phase 2 of `JOB_POSTING_PLAN.md`)** — the badges are real for students and firms; the decorative hard-coded dot in the Navbar is gone.
+  - **Backend** (`notificationController.js`, shared by both routers): `GET /students|firms/notifications` (newest-first, capped at 50), `GET .../unread-count` → `{ count }`, `PATCH .../:id/read` (owner-scoped → 404 for someone else's row, 400 for a non-numeric id), `PATCH .../read-all` → `{ updated }`. The caller's `req.user.role` selects which of the two recipient FK columns scopes every query, so an account can never read or mutate another role's feed; the handlers also refuse (403) if mounted without a role gate. Mounted in `studentRoutes.js` and `firmRoutes.js` behind the existing `protect + authorizeRoles` chain in `routes/index.js`.
+  - **Frontend**: new `service/notificationService.js` (`list/unreadCount/markRead/markAllRead(role)` against both mount points) and new `components/common/NotificationBell.jsx` — live count badge (`99+` cap), dropdown feed with unread dots, per-item click marks read then deep-links via `link`, "Mark all read", empty state, outside-click close. Polls every 60s and re-checks on every navigation (no realtime channel in the API yet). `Navbar.jsx` now renders the bell for student/firm roles only; university/admin render nothing.
+  - **Tests** (`unit.test.js`, 57 → 59): list + unread-count scoping (my rows appear newest-first, another student's and the firm's never leak in), markRead 404 for a non-owner, 400 for a malformed id, badge drops by one on read, read-all zeroes it.
+  - Verified: `backend npm test` 59/59; `frontend npx eslint` on the three touched files clean; `frontend npm run build` green (1862 modules).
+  - Next: Phase 3 — firm posting CRUD (`/firms/placements` endpoints + Postings view + nav entry).
 
 ### 2026-10-19 (Job postings Phase 1 — schema + notifications table)
 - **Job-posting lifecycle schema landed (Phase 1 of `JOB_POSTING_PLAN.md`)** on branch `feat/job-postings` — schema only, no endpoints or UI yet.

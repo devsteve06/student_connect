@@ -1,9 +1,10 @@
 import { useLocation } from 'react-router-dom';
-import { Bell, Menu, User } from 'lucide-react';
+import { Menu, User } from 'lucide-react';
 import { navigationLinks } from './navigationConfig';
 import roleTheme from '../../config/roleTheme';
 import { useAuth } from '../../context/useAuth';
 import ThemeToggle from '../common/ThemeToggle';
+import NotificationBell from '../common/NotificationBell';
 
 export default function Navbar({ role = 'student', onOpenSidebar }) {
   const location = useLocation();
@@ -39,13 +40,8 @@ export default function Navbar({ role = 'student', onOpenSidebar }) {
 
       {/* Right: notifications + user */}
       <div className="flex shrink-0 items-center gap-3">
-        <button
-          aria-label="Notifications"
-          className="relative rounded-full p-2 text-ink-5 transition-colors hover:bg-surface-3 hover:text-ink-3"
-        >
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-rose-500" />
-        </button>
+        {/* Live unread badge + feed (student/firm only; other roles get nothing) */}
+        <NotificationBell role={role} />
 
         <div className="hidden h-5 w-px bg-surface-4 sm:block" />
 
