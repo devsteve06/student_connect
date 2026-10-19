@@ -790,6 +790,192 @@ test('notify: insertNotifications batches many rows in one statement', async () 
   assert.equal(await insertNotifications([]), 0, 'an empty batch is a no-op');
 });
 
+// --- close lifecycle: approval auto-closes (JOB_POSTING_PLAN.md Phase 5) -----
+import { updateApplicantStatus } from '../controllers/firmController.js';
+
+const applicantCount = (placementId) =>
+  query('SELECT COUNT(*)::int AS c FROM applications WHERE placement_id = $1', [placementId])
+    .then((r) => r.rows[0].c);
+
+test('approval: approving an applicant closes their posting and notifies everyone', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'Pixel Craft Agency'")).rows[0];
+  const placement = (await query(
+    "SELECT id FROM placements WHERE firm_id = $1 AND role = 'UI/UX & Frontend Trainee'",
+    [firm.id]
+  )).rows[0];
+  const application = (await query(
+    'SELECT id, student_id FROM applications WHERE placement_id = $1 ORDER BY id LIMIT 1',
+    [placement.id]
+  )).rows[0];
+
+  // A second candidate on the same posting — seed only has one application
+  // per placement, and the "other applicants hear about it" path needs two.
+  const otherStudent = (await query(
+    "SELECT id FROM students WHERE email = 'david.ochieng@students.uonbi.ac.ke'"
+  )).rows[0];
+  const otherApplication = (await query(
+    `INSERT INTO applications (student_id, placement_id, firm_id, role, status)
+     VALUES ($1, $2, $3, 'UI/UX & Frontend Trainee', 'Pending Review')
+     RETURNING id`,
+    [otherStudent.id, placement.id, firm.id]
+  )).rows[0];
+
+  const applicantBefore = await unreadCountFor(application.student_id, 'student');
+  const otherBefore = await unreadCountFor(otherStudent.id, 'student');
+  assert.equal(
+    (await query('SELECT status FROM placements WHERE id = $1', [placement.id])).rows[0].status,
+    'Open',
+    'the posting starts Open'
+  );
+
+  const res = mockRes();
+  await updateApplicantStatus(
+    { user: { id: firm.id, role: 'firm' }, params: { id: String(application.id) }, body: { status: 'Approved' } },
+    res,
+    noNext
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.status, 'Approved');
+  assert.equal(res.body.postingClosed, true, 'the response reports the auto-close');
+
+  const closed = (await query('SELECT status, closed_at FROM placements WHERE id = $1', [placement.id])).rows[0];
+  assert.equal(closed.status, 'Closed', 'the posting auto-closed on approval');
+  assert.ok(closed.closed_at, 'closed_at is stamped by the approval');
+
+  // The approved applicant hears about the status change...
+  assert.equal(
+    await unreadCountFor(application.student_id, 'student'),
+    applicantBefore + 1,
+    'the approved applicant gained one notification'
+  );
+  const ownNote = (await query(
+    "SELECT type FROM notifications WHERE student_id = $1 ORDER BY id DESC LIMIT 1",
+    [application.student_id]
+  )).rows[0];
+  assert.equal(ownNote.type, 'application_update', 'the applicant got an application_update');
+
+  // ...and the other candidate on the posting hears it is closed.
+  assert.equal(
+    await unreadCountFor(otherStudent.id, 'student'),
+    otherBefore + 1,
+    'the other candidate on the posting gained one notification'
+  );
+  const otherNote = (await query(
+    "SELECT type FROM notifications WHERE student_id = $1 ORDER BY id DESC LIMIT 1",
+    [otherStudent.id]
+  )).rows[0];
+  assert.equal(otherNote.type, 'posting_closed', 'the other candidate got a posting_closed notice');
+
+  // The approved applicant must NOT also get the fan-out copy.
+  const ownTypes = (await query(
+    'SELECT type FROM notifications WHERE student_id = $1',
+    [application.student_id]
+  )).rows.map((r) => r.type);
+  assert.ok(
+    !ownTypes.includes('posting_closed'),
+    'the approved applicant is excluded from the posting_closed fan-out'
+  );
+
+  // Cleanup for later tests.
+  await query('DELETE FROM applications WHERE id = $1', [otherApplication.id]);
+  await query('DELETE FROM notifications WHERE student_id IN ($1, $2)', [application.student_id, otherStudent.id]);
+  await query("UPDATE placements SET status = 'Open', closed_at = NULL WHERE id = $1", [placement.id]);
+  await query("UPDATE applications SET status = 'Pending Review' WHERE id = $1", [application.id]);
+});
+
+test('approval: re-approving a closed posting does not re-close or re-notify others', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'Safiri Analytics'")).rows[0];
+  const placement = (await query(
+    "SELECT id FROM placements WHERE firm_id = $1 AND role = 'Data Engineering Assistant'",
+    [firm.id]
+  )).rows[0];
+  const application = (await query(
+    'SELECT id, student_id FROM applications WHERE placement_id = $1 ORDER BY id LIMIT 1',
+    [placement.id]
+  )).rows[0];
+
+  const approve = async () => {
+    const res = mockRes();
+    await updateApplicantStatus(
+      { user: { id: firm.id, role: 'firm' }, params: { id: String(application.id) }, body: { status: 'Approved' } },
+      res,
+      noNext
+    );
+    return res;
+  };
+
+  const first = await approve();
+  assert.equal(first.body.postingClosed, true, 'the first approval closes the posting');
+
+  const closedAt = (await query('SELECT closed_at FROM placements WHERE id = $1', [placement.id])).rows[0].closed_at;
+  const applicantAfterFirst = await unreadCountFor(application.student_id, 'student');
+
+  const second = await approve();
+  assert.equal(second.statusCode, 200, 'approving again is accepted');
+  assert.equal(second.body.postingClosed, false, 'the second approval does not report a fresh close');
+  assert.equal(
+    (await query('SELECT closed_at FROM placements WHERE id = $1', [placement.id])).rows[0].closed_at,
+    closedAt,
+    'closed_at is untouched by the repeat approval'
+  );
+  // The applicant is notified of the (re-stated) status change, which is the
+  // one notification per status write; the close itself stays silent.
+  assert.equal(
+    await unreadCountFor(application.student_id, 'student'),
+    applicantAfterFirst + 1,
+    'the repeat approval echoes only the applicant update'
+  );
+  assert.equal(await applicantCount(placement.id), 1, 'no duplicate application rows appeared');
+
+  // Cleanup.
+  await query("UPDATE placements SET status = 'Open', closed_at = NULL WHERE id = $1", [placement.id]);
+  await query("UPDATE applications SET status = 'Pending Review' WHERE id = $1", [application.id]);
+  await query('DELETE FROM notifications WHERE student_id = $1', [application.student_id]);
+});
+
+test('approval: a placement-less application approves without touching any posting', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'Apex Cloud Labs'")).rows[0];
+  const application = (await query(
+    'SELECT id, student_id FROM applications WHERE firm_id = $1 AND placement_id IS NULL LIMIT 1',
+    [firm.id]
+  )).rows[0];
+
+  if (!application) {
+    // Create one: an application submitted against a firm with no matching role.
+    const student = await studentIdByEmail('mary.wanjiru@students.mu.ac.ke');
+    const created = (await query(
+      `INSERT INTO applications (student_id, firm_id, role, status)
+       VALUES ($1, $2, 'Ad-hoc Role', 'Pending Review') RETURNING id, student_id`,
+      [student, firm.id]
+    )).rows[0];
+    const res = mockRes();
+    await updateApplicantStatus(
+      { user: { id: firm.id, role: 'firm' }, params: { id: String(created.id) }, body: { status: 'Approved' } },
+      res,
+      noNext
+    );
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.postingClosed, false, 'no posting to close');
+    assert.equal(await unreadCountFor(student, 'student'), (await query(
+      'SELECT COUNT(*)::int AS c FROM notifications WHERE student_id = $1 AND type = $2',
+      [student, 'application_update']
+    )).rows[0].c, 'the applicant still got their status update');
+    return;
+  }
+
+  const res = mockRes();
+  await updateApplicantStatus(
+    { user: { id: firm.id, role: 'firm' }, params: { id: String(application.id) }, body: { status: 'Approved' } },
+    res,
+    noNext
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.postingClosed, false, 'no posting to close');
+});
+
 // --- auth: self-service registration ---------------------------------------
 import { registerUser, loginUser, listUniversities } from '../controllers/authController.js';
 import {

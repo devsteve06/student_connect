@@ -2,12 +2,23 @@
 
 ## Current Status
 - **Date**: 2026-10-19
-- **Phase**: job postings Phases 1–4 complete (schema + notification feed + firm posting CRUD + event wiring) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
+- **Phase**: job postings Phases 1–5 complete (schema + notification feed + firm posting CRUD + event wiring + close lifecycle) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
 - **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-19 (Job postings Phase 5 — close lifecycle: approval auto-closes the posting)
+- **Closing lifecycle landed (Phase 5 of `JOB_POSTING_PLAN.md`)** — the "closes once a candidate is approved" half of the original spec. All of it lives in `firmController.updateApplicantStatus`.
+  - **Every status change notifies the applicant**: `PATCH /firms/applicants/:id` now sends one `application_update` (`title` = role, `body` = "X moved your application to <status>", `link='/students'`) to the student. The update's `RETURNING` clause grew to `id, student_id, placement_id, role` so the notification needs no extra lookup.
+  - **Approval auto-closes the posting**: when the new status is `Approved` and the application has a `placement_id`, a single conditional `UPDATE placements SET status='Closed', closed_at=NOW() WHERE id=$1 AND firm_id=$2 AND status='Open' RETURNING id, role` closes it — the `firm_id` guard means another firm's posting can never be closed from here, and the `status='Open'` guard makes repeat approvals idempotent (no re-stamp of `closed_at`).
+  - **Other candidates hear it too**: only when that conditional update actually closed something, the *other* distinct students on the posting (`student_id <> the approved one`) get a `posting_closed` notice (`link='/students/marketplace'`); the approved student is deliberately excluded so they don't get two messages.
+  - **`posting_closed` joins the known notification types** (`new_posting`, `application_received`, `application_update`); the column still has no CHECK, so the set stays extensible. Documented in the plan's type table.
+  - **API/UI**: the PATCH response now carries `postingClosed: true|false` (extra field, backward compatible); `FirmDashboard.jsx` gained a `notice` state and an emerald success banner (*"Candidate approved — the \"<role>\" posting is now closed."*) alongside the existing rose error banner, both dismissible.
+  - **Tests** (`unit.test.js`, 63 → 66): approving closes the posting (`status='Closed'` + `closed_at` stamped), the approved applicant gains exactly one `application_update` and is **not** in the `posting_closed` fan-out, and a second candidate on that posting does get `posting_closed`; re-approving reports `postingClosed: false`, leaves `closed_at` untouched and adds only the applicant echo; an application with no `placement_id` approves cleanly with `postingClosed: false`. (Test setup adds a second candidate to the seeded single-application posting, then restores postings/applications/notifications.)
+  - Verified: `backend npm test` 66/66; `frontend npx eslint` clean; `frontend npm run build` green.
+  - Next: Phase 6 — polish + docs: per-dashboard unread-counter widgets (Student + Firm), "New posting" quick action on `FirmDashboard`, empty states.
 
 ### 2026-10-19 (Job postings Phase 4 — event wiring: fan-out, apply echo, closed guard)
 - **Event wiring landed (Phase 4 of `JOB_POSTING_PLAN.md`)** — the loop from the original spec is now closed: publishing notifies students, applying notifies the firm, and closed postings stop taking applications. All badge movement flows through the Phase 2 feed.

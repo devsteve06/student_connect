@@ -1,7 +1,7 @@
 // controllers/firmController.js
 import { query } from '../data/db.js';
 import { formatDate } from '../utils/format.js';
-import { notifyUniversityStudents } from '../utils/notify.js';
+import { notifyUniversityStudents, notifyQuietly } from '../utils/notify.js';
 
 // Allowed application lifecycle states (mirrors the applications.status CHECK constraint).
 const APPLICATION_STATUSES = ['Pending Review', 'Interviewing', 'Approved', 'Hired', 'Rejected'];
@@ -51,7 +51,10 @@ export const getApplicants = async (req, res, next) => {
   }
 };
 
-// PATCH /firms/applicants/:id — update an applicant's lifecycle status
+// PATCH /firms/applicants/:id — update an applicant's lifecycle status.
+// Any change echoes an `application_update` to the applicant; an approval also
+// auto-closes the posting the student applied to (if it is still Open) and
+// tells the other candidates still on it (JOB_POSTING_PLAN.md Phase 5).
 export const updateApplicantStatus = async (req, res, next) => {
   const id = parseInt(req.params.id, 10);
   const { status } = req.body || {};
@@ -66,14 +69,65 @@ export const updateApplicantStatus = async (req, res, next) => {
   }
 
   try {
+    let postingClosed = false;
+
     if (status) {
       // Scope the update to this firm's applicants so one firm cannot mutate another's.
       const updated = (await query(
-        'UPDATE applications SET status = $1 WHERE id = $2 AND firm_id = $3 RETURNING id',
+        `UPDATE applications SET status = $1
+          WHERE id = $2 AND firm_id = $3
+          RETURNING id, student_id, placement_id, role`,
         [status, id, req.user.id]
       )).rows[0];
       if (!updated) {
         return res.status(404).json({ message: `Applicant [${id}] not found in the hiring pipeline.` });
+      }
+
+      const firm = (await query('SELECT company_name FROM firms WHERE id = $1', [req.user.id])).rows[0];
+
+      // Best-effort echo to the applicant's badge (notifyQuietly never throws).
+      await notifyQuietly(
+        [
+          {
+            studentId: updated.student_id,
+            type: 'application_update',
+            title: `Application update: ${updated.role}`,
+            body: `${firm.company_name} moved your application to ${status}.`,
+            link: '/students'
+          }
+        ],
+        `application_update:${id}`
+      );
+
+      // Approval closes the posting itself — firm_id stays in the WHERE so a
+      // posting belonging to another firm can never be closed from here.
+      if (status === 'Approved' && updated.placement_id) {
+        const closed = (await query(
+          `UPDATE placements SET status = 'Closed', closed_at = NOW()
+            WHERE id = $1 AND firm_id = $2 AND status = 'Open'
+            RETURNING id, role`,
+          [updated.placement_id, req.user.id]
+        )).rows[0];
+
+        if (closed) {
+          postingClosed = true;
+          // The other candidates on that posting hear it is now closed.
+          const others = (await query(
+            `SELECT DISTINCT student_id FROM applications
+              WHERE placement_id = $1 AND student_id <> $2`,
+            [closed.id, updated.student_id]
+          )).rows;
+          await notifyQuietly(
+            others.map((o) => ({
+              studentId: o.student_id,
+              type: 'posting_closed',
+              title: `Posting closed: ${closed.role}`,
+              body: `${firm.company_name} has approved a candidate for this role.`,
+              link: '/students/marketplace'
+            })),
+            `posting_closed:${closed.id}`
+          );
+        }
       }
     }
 
@@ -81,7 +135,7 @@ export const updateApplicantStatus = async (req, res, next) => {
     if (!row) {
       return res.status(404).json({ message: `Applicant [${id}] not found in the hiring pipeline.` });
     }
-    res.json(applicantShape(row));
+    res.json({ ...applicantShape(row), postingClosed });
   } catch (error) {
     next(error);
   }
@@ -89,8 +143,8 @@ export const updateApplicantStatus = async (req, res, next) => {
 
 // --- Job postings (JOB_POSTING_PLAN.md Phase 3) -----------------------------
 // Firms manage their own placements: create (always 'Open'), list with live
-// applicant counts, edit while open, and close manually (auto-close on
-// approval arrives in Phase 5).
+// applicant counts, edit while open, and close manually. Approval-triggered
+// auto-close lives in updateApplicantStatus above (Phase 5).
 
 const PLACEMENT_RETURNING =
   'id, role, location, duration, slots, description, status, closed_at, created_at';

@@ -46,6 +46,7 @@ export default function FirmDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [notice, setNotice] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -76,9 +77,14 @@ export default function FirmDashboard() {
     const previous = applicants;
     setApplicants((cur) => cur.map((a) => (a.id === id ? { ...a, status: newStatus } : a)));
     setSaveError('');
+    setNotice('');
     try {
       const updated = await firmService.updateApplicantStatus(id, newStatus);
       setApplicants((cur) => cur.map((a) => (a.id === updated.id ? { ...a, status: updated.status } : a)));
+      // Phase 5: approving a candidate closes their posting — say so plainly.
+      if (updated.postingClosed) {
+        setNotice(`Candidate approved — the "${updated.role}" posting is now closed.`);
+      }
     } catch (err) {
       setApplicants(previous);
       setSaveError(err?.response?.data?.message || 'The status could not be updated.');
@@ -205,6 +211,14 @@ export default function FirmDashboard() {
         <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
           <span>{saveError}</span>
           <button onClick={() => setSaveError('')} className="font-bold hover:text-rose-900">Dismiss</button>
+        </div>
+      )}
+
+      {/* Success banner (e.g. approval auto-closed the posting) */}
+      {notice && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+          <span>{notice}</span>
+          <button onClick={() => setNotice('')} className="font-bold hover:text-emerald-900">Dismiss</button>
         </div>
       )}
 
