@@ -9,6 +9,10 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-20 (UI: the account menu lives behind the navbar icon)
+- **Account menu (every role).** The right-hand chip used to print the user's name in the bar. The bar now carries only the role-tinted avatar button; pressing it opens a menu with the name, the institutional email, the portal label, a **Profile** shortcut when the portal has one (students do) and **Sign out**. It closes on an outside click, on Escape, or after either action — the `pointerdown` pattern mirrors `NotificationBell`, and no effect sets state in response to the pathname (`react-hooks/set-state-in-effect` is an error in this repo).
+- Verified: `npx eslint src/components/layouts/Navbar.jsx` 0 problems; `vite build` green.
+
 ### 2026-10-20 (UI: drop the portal/role label under the account name in the navbar)
 - The top-right account chip showed the user's name with `theme.portal` ("Student Hub" / "Corporate Gate" / …) stacked beneath it. Removed that second line so only the name remains; the avatar keeps its role accent colours and the mobile breadcrumb still falls back to the portal name.
 - Verified: `npx eslint src/components/layouts/Navbar.jsx` 0 problems; `vite build` green.
