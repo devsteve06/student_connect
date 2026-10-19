@@ -1,6 +1,7 @@
 // controllers/firmController.js
 import { query } from '../data/db.js';
 import { formatDate } from '../utils/format.js';
+import { notifyUniversityStudents } from '../utils/notify.js';
 
 // Allowed application lifecycle states (mirrors the applications.status CHECK constraint).
 const APPLICATION_STATUSES = ['Pending Review', 'Interviewing', 'Approved', 'Hired', 'Rejected'];
@@ -189,7 +190,22 @@ export const createPlacement = async (req, res, next) => {
         String(body.description).trim()
       ]
     )).rows[0];
-    res.status(201).json({ ...placementShape(row), applicantCount: 0 });
+
+    // Fan-out is best-effort (notifyQuietly swallows + logs failures): the
+    // posting is already live, so students at the firm's university hear
+    // about it even if a notification insert misbehaves.
+    const posted = { ...placementShape(row), applicantCount: 0 };
+    await notifyUniversityStudents({
+      firmId: req.user.id,
+      buildRow: (firm) => ({
+        type: 'new_posting',
+        title: `New posting: ${posted.role}`,
+        body: `${firm.company_name} is hiring ${posted.role} in ${posted.location}.`,
+        link: '/students/marketplace'
+      })
+    });
+
+    res.status(201).json(posted);
   } catch (error) {
     next(error);
   }

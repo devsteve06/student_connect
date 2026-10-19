@@ -1,6 +1,7 @@
 // controllers/studentController.js
 import { query } from '../data/db.js';
 import { formatDate, todayISO } from '../utils/format.js';
+import { notifyQuietly } from '../utils/notify.js';
 
 const PHONE_RE = /^(\+?254|0)[17]\d{8}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,9 +90,17 @@ export const applyForPlacement = async (req, res, next) => {
     }
 
     const placement = (await query(
-      'SELECT id FROM placements WHERE firm_id = $1 AND role = $2',
+      'SELECT id, status FROM placements WHERE firm_id = $1 AND role = $2 ORDER BY id LIMIT 1',
       [firm.id, role]
     )).rows[0];
+
+    // A closed posting stops accepting applications (JOB_POSTING_PLAN.md
+    // Phase 4); the marketplace also hides the Apply button for these.
+    if (placement && placement.status === 'Closed') {
+      return res.status(409).json({
+        message: 'This posting has been closed and is no longer accepting applications.'
+      });
+    }
 
     const inserted = (await query(
       `INSERT INTO applications (student_id, placement_id, firm_id, role, applied_date, status)
@@ -99,6 +108,21 @@ export const applyForPlacement = async (req, res, next) => {
        RETURNING id, role, applied_date, status`,
       [req.user.id, placement?.id ?? null, firm.id, role, appliedDate || todayISO(), status || 'Pending Review']
     )).rows[0];
+
+    // Best-effort echo to the firm's dashboard (notifyQuietly never throws).
+    const applicant = (await query('SELECT full_name FROM students WHERE id = $1', [req.user.id])).rows[0];
+    await notifyQuietly(
+      [
+        {
+          firmId: firm.id,
+          type: 'application_received',
+          title: `New application: ${role}`,
+          body: `${applicant?.full_name ?? 'A student'} applied for ${role}.`,
+          link: '/firms/applicants'
+        }
+      ],
+      `application_received:${firm.id}`
+    );
 
     res.status(201).json({
       id: inserted.id,
@@ -116,7 +140,7 @@ export const applyForPlacement = async (req, res, next) => {
 export const getPlacements = async (req, res, next) => {
   try {
     const rows = (await query(
-      `SELECT p.id, f.company_name AS company, p.role, p.location, p.duration, p.slots, p.description
+      `SELECT p.id, f.company_name AS company, p.role, p.location, p.duration, p.slots, p.description, p.status
          FROM placements p
          JOIN firms f ON f.id = p.firm_id
         ORDER BY p.id`
@@ -130,7 +154,8 @@ export const getPlacements = async (req, res, next) => {
       location: r.location,
       duration: r.duration,
       slots: r.slots,
-      description: r.description
+      description: r.description,
+      status: r.status
     })));
   } catch (error) {
     next(error);

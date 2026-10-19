@@ -2,12 +2,23 @@
 
 ## Current Status
 - **Date**: 2026-10-19
-- **Phase**: job postings Phases 1–3 complete (schema + notification feed + firm posting CRUD) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
+- **Phase**: job postings Phases 1–4 complete (schema + notification feed + firm posting CRUD + event wiring) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
 - **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-19 (Job postings Phase 4 — event wiring: fan-out, apply echo, closed guard)
+- **Event wiring landed (Phase 4 of `JOB_POSTING_PLAN.md`)** — the loop from the original spec is now closed: publishing notifies students, applying notifies the firm, and closed postings stop taking applications. All badge movement flows through the Phase 2 feed.
+  - **New `utils/notify.js`**: `insertNotifications(rows)` writes a batch of notifications in one multi-row `INSERT ... RETURNING id`; `notifyQuietly(rows, ctx)` is a **best-effort wrapper** (logs via `logger.error`, never throws) so a notification failure can't roll back or 500 the operation that triggered it; `notifyUniversityStudents({ firmId, buildRow })` resolves the firm's `university_id` and fans out to every student at that university (no-op when the firm is unaffiliated).
+  - **Publish → students** (`firmController.createPlacement`): after the insert, fans out `type='new_posting'` (`title` = role, `body` = "X is hiring…", `link='/students/marketplace'`) to each student at the firm's partner university.
+  - **Apply → firm** (`studentController.applyForPlacement`): after the application insert, sends one `type='application_received'` (`link='/firms/applicants'`) naming the applicant to the firm's badge.
+  - **Closed guard**: `applyForPlacement` now reads the placement's `status` (query made deterministic with `ORDER BY id LIMIT 1`) and answers **409** with "closed … no longer accepting applications" *before* inserting, so a refused application creates no row and no notification. `getPlacements` now returns `status` too.
+  - **Frontend** (`StudentMarketplace.jsx`): closed postings render dimmed (`opacity-60`) with a `StatusPill` "Closed" instead of the duration chip, swap the Apply button for a locked "Closed" label, and `handleApply` short-circuits client-side (the API 409 remains the real gate).
+  - **Tests** (`unit.test.js`, 60 → 63): fan-out notifies each student at the partner university exactly once while an outsider university gets none (seed has one student per university, so the test affiliates TechCorp with Strathmore and temporarily moves a second student there, restoring both afterward); apply bumps the firm's unread by exactly one with the right deep-link, the marketplace payload carries `status`, closing yields 409 with **no** extra notification, and `insertNotifications` batches N rows (0 for an empty batch).
+  - Verified: `backend npm test` 63/63; `frontend npx eslint` clean; `frontend npm run build` green (1863 modules).
+  - Next: Phase 5 — close lifecycle (`PATCH /firms/applicants/:id` to `Approved` auto-closes the posting, plus applicant-facing notices).
 
 ### 2026-10-19 (Job postings Phase 3 — firm posting CRUD + Postings view)
 - **Firm posting CRUD landed (Phase 3 of `JOB_POSTING_PLAN.md`)** — a firm can finally publish, edit and close its own placements end to end through the API and a new dashboard page.

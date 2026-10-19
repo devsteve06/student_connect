@@ -644,6 +644,152 @@ test('placements: a firm creates, lists, edits and closes its own postings', asy
   assert.equal(missingClose.statusCode, 404, "another firm cannot close my posting");
 });
 
+// --- posting/application events (JOB_POSTING_PLAN.md Phase 4) ---------------
+import { insertNotifications } from '../utils/notify.js';
+import { applyForPlacement, getPlacements } from '../controllers/studentController.js';
+
+test('posting fan-out: publishing notifies every student at the firm\'s university', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'TechCorp Solutions'")).rows[0];
+  const strathmore = (await query("SELECT id FROM universities WHERE name = 'Strathmore University'")).rows[0];
+  const uon = (await query("SELECT id FROM universities WHERE name = 'University of Nairobi'")).rows[0];
+
+  // The seed leaves firms unaffiliated and spreads students one-per-
+  // university; give TechCorp a partner university and move a second student
+  // there so the batch fan-out path is exercised.
+  await query('UPDATE firms SET university_id = $1 WHERE id = $2', [strathmore.id, firm.id]);
+  const movedStudent = (await query(
+    "SELECT id FROM students WHERE email = 'jane.doe@students.jkuat.ac.ke'"
+  )).rows[0];
+  const originalUniversity = (await query('SELECT university_id FROM students WHERE id = $1', [movedStudent.id])).rows[0].university_id;
+  await query('UPDATE students SET university_id = $1 WHERE id = $2', [strathmore.id, movedStudent.id]);
+
+  const strathmoreStudents = (await query(
+    'SELECT id FROM students WHERE university_id = $1 ORDER BY id',
+    [strathmore.id]
+  )).rows.map((r) => r.id);
+  assert.ok(strathmoreStudents.length >= 2, 'test needs at least two students at the partner university');
+  const outsider = (await query('SELECT id FROM students WHERE university_id = $1 ORDER BY id LIMIT 1', [uon.id])).rows[0].id;
+
+  const before = await Promise.all(strathmoreStudents.map((id) => unreadCountFor(id, 'student')));
+  const outsiderBefore = await unreadCountFor(outsider, 'student');
+
+  const res = mockRes();
+  await createPlacement(
+    {
+      ...asUser(firm.id, 'firm'),
+      body: { role: 'Cloud Intern', location: 'Nairobi', duration: '3 Months', description: 'Ship cloud tooling.' }
+    },
+    res,
+    noNext
+  );
+  assert.equal(res.statusCode, 201);
+
+  for (const [index, id] of strathmoreStudents.entries()) {
+    assert.equal(
+      await unreadCountFor(id, 'student'),
+      before[index] + 1,
+      'each student at the partner university got exactly one notification'
+    );
+  }
+  assert.equal(
+    await unreadCountFor(outsider, 'student'),
+    outsiderBefore,
+    'a student at an unaffiliated university is not notified'
+  );
+
+  const row = (await query(
+    "SELECT type, link FROM notifications WHERE student_id = $1 AND type = 'new_posting' ORDER BY id DESC LIMIT 1",
+    [strathmoreStudents[0]]
+  )).rows[0];
+  assert.equal(row.type, 'new_posting');
+  assert.equal(row.link, '/students/marketplace', 'the notification deep-links to the marketplace');
+
+  // Restore the seed's state so later tests see a clean firm and roster.
+  await query('UPDATE firms SET university_id = NULL WHERE id = $1', [firm.id]);
+  await query('UPDATE students SET university_id = $1 WHERE id = $2', [originalUniversity, movedStudent.id]);
+});
+
+test('application events: applying notifies the firm, and a closed posting rejects with 409', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'Nexus Labs'")).rows[0];
+  const student = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const placement = (await query(
+    "SELECT id FROM placements WHERE firm_id = $1 AND role = 'Full-Stack Developer Intern'",
+    [firm.id]
+  )).rows[0];
+
+  const firmBefore = await unreadCountFor(firm.id, 'firm');
+
+  // Applying to the Open posting succeeds and echoes to the firm's badge.
+  const applied = mockRes();
+  await applyForPlacement(
+    {
+      user: { id: student, role: 'student' },
+      body: { companyName: 'Nexus Labs', role: 'Full-Stack Developer Intern' }
+    },
+    applied,
+    noNext
+  );
+  assert.equal(applied.statusCode, 201);
+  assert.equal(applied.body.status, 'Pending Review', 'the application lands as Pending Review');
+
+  assert.equal(
+    await unreadCountFor(firm.id, 'firm'),
+    firmBefore + 1,
+    'the firm gained exactly one unread notification'
+  );
+  const note = (await query(
+    "SELECT type, link FROM notifications WHERE firm_id = $1 AND type = 'application_received' ORDER BY id DESC LIMIT 1",
+    [firm.id]
+  )).rows[0];
+  assert.equal(note.link, '/firms/applicants', 'the notification deep-links to the applicant roster');
+
+  // The marketplace payload now carries status so the UI can grey out closures.
+  const listRes = mockRes();
+  await getPlacements({ user: { id: student, role: 'student' } }, listRes, noNext);
+  assert.ok(listRes.body.every((p) => p.status), 'every placement reports its status');
+
+  // Close the posting; further applications are refused and the firm is NOT
+  // notified again (no application row is created).
+  await query("UPDATE placements SET status = 'Closed', closed_at = NOW() WHERE id = $1", [placement.id]);
+  const rejected = mockRes();
+  await applyForPlacement(
+    {
+      user: { id: student, role: 'student' },
+      body: { companyName: 'Nexus Labs', role: 'Full-Stack Developer Intern' }
+    },
+    rejected,
+    noNext
+  );
+  assert.equal(rejected.statusCode, 409, 'a closed posting refuses new applications');
+  assert.equal(
+    await unreadCountFor(firm.id, 'firm'),
+    firmBefore + 1,
+    'the refused application added no notification'
+  );
+
+  // Restore for any later tests.
+  await query("UPDATE placements SET status = 'Open', closed_at = NULL WHERE id = $1", [placement.id]);
+});
+
+test('notify: insertNotifications batches many rows in one statement', async () => {
+  await ensureDb();
+  const students = (await query('SELECT id FROM students ORDER BY id LIMIT 2')).rows.map((r) => r.id);
+
+  const inserted = await insertNotifications(
+    students.map((id) => ({
+      studentId: id,
+      type: 'new_posting',
+      title: 'Batched',
+      body: 'One statement, many rows.',
+      link: '/students/marketplace'
+    }))
+  );
+  assert.equal(inserted, students.length, 'the batch reports the number of rows written');
+  assert.equal(await insertNotifications([]), 0, 'an empty batch is a no-op');
+});
+
 // --- auth: self-service registration ---------------------------------------
 import { registerUser, loginUser, listUniversities } from '../controllers/authController.js';
 import {

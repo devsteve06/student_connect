@@ -143,14 +143,14 @@ All students whose `university_id` equals the firm's `university_id` (the affili
 
 ## Current Status
 
-**Status: IN PROGRESS — Phases 1–3 of 6 complete (schema + notification feed + firm posting CRUD); no event wiring or close-on-approval yet.**
+**Status: IN PROGRESS — Phases 1–4 of 6 complete (schema + notification feed + firm posting CRUD + event wiring); auto-close on approval not yet wired.**
 
 Verified against the repo on branch `feat/job-postings`:
 
 - ✅ Phase 1 (schema): migration `0008_job_posting_lifecycle.sql` landed — `placements.status`/`closed_at`, `notifications` table, mirrored into `schema.sql` + `0001_init.sql`.
 - ✅ Phase 2 (notifications core): student/firm notification endpoints (list, unread-count, mark-read, read-all), `notificationService.js`, live `NotificationBell` in the Navbar (60s polling + refresh on navigation), backend tests 59/59.
 - ✅ Phase 3 (firm posting CRUD): `/firms/placements` endpoints (list with live counts, create, edit-while-open, idempotent close), `FirmPostings.jsx` view at `/firms/postings` + Postings nav entry, backend tests 60/60.
-- ❌ Phase 4: no event wiring (fan-out on create, firm notify on apply, 409 on closed apply).
+- ✅ Phase 4 (event wiring): publish → `new_posting` fan-out to the firm's university students; apply → `application_received` to the firm; closed posting → 409 with no notification; `getPlacements` returns `status` and the marketplace greys out closures; `utils/notify.js` batch + best-effort helpers; backend tests 63/63.
 - ❌ Phase 5: no auto-close on `Approved` yet (manual close landed in Phase 3).
 - ❌ Phase 6: polish + docs pass.
 - ⚠️ No realtime transport and no polling infra beyond the bell — dashboards still fetch once on mount.
