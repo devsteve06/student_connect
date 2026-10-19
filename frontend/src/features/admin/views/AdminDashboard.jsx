@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, ShieldCheck, GraduationCap, Building2, Briefcase,
-  KeyRound, Trash2, UserPlus, Search, RefreshCw, LogIn, LayoutGrid
+  KeyRound, Trash2, UserPlus, Search, RefreshCw, Eye, LayoutGrid
 } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
@@ -28,19 +28,20 @@ const ROLE_META = {
   university: { label: 'University', badge: 'info', icon: Briefcase }
 };
 
-// Cross-portal hand-off. An admin session cannot open another role's area —
-// ProtectedRoute bounces it home — and a live session would also bounce the
-// visitor off the sign-in screen (GuestRoute). So each entry points at that
-// portal's *login*, and jumping ends the admin session first.
+// Cross-portal preview. An admin session cannot browse another role's area
+// directly (ProtectedRoute matches on role), so each entry opens that portal's
+// home "as" one of its accounts. The account rides along in the X-View-As-*
+// headers, and the API keeps the preview read-only — the admin never gives up
+// the admin session, and never writes as somebody else.
 const CROSS_PORTALS = [
-  { role: 'student', label: 'Student hub', loginPath: '/login/students' },
-  { role: 'firm', label: 'Corporate gate', loginPath: '/login/firms' },
-  { role: 'university', label: 'Faculty console', loginPath: '/login/universities' }
+  { role: 'student', label: 'Student hub', home: '/students' },
+  { role: 'firm', label: 'Corporate gate', home: '/firms' },
+  { role: 'university', label: 'Faculty console', home: '/universities' }
 ];
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, startPreview } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -120,12 +121,25 @@ export default function AdminDashboard() {
 
   const eyebrow = roleChip('admin');
 
-  // Sign the admin out, then land on the chosen portal's sign-in screen. Without
-  // the logout both routers would bounce the request straight back to /admin.
-  const handlePortalJump = (loginPath) => {
-    logout();
-    navigate(loginPath, { replace: true });
+  // Open another portal read-only, acting as one of its accounts, while keeping
+  // the admin session. "Exit preview" in the portal's banner comes back here.
+  const handleViewAs = (account) => {
+    if (!account) return;
+    startPreview(account);
+    const portal = CROSS_PORTALS.find((p) => p.role === account.role);
+    navigate(portal?.home || '/admin', { replace: true });
   };
+
+  // One click per portal: default to the first account of that role. The table's
+  // "View as" action below picks a specific one.
+  const previewTargets = useMemo(
+    () => ({
+      student: users.find((u) => u.role === 'student'),
+      firm: users.find((u) => u.role === 'firm'),
+      university: users.find((u) => u.role === 'university')
+    }),
+    [users]
+  );
 
   return (
     <div className="space-y-8">
@@ -185,27 +199,37 @@ export default function AdminDashboard() {
         })}
       </div>
 
-      {/* Cross-portal quick access */}
+      {/* Cross-portal preview */}
       <section className="rounded-2xl border border-line/80 bg-slate-950 p-6 shadow-soft">
         <div className="mb-4 flex items-center gap-2">
           <LayoutGrid className="h-4 w-4 text-rose-300" />
           <h2 className="text-sm font-extrabold tracking-tight text-white">Jump into any portal</h2>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {CROSS_PORTALS.map((p) => (
-            <button
-              key={p.role}
-              onClick={() => handlePortalJump(p.loginPath)}
-              className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"
-            >
-              <span>{p.label}</span>
-              <LogIn className="h-4 w-4 opacity-60" />
-            </button>
-          ))}
+          {CROSS_PORTALS.map((p) => {
+            const target = previewTargets[p.role];
+            return (
+              <button
+                key={p.role}
+                onClick={() => handleViewAs(target)}
+                disabled={!target}
+                className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <span className="min-w-0">
+                  <span className="block">{p.label}</span>
+                  <span className="mt-0.5 block truncate font-mono text-[11px] font-medium text-slate-400">
+                    {target ? `as ${target.name}` : 'no accounts yet'}
+                  </span>
+                </span>
+                <Eye className="h-4 w-4 shrink-0 opacity-60" />
+              </button>
+            );
+          })}
         </div>
         <p className="mt-3 text-xs text-ink-5">
-          Each portal has its own sign-in. Jumping ends the admin session and opens that portal&apos;s
-          login screen.
+          Each portal opens read-only &ldquo;as&rdquo; one of its accounts — the admin session stays
+          put. Use <span className="font-semibold text-ink-4">View as</span> in the table to pick a
+          specific account.
         </p>
       </section>
 
@@ -292,6 +316,16 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex items-center justify-end gap-2">
+                          {u.role !== 'admin' && (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              icon={Eye}
+                              onClick={() => handleViewAs(u)}
+                            >
+                              View as
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="secondary"

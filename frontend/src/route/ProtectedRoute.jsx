@@ -21,7 +21,7 @@ const PORTAL_HOMES = {
 };
 
 export default function ProtectedRoute({ role, children }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, preview } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated || !user) {
@@ -30,6 +30,12 @@ export default function ProtectedRoute({ role, children }) {
   }
 
   if (role && user.role !== role) {
+    // An admin may drop into another portal "as" a named account (the admin
+    // overview's cross-portal preview). The API enforces the matching role and
+    // refuses writes, so this is a read-only look around, not a role change.
+    if (user.role === 'admin' && preview?.role === role && preview?.id) {
+      return children;
+    }
     return <Navigate to={PORTAL_HOMES[user.role] || '/'} replace />;
   }
 

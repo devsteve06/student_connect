@@ -55,6 +55,17 @@ Updates to **AGENTS.md** (Institutional identity + email derivation, Affiliation
   - Registered student (`Dennis Otieno`) → email `dennis.otieno@students.nexu.ac.ke`, `university_id=1`.
   - Spoofed client email is ignored (server derives and stores the correct institutional address). All changes are committed in the working tree on branch `feat/gateway-naming` (no node_modules/.env committed). 
 
+### Admin cross-portal preview ("view as")
+
+- After signing in as an admin, the admin may open the student, firm and university portals **without giving up the admin session**. The view is **read-only**.
+- Contract (do not break it):
+  - The SPA sends `X-View-As-Role` + `X-View-As-Id` (`frontend/src/service/apiClient.js`), reading the target from `sessionStore` key `preview`.
+  - `backend/middleware/authMiddleware.js#previewAs(expectedRole)` validates that the header role equals the mounted portal, that the method is `GET`, and that the account exists; then it swaps `req.user` for that account (`req.previewAdminId` keeps the admin id). This works because every controller resolves the acting account from `req.user.id`.
+  - Portal routers are mounted `authorizeRoles(<role>, 'admin'), previewAs(<role>)` in `routes/index.js`. `/admin` ignores the headers.
+  - Writes in preview return **403** by design, so nothing is attributed to the viewed account (an admin must not apply for a student, or hire for a firm).
+  - `apiClient` must not clear the session on a 403 while a preview is active — that 403 is the read-only guard. A 401 still signs out.
+- Frontend: `AuthProvider` exposes `preview` / `startPreview` / `stopPreview`; `ProtectedRoute` admits an admin into a portal only when `preview.role` matches; `DashboardLayout` shows the read-only banner with **Exit preview**. The admin overview starts a preview from the "Jump into any portal" cards (first account of the role) or the accounts table's **View as** action.
+
 ## Current state notes
 
 - Branch: `feat/gateway-naming` (same as before; work is uncommitted locally relative to origin except as shown). 

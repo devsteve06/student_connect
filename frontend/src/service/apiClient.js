@@ -19,6 +19,17 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Admin preview: name the account to act as. The server allows an admin into
+  // another portal only through these headers, only on GETs (it refuses to
+  // attribute a write to the account being viewed), and the /admin routes
+  // ignore them — so an active preview never affects the admin's own surface.
+  const preview = sessionStore.getPreview();
+  if (preview?.role && preview?.id) {
+    config.headers['X-View-As-Role'] = preview.role;
+    config.headers['X-View-As-Id'] = String(preview.id);
+  }
+
   // Don't set Content-Type for multipart requests; let the browser
   // include the correct boundary. Never override if the caller explicitly
   // provided multipart.
@@ -39,8 +50,12 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const url = error.config?.url || '';
     const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register');
+    // While previewing, a 403 means "that action is not allowed in preview"
+    // (the API refuses writes) — not "your session is invalid", so the admin
+    // must not be signed out of the admin session for pressing a button.
+    const previewing = Boolean(sessionStore.getPreview());
 
-    if ((status === 401 || status === 403) && !isAuthAttempt) {
+    if ((status === 401 || (status === 403 && !previewing)) && !isAuthAttempt) {
       sessionStore.clear();
       const path = window.location.pathname;
       if (!path.startsWith('/login')) {

@@ -15,7 +15,7 @@ import {
   buildAccountEmail
 } from '../utils/identity.js';
 import { courseCode, formatRegNumber } from '../utils/regNumber.js';
-import { authorizeRoles } from '../middleware/authMiddleware.js';
+import { authorizeRoles, previewAs } from '../middleware/authMiddleware.js';
 import { errorHandler, notFound } from '../middleware/errorMiddleware.js';
 
 // --- Minimal Express res/req stubs ----------------------------------------
@@ -197,6 +197,99 @@ async function studentIdByEmail(email) {
   assert.ok(row, `seed student ${email} exists`);
   return row.id;
 }
+
+// --- previewAs (admin cross-portal preview) --------------------------------
+// The SPA names the account to view; the middleware swaps req.user for it so
+// every controller keeps resolving the acting account from req.user.id.
+const previewNoNext = () => {
+  throw new Error('next should not be called');
+};
+
+test('previewAs swaps an admin for the named account on a GET', async () => {
+  await ensureDb();
+  const studentId = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const req = {
+    user: { id: 999, role: 'admin' },
+    method: 'GET',
+    headers: { 'x-view-as-role': 'student', 'x-view-as-id': String(studentId) }
+  };
+  const res = mockRes();
+  let nexted = false;
+  await previewAs('student')(req, res, () => {
+    nexted = true;
+  });
+  assert.equal(nexted, true, 'the preview proceeds');
+  assert.equal(req.user.role, 'student');
+  assert.equal(req.user.id, studentId, 'controllers now act as the viewed student');
+  assert.equal(req.previewAdminId, 999, 'the admin is remembered');
+});
+
+test('previewAs leaves non-admin requests untouched', async () => {
+  const req = { user: { id: 4, role: 'student' }, method: 'GET', headers: {} };
+  const res = mockRes();
+  let nexted = false;
+  await previewAs('student')(req, res, () => {
+    nexted = true;
+  });
+  assert.equal(nexted, true);
+  assert.equal(req.user.id, 4, 'a real student is never swapped');
+});
+
+test('previewAs refuses an admin that names no target account', async () => {
+  const res = mockRes();
+  await previewAs('student')({ user: { id: 999, role: 'admin' }, method: 'GET', headers: {} }, res, previewNoNext);
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.message, /needs a target account/i);
+});
+
+test('previewAs refuses a target from a different portal', async () => {
+  await ensureDb();
+  const studentId = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const res = mockRes();
+  await previewAs('firm')(
+    {
+      user: { id: 999, role: 'admin' },
+      method: 'GET',
+      headers: { 'x-view-as-role': 'student', 'x-view-as-id': String(studentId) }
+    },
+    res,
+    previewNoNext
+  );
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.message, /cannot open the firm portal/i);
+});
+
+test('previewAs blocks writes so nothing is attributed to the viewed account', async () => {
+  await ensureDb();
+  const studentId = await studentIdByEmail('alex.kamau@students.strathmore.edu');
+  const res = mockRes();
+  await previewAs('student')(
+    {
+      user: { id: 999, role: 'admin' },
+      method: 'POST',
+      headers: { 'x-view-as-role': 'student', 'x-view-as-id': String(studentId) }
+    },
+    res,
+    previewNoNext
+  );
+  assert.equal(res.statusCode, 403);
+  assert.match(res.body.message, /read-only/i);
+});
+
+test('previewAs 404s when the target account no longer exists', async () => {
+  await ensureDb();
+  const res = mockRes();
+  await previewAs('student')(
+    {
+      user: { id: 999, role: 'admin' },
+      method: 'GET',
+      headers: { 'x-view-as-role': 'student', 'x-view-as-id': '999999' }
+    },
+    res,
+    previewNoNext
+  );
+  assert.equal(res.statusCode, 404);
+});
 
 test('logbook: getMyLogbooks lists the student\'s weeks newest-first', async () => {
   await ensureDb();
