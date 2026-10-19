@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, ShieldCheck, GraduationCap, Building2, Briefcase,
-  KeyRound, Trash2, UserPlus, Search, RefreshCw, ExternalLink, LayoutGrid
+  KeyRound, Trash2, UserPlus, Search, RefreshCw, LogIn, LayoutGrid
 } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Input from '../../../components/common/Input';
@@ -28,10 +28,14 @@ const ROLE_META = {
   university: { label: 'University', badge: 'info', icon: Briefcase }
 };
 
+// Cross-portal hand-off. An admin session cannot open another role's area —
+// ProtectedRoute bounces it home — and a live session would also bounce the
+// visitor off the sign-in screen (GuestRoute). So each entry points at that
+// portal's *login*, and jumping ends the admin session first.
 const CROSS_PORTALS = [
-  { role: 'student', label: 'Student hub', href: '/students' },
-  { role: 'firm', label: 'Corporate gate', href: '/firms' },
-  { role: 'university', label: 'Faculty console', href: '/universities' }
+  { role: 'student', label: 'Student hub', loginPath: '/login/students' },
+  { role: 'firm', label: 'Corporate gate', loginPath: '/login/firms' },
+  { role: 'university', label: 'Faculty console', loginPath: '/login/universities' }
 ];
 
 export default function AdminDashboard() {
@@ -116,6 +120,13 @@ export default function AdminDashboard() {
 
   const eyebrow = roleChip('admin');
 
+  // Sign the admin out, then land on the chosen portal's sign-in screen. Without
+  // the logout both routers would bounce the request straight back to /admin.
+  const handlePortalJump = (loginPath) => {
+    logout();
+    navigate(loginPath, { replace: true });
+  };
+
   return (
     <div className="space-y-8">
       {/* Toast */}
@@ -184,14 +195,18 @@ export default function AdminDashboard() {
           {CROSS_PORTALS.map((p) => (
             <button
               key={p.role}
-              onClick={() => navigate(p.href)}
+              onClick={() => handlePortalJump(p.loginPath)}
               className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"
             >
               <span>{p.label}</span>
-              <ExternalLink className="h-4 w-4 opacity-60" />
+              <LogIn className="h-4 w-4 opacity-60" />
             </button>
           ))}
         </div>
+        <p className="mt-3 text-xs text-ink-5">
+          Each portal has its own sign-in. Jumping ends the admin session and opens that portal&apos;s
+          login screen.
+        </p>
       </section>
 
       {/* Controls */}

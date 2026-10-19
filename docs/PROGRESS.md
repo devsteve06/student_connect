@@ -9,6 +9,11 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-20 (fix: the admin "Jump into any portal" buttons now reach the right sign-in)
+- The three quick-access buttons in the admin overview pointed at the portal **homes** (`/students`, `/firms`, `/universities`). Since the visitor holds an admin session, `ProtectedRoute` matched on role, saw the mismatch and redirected straight back to `/admin` — so the buttons looked dead. Aiming at the login screen directly would not have worked either: `GuestRoute` bounces a live session out of it.
+- Each entry now carries its portal's `loginPath`, and `handlePortalJump` signs the admin out **before** navigating (`replace`), so the press lands on that portal's login. Added a one-line hint under the heading and swapped the `ExternalLink` glyph for `LogIn`.
+- Verified: `npx eslint src` 0 problems; `vite build` green.
+
 ### 2026-10-20 (UI: the account menu lives behind the navbar icon)
 - **Account menu (every role).** The right-hand chip used to print the user's name in the bar. The bar now carries only the role-tinted avatar button; pressing it opens a menu with the name, the institutional email, the portal label, a **Profile** shortcut when the portal has one (students do) and **Sign out**. It closes on an outside click, on Escape, or after either action — the `pointerdown` pattern mirrors `NotificationBell`, and no effect sets state in response to the pathname (`react-hooks/set-state-in-effect` is an error in this repo).
 - Verified: `npx eslint src/components/layouts/Navbar.jsx` 0 problems; `vite build` green.
