@@ -27,6 +27,7 @@ import CvBuilderWizard from '../features/student/views/CvBuilderWizard';
 import CvPreview from '../features/student/views/CvPreview';
 import CvAnalyzer from '../features/student/views/CvAnalyzer';
 import FirmDashboard from '../features/firm/views/FirmDashboard';
+import FirmPostings from '../features/firm/views/FirmPostings';
 import UniversityDashboard from '../features/university/views/UniversityDashboard';
 import AdminDashboard from '../features/admin/views/AdminDashboard';
 import Landing from '../features/Landing';
@@ -69,6 +70,7 @@ export default function AppRoutes() {
 
           {/* MOUNTED CORPORATE WORKSPACE (firm role required) */}
           <Route path="/firms" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmDashboard /></DashboardLayout></ProtectedRoute>} />
+          <Route path="/firms/postings" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmPostings /></DashboardLayout></ProtectedRoute>} />
           <Route path="/firms/applicants" element={<ProtectedRoute role="firm"><DashboardLayout role="firm"><FirmApplicants /></DashboardLayout></ProtectedRoute>} />
 
           {/* MOUNTED UNIVERSITY REGISTRY (university role required) */}

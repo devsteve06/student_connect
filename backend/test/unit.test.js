@@ -541,6 +541,109 @@ test('notifications: markRead is scoped to the owner and markAllRead clears the 
   assert.equal(await unreadCountFor(me, 'student'), 0, 'badge is clear after read-all');
 });
 
+// --- firm posting CRUD (JOB_POSTING_PLAN.md Phase 3) ------------------------
+import {
+  listPlacements,
+  createPlacement,
+  updatePlacement,
+  closePlacement
+} from '../controllers/firmController.js';
+
+test('placements: a firm creates, lists, edits and closes its own postings', async () => {
+  await ensureDb();
+  const firmIds = (await query('SELECT id FROM firms ORDER BY id')).rows.map((r) => r.id);
+  const [mine, other] = firmIds;
+
+  // Create — a valid payload lands as 'Open' with no applicants.
+  const created = mockRes();
+  await createPlacement(
+    {
+      ...asUser(mine),
+      body: {
+        role: 'Data Analyst Intern',
+        location: 'Nairobi',
+        duration: '3 Months',
+        slots: 2,
+        description: 'Join our analytics team.'
+      }
+    },
+    created,
+    noNext
+  );
+  assert.equal(created.statusCode, 201);
+  assert.equal(created.body.status, 'Open', 'a fresh posting is Open');
+  assert.equal(created.body.slots, 2, 'slots are stored as given');
+  assert.equal(created.body.applicantCount, 0, 'a fresh posting has no applicants');
+  const placementId = created.body.id;
+
+  // Create — validation.
+  for (const [label, body] of [
+    ['a missing role', { location: 'Nairobi', duration: '3 Months', description: 'x' }],
+    ['zero slots', { role: 'x', location: 'y', duration: 'z', description: 'w', slots: 0 }]
+  ]) {
+    const bad = mockRes();
+    await createPlacement({ ...asUser(mine), body }, bad, noNext);
+    assert.equal(bad.statusCode, 400, `create rejects ${label}`);
+  }
+
+  // List — own rows appear; another firm never sees them.
+  const mineList = mockRes();
+  await listPlacements(asUser(mine), mineList, noNext);
+  assert.ok(
+    mineList.body.some((p) => p.id === placementId && p.status === 'Open'),
+    'the firm sees its own Open posting'
+  );
+  const otherList = mockRes();
+  await listPlacements(asUser(other), otherList, noNext);
+  assert.ok(!otherList.body.some((p) => p.id === placementId), "another firm's posting is invisible");
+
+  // Edit — the owner can update an Open posting.
+  const edited = mockRes();
+  await updatePlacement(
+    { ...asUser(mine), params: { id: String(placementId) }, body: { role: 'Senior Data Analyst' } },
+    edited,
+    noNext
+  );
+  assert.equal(edited.statusCode, 200);
+  assert.equal(edited.body.role, 'Senior Data Analyst', 'the new role is persisted');
+
+  // Edit — another firm's posting reads as missing; empty bodies are 400.
+  const foreign = mockRes();
+  await updatePlacement(
+    { ...asUser(other), params: { id: String(placementId) }, body: { role: 'Nope' } },
+    foreign,
+    noNext
+  );
+  assert.equal(foreign.statusCode, 404, "another firm's posting reads as missing");
+  const empty = mockRes();
+  await updatePlacement({ ...asUser(mine), params: { id: String(placementId) }, body: {} }, empty, noNext);
+  assert.equal(empty.statusCode, 400, 'an update with no fields is rejected');
+
+  // Close — stamps closed_at, idempotent on repeat, freezes the posting.
+  const closed = mockRes();
+  await closePlacement({ ...asUser(mine), params: { id: String(placementId) } }, closed, noNext);
+  assert.equal(closed.statusCode, 200);
+  assert.equal(closed.body.status, 'Closed', 'the posting is now Closed');
+  assert.ok(closed.body.closedAt, 'closed_at is stamped');
+
+  const again = mockRes();
+  await closePlacement({ ...asUser(mine), params: { id: String(placementId) } }, again, noNext);
+  assert.equal(again.statusCode, 200, 'closing twice is idempotent');
+  assert.equal(again.body.status, 'Closed');
+
+  const frozen = mockRes();
+  await updatePlacement(
+    { ...asUser(mine), params: { id: String(placementId) }, body: { role: 'Zombie' } },
+    frozen,
+    noNext
+  );
+  assert.equal(frozen.statusCode, 409, 'a closed posting rejects further edits');
+
+  const missingClose = mockRes();
+  await closePlacement({ ...asUser(other), params: { id: String(placementId) } }, missingClose, noNext);
+  assert.equal(missingClose.statusCode, 404, "another firm cannot close my posting");
+});
+
 // --- auth: self-service registration ---------------------------------------
 import { registerUser, loginUser, listUniversities } from '../controllers/authController.js';
 import {

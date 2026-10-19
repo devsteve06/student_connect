@@ -6,6 +6,8 @@ const map = {
   placed: { variant: 'success', label: 'Placed' },
   hired: { variant: 'success', label: 'Placed' },
   verified: { variant: 'success', label: 'Verified' },
+  open: { variant: 'info', label: 'Open' },
+  closed: { variant: 'neutral', label: 'Closed' },
   shortlisted: { variant: 'info', label: 'Shortlisted' },
   interviewing: { variant: 'info', label: 'Interviewing' },
   'interview scheduled': { variant: 'info', label: 'Interview scheduled' },

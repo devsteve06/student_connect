@@ -20,6 +20,7 @@ export const navigationLinks = {
   ],
   firm: [
     { name: 'Overview', href: '/firms', icon: LayoutDashboard },
+    { name: 'Postings', href: '/firms/postings', icon: Briefcase },
     { name: 'Applicants', href: '/firms/applicants', icon: Users },
   ],
   university: [

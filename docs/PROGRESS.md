@@ -2,12 +2,21 @@
 
 ## Current Status
 - **Date**: 2026-10-19
-- **Phase**: job postings Phases 1–2 complete (schema + notification feed) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
+- **Phase**: job postings Phases 1–3 complete (schema + notification feed + firm posting CRUD) on `feat/job-postings`; CV builder Phases 1–6 complete; deploy Phase 4 configured, not yet executed
 - **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-19 (Job postings Phase 3 — firm posting CRUD + Postings view)
+- **Firm posting CRUD landed (Phase 3 of `JOB_POSTING_PLAN.md`)** — a firm can finally publish, edit and close its own placements end to end through the API and a new dashboard page.
+  - **Backend** (`firmController.js`): `GET /firms/placements` (this firm's postings, newest first, with a live `applicantCount` per posting), `POST /firms/placements` (validates role/location/duration/description + `slots >= 1`; always stored `'Open'`), `PATCH /firms/placements/:id` (edits **only while Open** — a closed posting answers `409`, another firm's answers `404`, an empty body `400`), `PATCH /firms/placements/:id/close` (manual close; stamps `closed_at`; **idempotent** — closing an already-closed posting returns its current state). All four mounted behind `protect + authorizeRoles('firm')` in `firmRoutes.js`.
+    - *pg-mem note*: applicant counts are computed in a **separate grouped query** and merged in JS, because pg-mem cannot correlate an outer alias inside a select-list subquery and its `GROUP BY` nulls non-aggregated columns (found via a temporary diagnostic script, since removed); the same query shape is valid on real Postgres.
+  - **Frontend**: `firmService.js` gained `listPlacements/createPlacement/updatePlacement/closePlacement`; new `FirmPostings.jsx` view at `/firms/postings` (banner + create/edit `Modal` with a 5-field form + close-confirmation `Modal`, success/error banners, empty + error + skeleton states, live applicant counts, "Closed — no longer accepting applications" for frozen postings); `navigationConfig.jsx` adds the **Postings** nav item for the firm role; `StatusPill.jsx` maps `Open` → info and `Closed` → neutral.
+  - **Tests** (`unit.test.js`, 59 → 60): one end-to-end controller test — create (valid + 400s), list (own rows visible, another firm's invisible), edit (owner updates, another firm 404, empty body 400), close (stamps `closed_at`, idempotent, freezes edits with 409, another firm cannot close it).
+  - Verified: `backend npm test` 60/60; `frontend npx eslint` on all five touched files clean; `frontend npm run build` green (1863 modules).
+  - Next: Phase 4 — event wiring (fan-out `new_posting` notifications to affiliated-university students on create; firm `application_received` notification on apply; 409 when applying to a closed posting).
 
 ### 2026-10-19 (Job postings Phase 2 — notification feed + live Navbar badge)
 - **Notification core landed (Phase 2 of `JOB_POSTING_PLAN.md`)** — the badges are real for students and firms; the decorative hard-coded dot in the Navbar is gone.

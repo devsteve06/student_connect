@@ -3,7 +3,11 @@ import { Router } from 'express';
 import {
   getFirmMetrics,
   getApplicants,
-  updateApplicantStatus
+  updateApplicantStatus,
+  listPlacements,
+  createPlacement,
+  updatePlacement,
+  closePlacement
 } from '../controllers/firmController.js';
 import {
   listNotifications,
@@ -17,6 +21,13 @@ const router = Router();
 router.get('/metrics', getFirmMetrics);
 router.get('/applicants', getApplicants);
 router.patch('/applicants/:id', updateApplicantStatus);
+
+// Job postings (JOB_POSTING_PLAN.md Phase 3) — CRUD for the firm's own
+// placements; the close route is declared before /:id for clarity.
+router.get('/placements', listPlacements);
+router.post('/placements', createPlacement);
+router.patch('/placements/:id/close', closePlacement);
+router.patch('/placements/:id', updatePlacement);
 
 // Notifications (JOB_POSTING_PLAN.md Phase 2) — feed + badge counters.
 router.get('/notifications', listNotifications);
