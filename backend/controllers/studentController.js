@@ -77,7 +77,7 @@ export const getApplications = async (req, res, next) => {
 
 // POST /students/applications — submit a new attachment application
 export const applyForPlacement = async (req, res, next) => {
-  const { companyName, role, appliedDate, status } = req.body;
+  const { companyName, role, appliedDate } = req.body;
 
   if (!companyName || !role) {
     return res.status(400).json({ message: 'companyName and role are required to submit an application.' });
@@ -102,11 +102,16 @@ export const applyForPlacement = async (req, res, next) => {
       });
     }
 
+    // The status is server-owned: a submission always lands as 'Pending
+    // Review' and only the firm's PATCH may move it on. Honouring a
+    // client-supplied status let a student self-approve, and any value
+    // outside the column's CHECK (e.g. the old 'Pending review' payload)
+    // aborted the insert with a 500.
     const inserted = (await query(
       `INSERT INTO applications (student_id, placement_id, firm_id, role, applied_date, status)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       VALUES ($1, $2, $3, $4, $5, 'Pending Review')
        RETURNING id, role, applied_date, status`,
-      [req.user.id, placement?.id ?? null, firm.id, role, appliedDate || todayISO(), status || 'Pending Review']
+      [req.user.id, placement?.id ?? null, firm.id, role, appliedDate || todayISO()]
     )).rows[0];
 
     // Best-effort echo to the firm's dashboard (notifyQuietly never throws).

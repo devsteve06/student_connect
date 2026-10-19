@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapPin, Clock, ArrowUpRight, Lock } from 'lucide-react';
+import { MapPin, Clock, ArrowUpRight, Lock, ChevronDown } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import PageBanner from '../../../components/common/PageBanner';
@@ -9,6 +9,10 @@ import StatusPill from '../../../components/common/StatusPill';
 import { roleChip } from '../../../config/roleTheme';
 import { studentService } from '../../../service/studentService';
 
+// Roughly how much description fits in the three clamped lines — past this a
+// "Read more" toggle earns its place.
+const CLAMP_THRESHOLD = 140;
+
 // Data source: already wired to the real API — studentService.getPlacements()
 export default function StudentMarketplace() {
   const [placements, setPlacements] = useState([]);
@@ -16,6 +20,8 @@ export default function StudentMarketplace() {
   const [error, setError] = useState('');
   const [submittingId, setSubmittingId] = useState(null);
   const [notice, setNotice] = useState(null);
+  // One card open at a time keeps the grid scannable.
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     const fetchMarketplace = async () => {
@@ -31,6 +37,10 @@ export default function StudentMarketplace() {
     fetchMarketplace();
   }, []);
 
+  const toggleExpanded = (id) => {
+    setExpandedId((current) => (current === id ? null : id));
+  };
+
   const handleApply = async (placement) => {
     // Defensive: the button is hidden for closed postings, but the API is the
     // real gate (it answers 409) — this just avoids a pointless round-trip.
@@ -40,11 +50,12 @@ export default function StudentMarketplace() {
     }
     setSubmittingId(placement.id);
     setNotice(null);
+    // No status here: the application always lands as 'Pending Review' and
+    // only the firm can move it on, so the server owns that field.
     const payload = {
       companyName: placement.companyName,
       role: placement.role,
-      appliedDate: new Date().toISOString().split('T')[0],
-      status: 'Pending review'
+      appliedDate: new Date().toISOString().split('T')[0]
     };
     try {
       await studentService.applyForPlacement(payload);
@@ -81,7 +92,9 @@ export default function StudentMarketplace() {
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
           Attachment marketplace
         </h1>
-        <p className="mt-1 text-sm text-ink-4">Browse placements from trusted partner firms and apply in a click.</p>
+        <p className="mt-1 text-sm text-ink-4">
+          Browse placements from trusted partner firms and apply in a click. Tap a role to read the full brief.
+        </p>
       </PageBanner>
 
       {notice && (
@@ -119,74 +132,133 @@ export default function StudentMarketplace() {
           />
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 xl:grid-cols-3">
           {placements.map((job) => {
             const isClosed = job.status === 'Closed';
+            const isExpanded = expandedId === job.id;
+            const description =
+              job.description || 'Join our engineering teams to design, build, and ship production software.';
+            const canExpand = description.length > CLAMP_THRESHOLD;
+            const descriptionId = `placement-description-${job.id}`;
+
             return (
-            <article
-              key={job.id}
-              className={`group flex flex-col justify-between rounded-2xl border border-line/80 bg-surface p-6 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lifted ${isClosed ? 'opacity-60' : ''}`}
-            >
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-bold text-ink group-hover:text-brand-700">
-                      {job.role}
-                    </h3>
-                    <p className="truncate text-sm text-ink-4">{job.companyName}</p>
+              <article
+                key={job.id}
+                className={`group relative flex flex-col justify-between rounded-2xl border bg-surface p-6 shadow-soft transition-all ${
+                  isExpanded
+                    ? 'border-brand-200 shadow-lifted ring-1 ring-brand-100'
+                    : 'border-line/80 hover:-translate-y-0.5 hover:shadow-lifted'
+                } ${isClosed ? 'opacity-70' : ''}`}
+              >
+                <div className="space-y-4">
+                  {/* The role (and firm) is the expand toggle. */}
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(job.id)}
+                    aria-expanded={isExpanded}
+                    aria-controls={descriptionId}
+                    className="flex w-full items-start justify-between gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/40"
+                  >
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-bold text-ink group-hover:text-brand-700">
+                          {job.role}
+                        </span>
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-ink-5 transition-transform duration-200 ${
+                            isExpanded ? 'rotate-180' : ''
+                          }`}
+                        />
+                      </span>
+                      <span className="mt-0.5 block truncate text-sm text-ink-4">{job.companyName}</span>
+                    </span>
+                    {isClosed ? (
+                      <StatusPill status="Closed" className="shrink-0" />
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-xs font-semibold text-ink-3">
+                        {job.duration || '3 Months'}
+                      </span>
+                    )}
+                  </button>
+
+                  <p
+                    id={descriptionId}
+                    className={`text-sm leading-relaxed text-ink-3 ${
+                      isExpanded ? 'whitespace-pre-line' : 'line-clamp-3'
+                    }`}
+                  >
+                    {description}
+                  </p>
+
+                  {canExpand && (
+                    <button
+                      type="button"
+                      onClick={() => toggleExpanded(job.id)}
+                      className="text-xs font-bold text-brand-700 transition-colors hover:text-brand-800"
+                    >
+                      {isExpanded ? 'Show less' : 'Read full description'}
+                    </button>
+                  )}
+
+                  {/* Only real tags are rendered — the API does not send any yet. */}
+                  {Array.isArray(job.tags) && job.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {job.tags.map((tag) => (
+                        <span key={tag} className="rounded-md bg-surface-3 px-2 py-0.5 text-xs font-semibold text-ink-3">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Slots only matter once the card is open (and it stays
+                      relevant for closed postings). */}
+                  {isExpanded && (
+                    <dl className="grid grid-cols-2 gap-3 rounded-xl bg-surface-2 p-3 text-xs">
+                      <div>
+                        <dt className="font-semibold uppercase tracking-wider text-ink-5">Slots</dt>
+                        <dd className="mt-0.5 font-semibold text-ink-2">
+                          {job.slots == null ? '—' : `${job.slots} ${job.slots === 1 ? 'opening' : 'openings'}`}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="font-semibold uppercase tracking-wider text-ink-5">Duration</dt>
+                        <dd className="mt-0.5 font-semibold text-ink-2">{job.duration || '—'}</dd>
+                      </div>
+                    </dl>
+                  )}
+                </div>
+
+                <div className="mt-6 flex items-center justify-between border-t border-line-2 pt-5">
+                  <div className="flex items-center gap-3 text-xs text-ink-4">
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {job.location || 'Nairobi, KE'}
+                    </span>
+                    {job.posted && (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        {job.posted}
+                      </span>
+                    )}
                   </div>
                   {isClosed ? (
-                    <StatusPill status="Closed" className="shrink-0" />
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-5">
+                      <Lock className="h-3.5 w-3.5" />
+                      Closed
+                    </span>
                   ) : (
-                    <span className="shrink-0 rounded-full bg-surface-3 px-2.5 py-0.5 text-xs font-semibold text-ink-3">
-                      {job.duration || '3 Months'}
-                    </span>
+                    <Button
+                      size="sm"
+                      icon={ArrowUpRight}
+                      onClick={() => handleApply(job)}
+                      disabled={submittingId === job.id}
+                    >
+                      {submittingId === job.id ? 'Applying…' : 'Apply'}
+                    </Button>
                   )}
                 </div>
-
-                <p className="line-clamp-3 text-sm leading-relaxed text-ink-3">
-                  {job.description || 'Join our engineering teams to design, build, and ship production software.'}
-                </p>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {(job.tags || ['Engineering', 'On-site', 'Mentorship']).map((tag, idx) => (
-                    <span key={idx} className="rounded-md bg-surface-3 px-2 py-0.5 text-xs font-semibold text-ink-3">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-center justify-between border-t border-line-2 pt-5">
-                <div className="flex items-center gap-3 text-xs text-ink-4">
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {job.location || 'Nairobi, KE'}
-                  </span>
-                  {job.posted && (
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {job.posted}
-                    </span>
-                  )}
-                </div>
-                {isClosed ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-5">
-                    <Lock className="h-3.5 w-3.5" />
-                    Closed
-                  </span>
-                ) : (
-                  <Button
-                    size="sm"
-                    icon={ArrowUpRight}
-                    onClick={() => handleApply(job)}
-                    disabled={submittingId === job.id}
-                  >
-                    {submittingId === job.id ? 'Applying…' : 'Apply'}
-                  </Button>
-                )}
-              </div>
-            </article>
+              </article>
             );
           })}
         </div>

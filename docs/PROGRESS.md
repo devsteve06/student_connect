@@ -9,6 +9,17 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-19 (Fix: applying to a posting 500'd — server now owns application status; expandable marketplace cards)
+- **Bug (reported):** applying for any position failed with `new row for relation "applications" violates check constraint` (the "NEW ROW …" error). Root cause was a two-sided bug:
+  - `StudentMarketplace.handleApply` sent `status: 'Pending review'` (**lowercase "r"**), but `applications.status` has `CHECK (status IN ('Pending Review','Interviewing','Approved','Hired','Rejected'))` → Postgres rejected the row → 500.
+  - `studentController.applyForPlacement` passed the client value straight through (`status || 'Pending Review'`), so the payload was trusted verbatim.
+  - **Why tests missed it:** pg-mem does not enforce that CHECK, and the backend tests only ever called the controller *without* a `status` (so the `|| 'Pending Review'` default applied). 68 green tests, live 500.
+- **Fix (backend, the real one):** `applyForPlacement` now **hardcodes `'Pending Review'`** in the `INSERT` and no longer destructures `status` from the body — the field is server-owned and only the firm's `PATCH /firms/applicants/:id` may move it on. This also closes a privilege hole: a student could previously post `status: 'Approved'`/`'Hired'` and self-approve (which would even auto-close the posting via Phase 5's hook).
+- **Fix (frontend):** the marketplace payload drops `status` entirely (keeps `companyName`, `role`, `appliedDate`).
+- **Regression test** (`unit.test.js`, 67 → 68): `applications: the server owns the status…` loops `'Pending review'`, `'Hired'`, `'Approved'` — asserts each yields **201**, body `status === 'Pending Review'`, and the stored row is `'Pending Review'` (cleaning up the row + firm echo each time).
+- **UI (requested): marketplace cards are now expandable.** Clicking the role (or "Read full description") expands the card to show the untruncated `whitespace-pre-line` description plus a Slots/Duration detail panel; a single card opens at a time, the chevron rotates, an open card gets a brand ring, and `aria-expanded`/`aria-controls` are wired. Also removed the hard-coded fake tag chips (`job.tags || ['Engineering','On-site','Mentorship']`) that rendered for every posting — the API sends no tags, so nothing is shown for them now.
+- Verified: `backend npm test` 68/68; `frontend npx eslint src` 0 problems; `vite build` green.
+
 ### 2026-10-19 (Job postings Phase 6 — polish: dashboard counters, quick action, close-on-Hired)
 - **Polish + docs pass landed (Phase 6 of `JOB_POSTING_PLAN.md`)** — feature is now complete end-to-end.
   - **New `components/common/NotificationCenter.jsx`** — the dashboard-side counter the spec asked for ("increments the notification counter on the students dashboard" / "the notification is incremented in firm dashboard"). An unread-count pill + **Mark all read**, a preview of the newest 5 notifications (deep-linked, click = mark-read), plus empty state ("You're all caught up"), a loading skeleton and an error state with `reloadKey` retry. Polls every 60s like `NotificationBell` (no realtime transport in this repo) and is role-scoped through `notificationService` (student/firm only).

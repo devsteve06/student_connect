@@ -773,6 +773,42 @@ test('application events: applying notifies the firm, and a closed posting rejec
   await query("UPDATE placements SET status = 'Open', closed_at = NULL WHERE id = $1", [placement.id]);
 });
 
+test('applications: the server owns the status, so a client-supplied value is ignored', async () => {
+  await ensureDb();
+  const firm = (await query("SELECT id FROM firms WHERE company_name = 'Apex Cloud Labs'")).rows[0];
+  const student = await studentIdByEmail('brian.otieno@students.tukenya.ac.ke');
+
+  // 'Pending review' (lowercase r) is exactly what the marketplace used to
+  // send: it violated the column CHECK and 500'd on real Postgres, while
+  // pg-mem silently accepted it. 'Hired'/'Approved' check the other half —
+  // a student must not be able to approve their own application.
+  for (const injected of ['Pending review', 'Hired', 'Approved']) {
+    const res = mockRes();
+    await applyForPlacement(
+      {
+        user: { id: student, role: 'student' },
+        body: { companyName: 'Apex Cloud Labs', role: 'Backend Systems Engineer', status: injected }
+      },
+      res,
+      noNext
+    );
+
+    assert.equal(res.statusCode, 201, `"${injected}" must not abort the insert`);
+    assert.equal(res.body.status, 'Pending Review', `"${injected}" must not be trusted`);
+
+    const stored = (await query('SELECT status FROM applications WHERE id = $1', [res.body.id])).rows[0];
+    assert.equal(stored.status, 'Pending Review', 'the stored row is always Pending Review');
+
+    // Clean up the application and the firm echo it produced.
+    const note = (await query(
+      'SELECT id FROM notifications WHERE firm_id = $1 ORDER BY id DESC LIMIT 1',
+      [firm.id]
+    )).rows[0];
+    await query('DELETE FROM applications WHERE id = $1', [res.body.id]);
+    if (note) await query('DELETE FROM notifications WHERE id = $1', [note.id]);
+  }
+});
+
 test('notify: insertNotifications batches many rows in one statement', async () => {
   await ensureDb();
   const students = (await query('SELECT id FROM students ORDER BY id LIMIT 2')).rows.map((r) => r.id);
