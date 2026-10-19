@@ -19,6 +19,14 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Don't set Content-Type for multipart requests; let the browser
+  // include the correct boundary. Never override if the caller explicitly
+  // provided multipart.
+  if (config.data instanceof FormData) {
+    if (config.headers && config.headers['Content-Type'] === 'application/json') {
+      delete config.headers['Content-Type'];
+    }
+  }
   return config;
 });
 

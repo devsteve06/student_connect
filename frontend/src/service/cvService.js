@@ -44,5 +44,17 @@ export const cvService = {
   getAnalyses: async () => {
     const response = await apiClient.get('/api/v1/students/cv/analyses');
     return response.data;
+  },
+
+  // Upload an existing CV (PDF or plain text). Returns the parsed draft the
+  // server saved, so the caller can open it in the wizard. Multiplying the
+  // timeout gives the server room to extract a large PDF.
+  uploadCv: async (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await apiClient.post('/api/v1/students/cv/upload', form, {
+      timeout: 60000
+    });
+    return response.data;
   }
 };

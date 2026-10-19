@@ -6,7 +6,9 @@ import { query } from '../data/db.js';
 import PDFDocument from 'pdfkit';
 
 // Maps a student_cvs row to the camelCase shape the API responds with.
-const cvShape = (r) => ({
+// `raw_text` is deliberately omitted: it is a server-side copy of an uploaded
+// file used by the analyzer, not something the client needs back.
+export const cvShape = (r) => ({
   id: r.id,
   studentId: r.student_id,
   title: r.title,
@@ -18,6 +20,10 @@ const cvShape = (r) => ({
   skills: r.skills,
   projects: r.projects,
   certifications: r.certifications,
+  originalFilename: r.original_filename ?? null,
+  mimeType: r.mime_type ?? null,
+  uploadSource: r.upload_source ?? null,
+  uploadedAt: r.uploaded_at ?? null,
   createdAt: r.created_at,
   updatedAt: r.updated_at
 });
@@ -46,7 +52,8 @@ export const getCvs = async (req, res, next) => {
   try {
     const rows = (
       await query(
-        `SELECT * FROM student_cvs WHERE student_id = $1 ORDER BY is_primary DESC, created_at DESC, id DESC`,
+        `SELECT id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, original_filename, mime_type, upload_source, uploaded_at, created_at, updated_at
+           FROM student_cvs WHERE student_id = $1 ORDER BY is_primary DESC, created_at DESC, id DESC`,
         [studentIdOf(req)]
       )
     ).rows;
@@ -72,18 +79,18 @@ export const createCv = async (req, res, next) => {
         `INSERT INTO student_cvs (student_id, title, is_primary, personal_info, professional_summary,
                                     education, experience, skills, projects, certifications)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-         RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at`,
+         RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, original_filename, mime_type, upload_source, uploaded_at, created_at, updated_at`,
         [
           studentIdOf(req),
           (req.body.title || '').trim(),
           isPrimary,
-          req.body.personalInfo ?? null,
+          req.body.personalInfo ? JSON.stringify(req.body.personalInfo) : null,
           req.body.professionalSummary ?? null,
-          req.body.education ?? null,
-          req.body.experience ?? null,
-          req.body.skills ?? null,
-          req.body.projects ?? null,
-          req.body.certifications ?? null
+          req.body.education ? JSON.stringify(req.body.education) : null,
+          req.body.experience ? JSON.stringify(req.body.experience) : null,
+          req.body.skills ? JSON.stringify(req.body.skills) : null,
+          req.body.projects ? JSON.stringify(req.body.projects) : null,
+          req.body.certifications ? JSON.stringify(req.body.certifications) : null
         ]
       )
     ).rows[0];
@@ -137,17 +144,17 @@ export const updateCv = async (req, res, next) => {
                 certifications = COALESCE($9, certifications),
                 updated_at = NOW()
           WHERE id = $1
-          RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at`,
+          RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, original_filename, mime_type, upload_source, uploaded_at, created_at, updated_at`,
         [
           req.params.id,
           req.body.title ?? null,
-          req.body.personalInfo ?? null,
+          req.body.personalInfo ? JSON.stringify(req.body.personalInfo) : null,
           req.body.professionalSummary ?? null,
-          req.body.education ?? null,
-          req.body.experience ?? null,
-          req.body.skills ?? null,
-          req.body.projects ?? null,
-          req.body.certifications ?? null
+          req.body.education ? JSON.stringify(req.body.education) : null,
+          req.body.experience ? JSON.stringify(req.body.experience) : null,
+          req.body.skills ? JSON.stringify(req.body.skills) : null,
+          req.body.projects ? JSON.stringify(req.body.projects) : null,
+          req.body.certifications ? JSON.stringify(req.body.certifications) : null
         ]
       )
     ).rows[0];
@@ -210,7 +217,7 @@ export const setPrimaryCv = async (req, res, next) => {
 
     const row = (
       await query(
-        'UPDATE student_cvs SET is_primary = true WHERE id = $1 RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, created_at, updated_at',
+        'UPDATE student_cvs SET is_primary = true WHERE id = $1 RETURNING id, student_id, title, is_primary, personal_info, professional_summary, education, experience, skills, projects, certifications, original_filename, mime_type, upload_source, uploaded_at, created_at, updated_at',
         [cvId]
       )
     ).rows[0];
@@ -423,7 +430,11 @@ function cvSectionTexts(cv) {
     certifications: (cv.certifications ?? [])
       .map((entry) => [entry.title, entry.issuer, entry.year, entry.description].filter(Boolean).join(' '))
       .join(' ')
-      .toLowerCase()
+      .toLowerCase(),
+    // Uploaded CVs carry the text pulled from the original file. It is a
+    // catch-all for anything the heuristic parser could not place in a
+    // structured section, so a keyword the student really typed still counts.
+    raw: String(cv.rawText ?? '').toLowerCase()
   };
 }
 
@@ -432,7 +443,8 @@ function cvSectionTexts(cv) {
 const toCamelCv = (row) => ({
   ...row,
   personalInfo: row.personal_info ?? null,
-  professionalSummary: row.professional_summary ?? null
+  professionalSummary: row.professional_summary ?? null,
+  rawText: row.raw_text ?? null
 });
 
 // POST /student/cv/analyze — score a CV against a job. Body may carry a

@@ -8,6 +8,11 @@
 -- Idempotent — safe to run against an existing database without wiping data
 -- (unlike schema.sql, which drops tables).
 --
+-- The upload-provenance columns (original_filename, mime_type, upload_source,
+-- uploaded_at, raw_text) are declared here so fresh databases get them in one
+-- step; 0007_cv_upload.sql backfills them onto databases created before
+-- uploading existed.
+--
 -- Run:  npm run db:migrate   (against DATABASE_URL)
 -- =============================================================================
 
@@ -23,6 +28,11 @@ CREATE TABLE IF NOT EXISTS student_cvs (
     skills            JSONB,
     projects          JSONB,
     certifications    JSONB,
+    original_filename VARCHAR(255),
+    mime_type         VARCHAR(100),
+    upload_source     VARCHAR(20),
+    uploaded_at       TIMESTAMPTZ,
+    raw_text          TEXT,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

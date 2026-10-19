@@ -156,6 +156,11 @@ CREATE TABLE student_cvs (
     skills            JSONB,
     projects          JSONB,
     certifications    JSONB,
+    original_filename VARCHAR(255),
+    mime_type         VARCHAR(100),
+    upload_source     VARCHAR(20),
+    uploaded_at       TIMESTAMPTZ,
+    raw_text          TEXT,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

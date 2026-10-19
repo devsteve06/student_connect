@@ -1,13 +1,22 @@
 # Student Connect - Project Progress
 
 ## Current Status
-- **Date**: 2026-10-17
-- **Phase**: CV builder Phase 5 (dashboard integration + tests) complete; Phases 1–5 all implemented; Phase 4 (deploy) configured, not yet executed
+- **Date**: 2026-10-19
+- **Phase**: CV builder Phases 1–6 all implemented (upload landed); Phase 4 (deploy) configured, not yet executed
 - **Overall Progress**: ~100% feature complete — remaining work is the live deploy itself
 - **Deploy target**: Vercel (SPA) + Render (API) + Supabase (PostgreSQL) — see `DEPLOYMENT.md`
 
 ## Development Log
 > Updated every time changes are made. Newest entries first.
+
+### 2026-10-19 (CV builder Phase 6 — upload an existing CV)
+- **CV upload landed (Phase 6 of `CV_BUILDER_PLAN.md`)** — students can import an existing PDF/text CV and have it parsed into an editable draft instead of starting from scratch.
+  - **Backend migration** (`0007_cv_upload.sql`): five provenance columns on `student_cvs` (`original_filename`, `mime_type`, `upload_source`, `uploaded_at`, `raw_text`) via pg-mem-safe `ADD COLUMN IF NOT EXISTS`; fresh databases get them in one step because `0006_cv_builder.sql` and `sql/schema.sql` declare them too (three-place rule; `0001_init.sql` deliberately excludes CV tables). `raw_text` keeps the extracted text (capped at 200k chars) so the job analyzer can score against it.
+  - **Backend endpoint**: `POST /api/v1/students/cv/upload` (`uploadCv` in new `cvUploadController.js`) — multipart upload (multer memory storage, 5 MB cap via new `uploadMiddleware.js`), text extraction via new `utils/cvText.js` (pdf-parse for PDFs, direct read for text), heuristic section parsing via new `utils/cvParser.js`, then one `student_cvs` insert marked `upload_source='upload'`. Rejects unreadable/image-only files with 422; first upload becomes primary (mirrors `createCv`). Route is rate-limited (30 uploads / 15 min) because PDF parsing costs real CPU, and sits before the parameterized `/:id` routes so `upload` is never read as a CV id.
+  - **Error handling**: `errorMiddleware.js` now maps multer `LIMIT_FILE_SIZE` → 413 and file-count errors → 400 instead of leaking them as 500s.
+  - **Frontend**: `cvService.uploadCv()` posts FormData (60s timeout for large PDFs); `apiClient.js` stops forcing `application/json` on multipart bodies so the browser sets the boundary; `CvBuilderWizard.jsx` gained an "Import CV" control that uploads, then redirects to `/students/cv-builder/:id` carrying the source filename in router state so the "Imported from X — review the parsed details" notice survives navigation. Imported CVs surface their upload provenance in the wizard.
+  - **New tracked plan doc**: `CV_BUILDER_PLAN.md` (the plan this phase completes).
+  - Verified: `backend npm test` 55/55; `frontend npm run build` green (1860 modules).
 
 ### 2026-10-17 (CV builder Phase 5 — dashboard integration + tests)
 - **CV Builder card landed on StudentDashboard (Phase 5)** — the dashboard now surfaces CV creation, viewing, and analysis entry points.

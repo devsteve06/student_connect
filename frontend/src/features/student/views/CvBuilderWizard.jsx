@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  FileUp,
   Save,
   TriangleAlert
 } from 'lucide-react';
@@ -238,21 +239,29 @@ function buildReviewChecklist(values) {
 export default function CvBuilderWizard() {
   const [currentStepId, setCurrentStepId] = useState(STEP_CONFIGS[0].id);
   const { cvId: routeCvId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const cvId = routeCvId !== undefined ? routeCvId : null;
   const [exists, setExists] = useState(false);
   const [values, setValues] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState(null);
+  // Uploading redirects to /students/cv-builder/:id with the source filename in
+  // router state, so the confirmation survives that navigation.
+  const [notice, setNotice] = useState(
+    location.state?.importedFrom
+      ? { type: 'success', text: `Imported from ${location.state.importedFrom}. Review the parsed details, then save.` }
+      : null
+  );
   const [loadError, setLoadError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
-  // Load an existing CV when the route is /students/cv-builder/:cvId.
   useEffect(() => {
     let active = true;
     const loadExisting = async () => {
-      if (cvId === null) {
-        // A brand-new CV starts from the student's profile as defaults.
-        try {
+      try {
+        if (cvId === null) {
           const profile = await studentService.getProfile();
           if (!active) return;
           setValues({
@@ -265,40 +274,37 @@ export default function CvBuilderWizard() {
             projects: [],
             certifications: []
           });
-        } catch {
-          if (active) {
-            setLoadError('Could not load your profile. Refresh and try again.');
-            setLoading(false);
-          }
+        } else {
+          const cv = await cvService.getCv(cvId);
+          if (!active) return;
+          setValues({
+            isPrimary: Boolean(cv.isPrimary),
+            uploadSource: cv.uploadSource ?? null,
+            sourceFilename: cv.originalFilename ?? '',
+            title: cv.title ?? '',
+            personalInfo: {
+              name: cv.personalInfo?.name ?? '',
+              email: cv.personalInfo?.email ?? '',
+              phone: cv.personalInfo?.phone ?? '',
+              location: cv.personalInfo?.location ?? '',
+              links: cv.personalInfo?.links ?? ''
+            },
+            professionalSummary: cv.professionalSummary ?? '',
+            education: cv.education ?? [],
+            experience: cv.experience ?? [],
+            skills: cv.skills ?? [],
+            projects: cv.projects ?? [],
+            certifications: cv.certifications ?? []
+          });
+          setExists(true);
+          setCurrentStepId('review');
         }
-        return;
-      }
-
-      try {
-        const cv = await cvService.getCv(cvId);
-        if (!active) return;
-        setValues({
-          isPrimary: Boolean(cv.isPrimary),
-          title: cv.title ?? '',
-          personalInfo: {
-            name: cv.personalInfo?.name ?? '',
-            email: cv.personalInfo?.email ?? '',
-            phone: cv.personalInfo?.phone ?? '',
-            location: cv.personalInfo?.location ?? '',
-            links: cv.personalInfo?.links ?? ''
-          },
-          professionalSummary: cv.professionalSummary ?? '',
-          education: cv.education ?? [],
-          experience: cv.experience ?? [],
-          skills: cv.skills ?? [],
-          projects: cv.projects ?? [],
-          certifications: cv.certifications ?? []
-        });
-        setExists(true);
-        setCurrentStepId('review');
       } catch {
         if (active) {
-          setLoadError('Could not load that CV. Refresh and try again.');
+          setLoadError('Could not load your CV. Refresh and try again.');
+        }
+      } finally {
+        if (active) {
           setLoading(false);
         }
       }
@@ -363,6 +369,28 @@ export default function CvBuilderWizard() {
     }
   };
 
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setUploading(true);
+    setUploadError('');
+    try {
+      // The upload already creates the CV, so open it: the wizard loads the
+      // parsed draft, and Save then updates that same row instead of adding a
+      // second copy.
+      const imported = await cvService.uploadCv(file);
+      navigate(`/students/cv-builder/${imported.id}`, {
+        state: { importedFrom: imported.originalFilename || file.name }
+      });
+    } catch (err) {
+      setUploadError(err?.response?.data?.message || 'Could not upload or parse that CV.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="p-8">
@@ -389,6 +417,26 @@ export default function CvBuilderWizard() {
           A guided, ATS-friendly CV — answers save as you move between the
           steps, and only you can see this.
         </p>
+        {values.uploadSource === 'upload' && values.sourceFilename && (
+          <p className="flex items-center gap-1 text-sm text-brand-700">
+            <FileUp className="h-4 w-4" /> Imported from {values.sourceFilename}
+          </p>
+        )}
+        {cvId === null && (
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink-2 hover:bg-surface-2 cursor-pointer">
+              <input
+                type="file"
+                accept=".pdf,.txt,text/plain,application/pdf,application/x-pdf"
+                onChange={handleUpload}
+                disabled={uploading}
+                className="hidden"
+              />
+              {uploading ? 'Uploading…' : 'Upload an existing CV (PDF/Text)'}
+            </label>
+            {uploadError && <span className="text-sm text-rose-600">{uploadError}</span>}
+          </div>
+        )}
         {notice && (
           <p
             className={`mt-2 inline-block rounded-xl border px-4 py-2 text-sm ${
