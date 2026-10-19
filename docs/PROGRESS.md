@@ -9,6 +9,14 @@
 ## Development Log
 > Updated every time changes are made. Newest entries first.
 
+### 2026-10-20 (feat: Approve / Deny buttons on the firm Applicants page)
+- The firm **Applicants** page (`features/firm/views/FirmApplicants.jsx`) was read-only — students could only be judged from the dashboard's pipeline cards. Every actionable row now has an **Approve** and a **Deny** button.
+  - **Approve** → `PATCH /firms/applicants/:id { status: 'Approved' }`, **Deny** → `{ status: 'Rejected' }` (both already existed in `firmController.updateApplicantStatus`; no backend change).
+  - Rows flip optimistically, revert on failure, and show the server's message in a dismissible red banner. `Approved` / `Hired` / `Rejected` are settled, so they keep the status pill plus a muted "No action needed" instead of the buttons.
+  - A green banner reports the outcome: a rejection/approval ("… has been notified." — the controller already notifies the applicant) or, when approval auto-closed the posting, `"<role>" posting is now closed.` A per-row busy flag disables the buttons mid-flight so a double-click can't fire twice.
+  - The row layout was reflowed — university · role on one line, applied date beneath — to leave room for the pill and both buttons on narrow screens.
+- `npx eslint src` clean; `vite build` green. The firm dashboard's pipeline cards still use their Pass / Shortlist / Place wording (approval there also closes the posting).
+
 ### 2026-10-20 (feat: admins preview any portal read-only while staying signed in)
 - Replaced the sign-out hand-off (previous entry) with a real cross-portal **preview**: the admin keeps the admin session and looks at another portal "as" one of its accounts. Every write is refused in preview, so nothing is ever written as the account being viewed.
 - **Backend** — `previewAs(expectedRole)` in `middleware/authMiddleware.js`. The portal routers are now mounted `authorizeRoles(<role>, 'admin'), previewAs(<role>)`. The SPA names the target with `X-View-As-Role` / `X-View-As-Id`; the middleware validates (header role must equal the portal's role, GET only, the account must still exist) and then swaps `req.user` for that account — every controller already resolves the acting account from `req.user.id`, so nothing downstream needed to change. It also records `req.previewAdminId` for the admin's identity.

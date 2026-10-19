@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Users, RefreshCw, Search, ShieldAlert } from 'lucide-react';
+import { Check, Users, RefreshCw, Search, ShieldAlert, X } from 'lucide-react';
 import Button from '../../../components/common/Button';
 import Card from '../../../components/common/Card';
 import StatusPill from '../../../components/common/StatusPill';
@@ -10,12 +10,19 @@ import Skeleton from '../../../components/common/Skeleton';
 import { roleChip } from '../../../config/roleTheme';
 import { firmService } from '../../../service/firmService';
 
+// Approved / Hired / Rejected are settled: they need no further decision, and
+// approving or placing already closes the posting (firmController Phase 5).
+const SETTLED_STATUSES = ['Approved', 'Hired', 'Rejected'];
+
 export default function FirmApplicants() {
   const [searchQuery, setSearchQuery] = useState('');
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
+  const [saveError, setSaveError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
     const fetchApplicants = async () => {
@@ -37,6 +44,32 @@ export default function FirmApplicants() {
     setReloadKey((key) => key + 1);
   };
 
+  // Approve / Deny. The row flips immediately, then the server's answer wins —
+  // and an approval that auto-closed the posting says so.
+  const decide = async (candidate, status) => {
+    const previous = candidates;
+    setBusyId(candidate.id);
+    setSaveError('');
+    setNotice('');
+    setCandidates((cur) => cur.map((c) => (c.id === candidate.id ? { ...c, status } : c)));
+    try {
+      const updated = await firmService.updateApplicantStatus(candidate.id, status);
+      setCandidates((cur) => cur.map((c) => (c.id === updated.id ? { ...c, status: updated.status } : c)));
+      if (updated.postingClosed) {
+        setNotice(`${candidate.studentName} approved — the "${updated.role}" posting is now closed.`);
+      } else if (status === 'Rejected') {
+        setNotice(`${candidate.studentName} was declined. They have been notified.`);
+      } else {
+        setNotice(`${candidate.studentName} approved. They have been notified.`);
+      }
+    } catch (err) {
+      setCandidates(previous);
+      setSaveError(err?.response?.data?.message || 'The application could not be updated.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return candidates;
@@ -52,6 +85,24 @@ export default function FirmApplicants() {
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">Applicants</h1>
         <p className="mt-1 text-sm text-ink-4">Review the students who've applied to your openings.</p>
       </PageBanner>
+
+      {/* Outcome of the last approval / rejection */}
+      {saveError && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+          <span>{saveError}</span>
+          <button type="button" onClick={() => setSaveError('')} className="font-bold hover:text-rose-900">
+            Dismiss
+          </button>
+        </div>
+      )}
+      {notice && (
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">
+          <span>{notice}</span>
+          <button type="button" onClick={() => setNotice('')} className="font-bold hover:text-emerald-900">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <Input
         icon={Search}
@@ -87,23 +138,51 @@ export default function FirmApplicants() {
             />
           ) : (
             <ul className="divide-y divide-line-2">
-              {filtered.map((cand) => (
-                <li
-                  key={cand.id}
-                  className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-surface-2/70 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-ink">{cand.studentName}</h3>
-                    <p className="truncate text-sm text-ink-4">
-                      {cand.university} · <span className="font-semibold text-ink-2">Applied {cand.appliedDate}</span>
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-between gap-6 sm:justify-end">
-                    <p className="text-sm font-semibold text-ink-2">{cand.role}</p>
-                    <StatusPill status={cand.status} className="shrink-0" />
-                  </div>
-                </li>
-              ))}
+              {filtered.map((cand) => {
+                const settled = SETTLED_STATUSES.includes(cand.status);
+                const busy = busyId === cand.id;
+                return (
+                  <li
+                    key={cand.id}
+                    className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-surface-2/70 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-ink">{cand.studentName}</h3>
+                      <p className="truncate text-sm text-ink-4">
+                        {cand.university} · <span className="font-semibold text-ink-2">{cand.role}</span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-ink-5">Applied {cand.appliedDate}</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                      <StatusPill status={cand.status} className="shrink-0" />
+                      {settled ? (
+                        <span className="text-xs text-ink-5">No action needed</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            icon={Check}
+                            disabled={busy}
+                            onClick={() => decide(cand, 'Approved')}
+                          >
+                            {busy ? 'Saving…' : 'Approve'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            icon={X}
+                            disabled={busy}
+                            onClick={() => decide(cand, 'Rejected')}
+                          >
+                            Deny
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Card>
